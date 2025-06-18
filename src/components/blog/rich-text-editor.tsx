@@ -9,26 +9,26 @@ import { Skeleton } from '@/components/ui/skeleton';
 // Dynamically import ReactQuill to avoid SSR issues
 const ReactQuill = dynamic(
   async () => {
-    const { default: RQComponent, Quill } = await import('react-quill');
+    const quillModule = await import('react-quill');
+    const RQComponent = quillModule.default;
+    // const Quill = quillModule.Quill; // Access Quill as a named export
 
-    if (Quill) {
-      // Ensure custom fonts are registered
-      const Font = Quill.import('formats/font');
-      Font.whitelist = ['arial', 'times-new-roman', 'roboto', 'belleza', 'alegreya', 'sans-serif', 'serif', 'monospace'];
-      Quill.register(Font, true);
+    // Aggressively removing custom format registrations to avoid findDOMNode issues
+    // if (Quill) {
+    //   const Font = Quill.import('formats/font');
+    //   Font.whitelist = ['arial', 'times-new-roman', 'roboto', 'belleza', 'alegreya', 'sans-serif', 'serif', 'monospace'];
+    //   Quill.register(Font, true);
 
-      const Size = Quill.import('formats/size');
-      Size.whitelist = ['small', 'large', 'huge']; // default is ['small', false, 'large', 'huge'] where false is normal
-      Quill.register(Size, true);
+    //   const Size = Quill.import('formats/size');
+    //   Size.whitelist = ['small', 'large', 'huge']; 
+    //   Quill.register(Size, true);
       
-      const AlignStyle = Quill.import('attributors/style/align');
-      Quill.register(AlignStyle, true);
+    //   const AlignStyle = Quill.import('attributors/style/align');
+    //   Quill.register(AlignStyle, true);
       
-      // Allow classes for alignment if not using inline styles
-      const AlignClass = Quill.import('attributors/class/align');
-      Quill.register(AlignClass, true);
-    }
-
+    //   const AlignClass = Quill.import('attributors/class/align');
+    //   Quill.register(AlignClass, true);
+    // }
     return RQComponent;
   },
   { 
@@ -59,29 +59,34 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
   const modules = useMemo(() => ({
     toolbar: {
       container: [
-        [{ 'header': [1, 2, 3, false] }, { 'font': ['arial', 'times-new-roman', 'roboto', 'belleza', 'alegreya', 'sans-serif', 'serif', 'monospace'] }],
-        [{ 'size': ['small', false, 'large', 'huge'] }], // 'false' represents normal size
+        [{ 'header': [1, 2, 3, false] }],
+        // Removed font and size dropdowns as custom formats are not registered
+        // [{ 'font': ['arial', 'times-new-roman', 'roboto', 'belleza', 'alegreya', 'sans-serif', 'serif', 'monospace'] }],
+        // [{ 'size': ['small', false, 'large', 'huge'] }],
         ['bold', 'italic', 'underline', 'strike'],
         [{ 'color': [] }, { 'background': [] }],
         [{ 'list': 'ordered'}, { 'list': 'bullet' }],
         [{ 'script': 'sub'}, { 'script': 'super' }],
         [{ 'indent': '-1'}, { 'indent': '+1' }],
-        [{ 'align': [] }], // For inline style alignment
+        // Removed align dropdown as custom align formats are not registered
+        // [{ 'align': [] }], 
         ['blockquote', 'code-block'],
         ['link', 'image'], 
         ['clean']
       ],
     },
     clipboard: {
-       matchVisual: false, // Recommended to be false to rely on sanitize-html and Quill's own processing
+       matchVisual: false, 
     },
   }), []);
 
   const formats = [
-    'header', 'font', 'size',
+    'header', 
+    // 'font', 'size', // Removed
     'bold', 'italic', 'underline', 'strike',
     'color', 'background',
-    'list', 'bullet', 'script', 'indent', 'align',
+    'list', 'bullet', 'script', 'indent', 
+    // 'align', // Removed
     'blockquote', 'code-block',
     'link', 'image'
   ];
@@ -89,18 +94,17 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
   const sanitizeConfig: sanitizeHtml.IOptions = {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat([
       'h1', 'h2', 'h3', 'u', 's', 'sup', 'sub', 'img', 'span', 'div', 'br',
-      // Quill specific classes might be on these tags
       'article', 'section', 'figure', 'figcaption' 
     ]),
     allowedAttributes: {
       ...sanitizeHtml.defaults.allowedAttributes,
-      '*': ['class', 'style', 'id', 'dir'], // Allow class, style, id, dir for all elements
+      '*': ['class', 'style', 'id', 'dir'], 
       'a': ['href', 'name', 'target', 'rel', 'title'],
-      'img': ['src', 'alt', 'width', 'height', 'style', 'title', 'data-mce-src'], // data-mce-src for some editors
+      'img': ['src', 'alt', 'width', 'height', 'style', 'title', 'data-mce-src'], 
       'span': ['style', 'class'], 
       'p': ['style', 'class'], 
       'div': ['style', 'class'],
-      'li': ['class'], // For ql-indent classes
+      'li': ['class'], 
       'ol': ['class'],
       'ul': ['class'],
     },
@@ -131,13 +135,14 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
         'height': [/^\d+(?:px|em|%|pt)?$/, 'auto'],
       },
     },
-    allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat(['data']), // Allow data URIs for images
+    allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat(['data']), 
     exclusiveFilter: function(frame) { 
         return frame.tag === 'script' || frame.tag === 'style' || frame.tag === 'link' && frame.attribs.rel === 'stylesheet';
     },
     nonTextTags: [ 'style', 'script', 'textarea', 'noscript', 'button', 'iframe', 'embed', 'object', 'select', 'option' ],
     allowedClasses: {
-        '*': [ 'ql-*', 'ql-indent-*', 'ql-align-*', 'ql-font-*', 'ql-size-*' ] 
+        // Allow very basic Quill classes if any are still used by default formats
+        '*': [ 'ql-*' ] 
     },
   };
 
@@ -152,12 +157,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
   };
 
   if (!isClient) {
-    // Render a skeleton or null while waiting for the client to mount.
-    // This matches the loading prop of the dynamic import for consistency.
     return (
       <div className="space-y-2">
-          <Skeleton className="h-10 w-full" /> {/* Mock Toolbar */}
-          <Skeleton className="h-48 w-full" /> {/* Mock Editor Area */}
+          <Skeleton className="h-10 w-full" /> 
+          <Skeleton className="h-48 w-full" /> 
       </div>
     );
   }
