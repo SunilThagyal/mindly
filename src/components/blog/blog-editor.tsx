@@ -13,12 +13,14 @@ import { db, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { suggestTags as suggestTagsAI } from '@/ai/flows/suggest-tags';
+import { generateBlogPost as generateBlogPostAI } from '@/ai/flows/generate-blog-post';
 import type { Blog } from '@/lib/types';
 import { slugify, estimateReadingTime } from '@/lib/helpers';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Lightbulb, X } from 'lucide-react';
+import { Loader2, Lightbulb, X, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 
 interface BlogEditorProps {
   blogId?: string;
@@ -36,6 +38,10 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
   const [currentStatus, setCurrentStatus] = useState<'draft' | 'published'>('draft');
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+  
+  const [aiBlogTopic, setAiBlogTopic] = useState('');
+  const [isGeneratingBlog, setIsGeneratingBlog] = useState(false);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAISuggesting, setIsAISuggesting] = useState(false);
   const [isLoadingBlog, setIsLoadingBlog] = useState(!!blogId);
@@ -133,10 +139,32 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
       } else {
         toast({ title: 'No new tags', description: 'AI could not suggest new tags based on the content.' });
       }
-    } catch (error) {
-      toast({ title: 'AI Error', description: 'Failed to suggest tags.', variant: 'destructive' });
+    } catch (error: any) {
+      toast({ title: 'AI Error', description: error.message || 'Failed to suggest tags.', variant: 'destructive' });
     } finally {
       setIsAISuggesting(false);
+    }
+  };
+
+  const handleGenerateBlogWithAI = async () => {
+    if (!aiBlogTopic.trim()) {
+      toast({ title: 'Topic Needed', description: 'Please provide a topic or prompt for the AI.', variant: 'destructive' });
+      return;
+    }
+    setIsGeneratingBlog(true);
+    try {
+      const result = await generateBlogPostAI({ topic: aiBlogTopic });
+      if (result && result.title && result.htmlContent) {
+        setTitle(result.title);
+        setContent(result.htmlContent);
+        toast({ title: 'Blog Generated!', description: 'AI has generated a draft. Review and edit as needed.' });
+      } else {
+        throw new Error('AI returned incomplete data.');
+      }
+    } catch (error: any) {
+      toast({ title: 'AI Generation Error', description: error.message || 'Failed to generate blog post.', variant: 'destructive' });
+    } finally {
+      setIsGeneratingBlog(false);
     }
   };
 
@@ -153,7 +181,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
 
     setIsSubmitting(true);
     const newSaveStatus = attemptPublish ? 'published' : 'draft';
-    setCurrentStatus(newSaveStatus); // Update currentStatus immediately for button label
+    setCurrentStatus(newSaveStatus); 
 
     let uploadedImageUrlPath: string | null = coverImageUrl; 
     if (coverImageFile) {
@@ -194,10 +222,17 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
           newPublishedAt = null; 
         }
         
-        const updatePayload = {
+        const updatePayload: Partial<Blog> = {
           ...blogDataPayload,
           publishedAt: newPublishedAt,
+          // Ensure authorId, createdAt, etc. are not overwritten during update
+          authorId: existingBlogData?.authorId, 
+          authorDisplayName: existingBlogData?.authorDisplayName,
+          authorPhotoURL: existingBlogData?.authorPhotoURL,
+          createdAt: existingBlogData?.createdAt,
+          views: existingBlogData?.views
         };
+
 
         await updateDoc(blogDocRef, updatePayload);
         toast({ title: 'Blog Updated!', description: `Your blog post has been ${newSaveStatus === 'published' ? 'published' : 'saved as draft'}.` });
@@ -211,7 +246,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
           createdAt: serverTimestamp() as Timestamp, 
           publishedAt: newSaveStatus === 'published' ? serverTimestamp() as Timestamp : null,
         };
-        await addDoc(collection(db, 'blogs'), newBlogData);
+        const newDocRef = await addDoc(collection(db, 'blogs'), newBlogData);
         toast({ title: 'Blog Created!', description: `Your blog post has been ${newSaveStatus === 'published' ? 'published' : 'saved as draft'}.` });
          if (newSaveStatus === 'published') router.push(`/blog/${blogDataPayload.slug}`); else router.push('/my-blogs');
          return; 
@@ -241,6 +276,44 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         <CardDescription>Share your thoughts with the world. {blogId ? "Update your existing post." : "Craft a new masterpiece."}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+
+        <Card className="bg-background/50 border-primary/30">
+          <CardHeader>
+            <CardTitle className="text-xl font-headline flex items-center">
+              <Sparkles className="mr-2 h-5 w-5 text-primary" />
+              AI Blog Generation
+            </CardTitle>
+            <CardDescription>
+              Provide a topic or a detailed prompt, and let AI draft your blog post.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="aiBlogTopic">Topic / Prompt for AI</Label>
+              <Textarea
+                id="aiBlogTopic"
+                placeholder="e.g., The future of renewable energy, or a detailed outline..."
+                value={aiBlogTopic}
+                onChange={(e) => setAiBlogTopic(e.target.value)}
+                rows={3}
+                disabled={isGeneratingBlog || isSubmitting}
+                className="text-sm"
+              />
+            </div>
+            <Button 
+              type="button" 
+              onClick={handleGenerateBlogWithAI} 
+              variant="outline" 
+              className="border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
+              disabled={isGeneratingBlog || isSubmitting || !aiBlogTopic.trim()}
+            >
+              {isGeneratingBlog ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lightbulb className="mr-2 h-4 w-4" />}
+              Generate with AI
+            </Button>
+          </CardContent>
+        </Card>
+
+
         <div className="space-y-2">
           <Label htmlFor="title" className="text-lg">Title</Label>
           <Input
@@ -259,7 +332,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
            <RichTextEditor
             value={content}
             onChange={setContent}
-            placeholder="Start writing your amazing blog post here..."
+            placeholder="Start writing your amazing blog post here, or let AI generate it for you..."
           />
         </div>
 
@@ -324,11 +397,11 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         </div>
       </CardContent>
       <CardFooter className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t">
-        <Button onClick={() => handleSubmit(false)} variant="outline" disabled={isSubmitting}>
+        <Button onClick={() => handleSubmit(false)} variant="outline" disabled={isSubmitting || isGeneratingBlog}>
           {isSubmitting && currentStatus === 'draft' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Save as Draft
         </Button>
-        <Button onClick={() => handleSubmit(true)} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isSubmitting}>
+        <Button onClick={() => handleSubmit(true)} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isSubmitting || isGeneratingBlog}>
           {isSubmitting && currentStatus === 'published' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           {blogId ? (currentStatus === 'published' ? 'Update Published Post' : 'Publish Now') : 'Publish Now'}
         </Button>
@@ -336,3 +409,4 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     </Card>
   );
 }
+
