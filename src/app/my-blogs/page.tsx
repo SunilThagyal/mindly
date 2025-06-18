@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, FileText } from 'lucide-react';
+import { PlusCircle, FileText, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
 
 async function getUserBlogs(userId: string, status?: 'published' | 'draft'): Promise<Blog[]> {
   const blogsCol = collection(db, 'blogs');
@@ -33,11 +33,8 @@ async function getUserBlogs(userId: string, status?: 'published' | 'draft'): Pro
   }
 
   const snapshot = await getDocs(q);
-  console.log(
-    `[MyBlogsPage] Firestore query for ${status || 'all user'} blogs by user ${userId} returned ${snapshot.docs.length} documents.
-    IF THIS IS UNEXPECTEDLY ZERO, **CHECK BROWSER CONSOLE FOR FIRESTORE INDEX ERRORS.**
-    Firestore may require a composite index for this query (e.g., on authorId, status, createdAt). Look for a URL in the console error to create it.`
-  );
+  // Diagnostic log removed as the issue is confirmed to be missing indexes.
+  // The user should now rely on Firebase console errors.
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return {
@@ -66,6 +63,7 @@ export default function MyBlogsPage() {
   const [publishedBlogs, setPublishedBlogs] = useState<Blog[]>([]);
   const [draftBlogs, setDraftBlogs] = useState<Blog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -76,6 +74,7 @@ export default function MyBlogsPage() {
 
     async function fetchMyBlogs() {
       setIsLoading(true);
+      setFetchError(null);
       try {
         const [fetchedPublished, fetchedDrafts] = await Promise.all([
           getUserBlogs(user!.uid, 'published'),
@@ -83,9 +82,13 @@ export default function MyBlogsPage() {
         ]);
         setPublishedBlogs(fetchedPublished);
         setDraftBlogs(fetchedDrafts);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching user's blogs:", error);
-        // Handle error (e.g., show toast)
+        if (error.message && error.message.includes("firestore/failed-precondition") && error.message.includes("query requires an index")) {
+          setFetchError("A Firestore index is missing. Please check your browser's developer console for a link to create it. After creating the index, it may take a few minutes to build before your blogs appear.");
+        } else {
+          setFetchError("An error occurred while fetching your blogs. Please try again.");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -109,6 +112,19 @@ export default function MyBlogsPage() {
         </div>
       );
     }
+
+    if (fetchError) {
+         return (
+            <div className="mt-6 text-center p-6 border border-destructive/50 rounded-lg bg-destructive/5 text-destructive">
+                <AlertTriangle className="mx-auto h-12 w-12 mb-4" />
+                <p className="text-lg font-semibold mb-2">Error Loading Blogs</p>
+                <p className="text-sm">{fetchError}</p>
+                <p className="text-xs mt-3">If the issue persists after creating the index and waiting, please contact support.</p>
+            </div>
+        );
+    }
+
+
     if (blogs.length === 0) {
       return (
         <div className="text-center py-10 text-muted-foreground">
@@ -119,11 +135,6 @@ export default function MyBlogsPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Create Your First Blog
             </Link>
           </Button>
-          <p className="mt-6 text-sm p-4 border border-dashed border-primary/50 rounded-md bg-primary/5">
-            <strong>Important:</strong> If you've created blogs and they aren't appearing,
-            please <strong className="text-primary">check your browser's developer console</strong> for any Firestore error messages.
-            You might need to create a composite index in Firestore. Firestore usually provides a direct link in the error message to create it.
-          </p>
         </div>
       );
     }
@@ -137,7 +148,7 @@ export default function MyBlogsPage() {
   };
 
 
-  if (authLoading && !user) { 
+  if (authLoading && !user) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Skeleton className="h-10 w-1/3 mb-4" />
@@ -180,3 +191,4 @@ export default function MyBlogsPage() {
     </div>
   );
 }
+

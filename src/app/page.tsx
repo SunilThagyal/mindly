@@ -17,11 +17,8 @@ async function getTrendingBlogs(): Promise<Blog[]> {
     limit(6)
   );
   const snapshot = await getDocs(q);
-   console.log(
-    `[HomePage] Firestore query for trending blogs (status == 'published', orderBy views DESC) returned ${snapshot.docs.length} documents.
-    IF THIS IS UNEXPECTEDLY ZERO, **CHECK BROWSER CONSOLE FOR FIRESTORE INDEX ERRORS.**
-    Firestore may require a composite index for this query (e.g., on status, views). Look for a URL in the console error to create it.`
-  );
+  // Diagnostic log removed as the issue is confirmed to be missing indexes.
+  // The user should now rely on Firebase console errors for missing indexes on this page too.
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return {
@@ -47,15 +44,23 @@ async function getTrendingBlogs(): Promise<Blog[]> {
 export default function HomePage() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError]  = useState<string | null>(null);
+
 
   useEffect(() => {
     async function fetchBlogs() {
+      setLoading(true);
+      setFetchError(null);
       try {
         const trendingBlogs = await getTrendingBlogs();
         setBlogs(trendingBlogs);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching trending blogs:", error);
-        // Handle error (e.g., show toast)
+         if (error.message && error.message.includes("firestore/failed-precondition") && error.message.includes("query requires an index")) {
+          setFetchError("A Firestore index is missing for trending blogs. Please check your browser's developer console for a link to create it. After creating the index, it may take a few minutes to build before blogs appear here.");
+        } else {
+          setFetchError("An error occurred while fetching trending blogs. Please try again.");
+        }
       } finally {
         setLoading(false);
       }
@@ -94,6 +99,12 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+        ) : fetchError ? (
+             <div className="mt-6 text-center p-6 border border-destructive/50 rounded-lg bg-destructive/5 text-destructive">
+                <AlertTriangle className="mx-auto h-12 w-12 mb-4" />
+                <p className="text-lg font-semibold mb-2">Error Loading Trending Blogs</p>
+                <p className="text-sm">{fetchError}</p>
+             </div>
         ) : blogs.length === 0 ? (
           <p className="text-center text-muted-foreground py-10 text-lg">No blogs available yet. Be the first to create one!</p>
         ) : (
@@ -107,3 +118,4 @@ export default function HomePage() {
     </div>
   );
 }
+
