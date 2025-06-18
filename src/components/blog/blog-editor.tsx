@@ -33,7 +33,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState('');
-  const [currentStatus, setCurrentStatus] = useState<'draft' | 'published'>('draft'); // Renamed from 'status' to avoid conflict
+  const [currentStatus, setCurrentStatus] = useState<'draft' | 'published'>('draft');
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,7 +72,6 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             router.push('/');
           }
         } catch (error) {
-          console.error("Error fetching blog:", error);
           toast({ title: 'Error', description: 'Failed to load blog data.', variant: 'destructive' });
         } finally {
           setIsLoadingBlog(false);
@@ -118,10 +117,10 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     }
     setIsAISuggesting(true);
     try {
-      const result = await suggestTagsAI({ blogContent: content }); // Assuming content is plain text or AI can handle HTML
+      const result = await suggestTagsAI({ blogContent: content }); 
       if (result.tags && result.tags.length > 0) {
         const newTags = result.tags.filter(tag => !tags.includes(tag));
-        const combinedTags = [...tags, ...newTags].slice(0,10); // Limit total tags
+        const combinedTags = [...tags, ...newTags].slice(0,10); 
         setTags(combinedTags);
         if (newTags.length > 0) {
           toast({ title: 'Tags Suggested!', description: `${newTags.length} new tags suggested. Total tags: ${combinedTags.length}.` });
@@ -135,7 +134,6 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         toast({ title: 'No new tags', description: 'AI could not suggest new tags based on the content.' });
       }
     } catch (error) {
-      console.error("Error suggesting tags:", error);
       toast({ title: 'AI Error', description: 'Failed to suggest tags.', variant: 'destructive' });
     } finally {
       setIsAISuggesting(false);
@@ -155,24 +153,24 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
 
     setIsSubmitting(true);
     const newSaveStatus = attemptPublish ? 'published' : 'draft';
+    setCurrentStatus(newSaveStatus); // Update currentStatus immediately for button label
 
-    let uploadedImageUrlPath: string | null = coverImageUrl; // Keep existing if no new file
+    let uploadedImageUrlPath: string | null = coverImageUrl; 
     if (coverImageFile) {
       const imageRef = ref(storage, `blog-covers/${user.uid}/${Date.now()}_${coverImageFile.name}`);
       try {
         const snapshot = await uploadBytes(imageRef, coverImageFile);
         uploadedImageUrlPath = await getDownloadURL(snapshot.ref);
       } catch (error) {
-        console.error("Error uploading image:", error);
         toast({ title: 'Image Upload Error', description: 'Failed to upload cover image.', variant: 'destructive' });
         setIsSubmitting(false);
         return;
       }
     }
     
-    const userEditableData = {
+    const blogDataPayload = {
       title: title.trim(),
-      content: content, // Storing HTML content
+      content: content, 
       slug: slugify(title.trim()),
       tags: tags,
       status: newSaveStatus,
@@ -186,20 +184,18 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         const existingBlogSnap = await getDoc(blogDocRef);
         const existingBlogData = existingBlogSnap.data() as Blog | undefined;
 
-        let newPublishedAt: any = existingBlogData?.publishedAt instanceof Timestamp ? existingBlogData.publishedAt : null;
+        let newPublishedAt: Timestamp | null = existingBlogData?.publishedAt instanceof Timestamp ? existingBlogData.publishedAt : null;
 
         if (newSaveStatus === 'published') {
-          // If publishing now, and it wasn't already published with a valid timestamp
-          if (existingBlogData?.status !== 'published' || !existingBlogData?.publishedAt || !(existingBlogData.publishedAt instanceof Timestamp)) {
-            newPublishedAt = serverTimestamp();
+          if (!existingBlogData || existingBlogData.status !== 'published' || !(existingBlogData.publishedAt instanceof Timestamp)) {
+            newPublishedAt = serverTimestamp() as Timestamp;
           }
-          // else, it's already published with a valid timestamp, so newPublishedAt (which is existingBlogData.publishedAt) is preserved.
-        } else { // newSaveStatus is 'draft'
-          newPublishedAt = null; // Explicitly set to null if saving as draft
+        } else { 
+          newPublishedAt = null; 
         }
         
         const updatePayload = {
-          ...userEditableData,
+          ...blogDataPayload,
           publishedAt: newPublishedAt,
         };
 
@@ -207,26 +203,23 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         toast({ title: 'Blog Updated!', description: `Your blog post has been ${newSaveStatus === 'published' ? 'published' : 'saved as draft'}.` });
       } else {
         const newBlogData: Omit<Blog, 'id'> = {
-          ...userEditableData,
+          ...blogDataPayload,
           authorId: user.uid,
           authorDisplayName: userProfile.displayName || 'Anonymous',
           authorPhotoURL: userProfile.photoURL || null,
           views: 0,
-          createdAt: serverTimestamp() as Timestamp, // Firestore will convert this
+          createdAt: serverTimestamp() as Timestamp, 
           publishedAt: newSaveStatus === 'published' ? serverTimestamp() as Timestamp : null,
         };
-        const docRef = await addDoc(collection(db, 'blogs'), newBlogData);
+        await addDoc(collection(db, 'blogs'), newBlogData);
         toast({ title: 'Blog Created!', description: `Your blog post has been ${newSaveStatus === 'published' ? 'published' : 'saved as draft'}.` });
-        // If creating, slug is fresh from userEditableData.slug
-         if (newSaveStatus === 'published') router.push(`/blog/${userEditableData.slug}`); else router.push('/my-blogs');
-         return; // Exit early for new blog creation
+         if (newSaveStatus === 'published') router.push(`/blog/${blogDataPayload.slug}`); else router.push('/my-blogs');
+         return; 
       }
       
-      // For updates, redirect based on the new status and potentially updated slug
-      if (newSaveStatus === 'published') router.push(`/blog/${userEditableData.slug}`); else router.push('/my-blogs');
+      if (newSaveStatus === 'published') router.push(`/blog/${blogDataPayload.slug}`); else router.push('/my-blogs');
 
     } catch (error) {
-      console.error("Error saving blog:", error);
       toast({ title: 'Save Error', description: 'Failed to save blog post.', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
@@ -343,4 +336,3 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     </Card>
   );
 }
-

@@ -1,10 +1,11 @@
+
 "use client";
 
 import type { Blog, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Eye, Clock, UserCircle, Edit, Trash2, Coins } from 'lucide-react';
+import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Loader2 } from 'lucide-react';
 import { VIRTUAL_CURRENCY_RATE_PER_VIEW } from '@/lib/types';
 import { useAuth } from '@/context/auth-context';
 import Link from 'next/link';
@@ -71,7 +72,7 @@ export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps)
             alt={blog.title}
             layout="fill"
             objectFit="cover"
-            priority
+            priority // Added priority for LCP
             data-ai-hint="blog hero"
           />
         </div>
@@ -94,7 +95,7 @@ export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps)
           <span>{formattedDate}</span>
           <span className="flex items-center"><Clock className="h-4 w-4 mr-1 text-primary" /> {blog.readingTime} min read</span>
           <span className="flex items-center"><Eye className="h-4 w-4 mr-1 text-primary" /> {blog.views} views</span>
-          <span className="flex items-center font-semibold"><Coins className="h-4 w-4 mr-1 text-yellow-500" /> ${earnings}</span>
+          <span className="flex items-semibold"><Coins className="h-4 w-4 mr-1 text-yellow-500" /> ${earnings}</span>
         </div>
       </header>
 

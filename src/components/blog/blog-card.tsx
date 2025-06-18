@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -7,12 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import type { Blog } from '@/lib/types';
 import { Eye, Clock, UserCircle, Coins } from 'lucide-react';
 import { VIRTUAL_CURRENCY_RATE_PER_VIEW } from '@/lib/types';
+import React from 'react';
 
 interface BlogCardProps {
   blog: Blog;
 }
 
-export default function BlogCard({ blog }: BlogCardProps) {
+const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString()
     : 'Not published';
@@ -28,7 +30,7 @@ export default function BlogCard({ blog }: BlogCardProps) {
             alt={blog.title}
             layout="fill"
             objectFit="cover"
-            data-ai-hint="article cover"
+            data-ai-hint={blog.coverImageUrl ? "article cover" : "placeholder"}
           />
         </div>
       </Link>
@@ -73,4 +75,6 @@ export default function BlogCard({ blog }: BlogCardProps) {
       </CardFooter>
     </Card>
   );
-}
+});
+
+export default BlogCard;
