@@ -33,8 +33,6 @@ async function getUserBlogs(userId: string, status?: 'published' | 'draft'): Pro
   }
 
   const snapshot = await getDocs(q);
-  // Diagnostic log removed as the issue is confirmed to be missing indexes.
-  // The user should now rely on Firebase console errors.
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return {

@@ -7,6 +7,7 @@ import type { Blog } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AlertTriangle } from 'lucide-react'; // Added AlertTriangle
 
 async function getTrendingBlogs(): Promise<Blog[]> {
   const blogsCol = collection(db, 'blogs');
@@ -17,8 +18,6 @@ async function getTrendingBlogs(): Promise<Blog[]> {
     limit(6)
   );
   const snapshot = await getDocs(q);
-  // Diagnostic log removed as the issue is confirmed to be missing indexes.
-  // The user should now rely on Firebase console errors for missing indexes on this page too.
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return {
