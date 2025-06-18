@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
@@ -22,7 +23,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false); // Placeholder for admin logic
+  const [isAdmin, setIsAdmin] = useState(false); 
   const router = useRouter();
 
   useEffect(() => {
@@ -46,7 +47,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await setDoc(userDocRef, newProfile);
           setUserProfile(newProfile);
         }
-        // Simplified admin check (e.g., specific UID or a field in userProfile)
         // setIsAdmin(firebaseUser.uid === 'ADMIN_UID_HERE'); 
       } else {
         setUser(null);
@@ -75,9 +75,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   
-  if (loading && typeof window !== 'undefined' && (window.location.pathname.startsWith('/auth') || window.location.pathname === '/')) {
-     // Don't show global loader for auth pages or home page during initial auth check to avoid flicker
-  } else if (loading) {
+  // If auth state is still loading, display a global loader.
+  // This ensures server-rendered HTML and initial client-rendered HTML match.
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -85,7 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
   }
 
-
+  // Once loading is complete, render the provider and children.
   return (
     <AuthContext.Provider value={{ user, userProfile, loading, isAdmin, signOut }}>
       {children}
