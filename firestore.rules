@@ -1,0 +1,36 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection
+    // Allow anyone to read user profiles (e.g., displayName, photoURL, bio).
+    // Allow authenticated users to create and update their own profile.
+    match /users/{userId} {
+      allow read: if true; 
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      // Deleting user profiles is typically handled by backend functions or admin processes.
+      // allow delete: if request.auth != null && request.auth.uid == userId; 
+    }
+
+    // Blogs collection
+    match /blogs/{blogId} {
+      // Allow anyone to read a blog if it is published.
+      allow read: if resource.data.status == 'published';
+      
+      // Allow authenticated authors to read their own draft blogs.
+      allow read: if request.auth != null && request.auth.uid == resource.data.authorId && resource.data.status == 'draft';
+
+      // Allow create if user is authenticated and the authorId in the new document matches their UID.
+      allow create: if request.auth != null && request.resource.data.authorId == request.auth.uid;
+      
+      // Allow update if user is authenticated and is the author of the existing document.
+      allow update: if request.auth != null && request.auth.uid == resource.data.authorId;
+      
+      // Allow delete if user is authenticated and is the author of the existing document.
+      allow delete: if request.auth != null && request.auth.uid == resource.data.authorId;
+    }
+  }
+}

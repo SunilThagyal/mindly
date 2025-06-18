@@ -7,7 +7,8 @@ import type { Blog } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle } from 'lucide-react'; 
+import { AlertTriangle, ExternalLink } from 'lucide-react'; 
+import { Button } from '@/components/ui/button';
 
 async function getTrendingBlogs(): Promise<Blog[]> {
   const blogsCol = collection(db, 'blogs');
@@ -44,24 +45,30 @@ export default function HomePage() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError]  = useState<string | null>(null);
+  const [firestoreIndexErrorLink, setFirestoreIndexErrorLink] = useState<string | null>(null);
 
 
   useEffect(() => {
     async function fetchBlogs() {
       setLoading(true);
       setFetchError(null);
+      setFirestoreIndexErrorLink(null);
       try {
         const trendingBlogs = await getTrendingBlogs();
         setBlogs(trendingBlogs);
       } catch (error: any) {
-         if (error.message && error.message.includes("firestore/failed-precondition") && error.message.includes("query requires an index")) {
+        const errorMessage = error.message || "An unknown error occurred.";
+         if (errorMessage.includes("firestore/failed-precondition") && errorMessage.includes("query requires an index")) {
+          const urlMatch = errorMessage.match(/https?:\/\/[^\s]+/);
+          const extractedUrl = urlMatch ? urlMatch[0] : null;
+          setFirestoreIndexErrorLink(extractedUrl);
           setFetchError(
-            "ACTION REQUIRED: Firestore needs an index to display trending blogs.\n\n1. Open your browser's developer console (usually F12).\n2. Find the error message from Firestore: 'FirebaseError: The query requires an index...'.\n3. CRITICAL: Click the link in that error message. It leads to the Firebase console to create the index.\n4. Click 'Create Index' in Firebase and wait a few minutes.\n\nTrending blogs will appear here once the index is ready."
+            "Firestore needs a composite index to display trending blogs. This is a common setup step."
           );
         } else {
-          console.error("Error fetching trending blogs:", error);
           setFetchError("An error occurred while fetching trending blogs. Please try again.");
         }
+        console.error("Error fetching trending blogs:", error);
       } finally {
         setLoading(false);
       }
@@ -104,9 +111,31 @@ export default function HomePage() {
              <div className="mt-6 text-center p-6 border border-destructive/50 rounded-lg bg-destructive/5 text-destructive">
                 <AlertTriangle className="mx-auto h-12 w-12 mb-4" />
                 <p className="text-lg font-semibold mb-2">Error Loading Trending Blogs</p>
-                <p className="text-sm whitespace-pre-wrap">{fetchError}</p>
-                {fetchError.includes("ACTION REQUIRED") && (
-                    <p className="text-xs mt-3 font-semibold">Please follow the steps above. If the issue persists after creating the index and waiting, check the console again or contact support.</p>
+                <p className="text-sm whitespace-pre-wrap mb-3">{fetchError}</p>
+                 {firestoreIndexErrorLink ? (
+                  <>
+                    <p className="text-sm mb-2">
+                      To fix this, please **open your browser's developer console (usually F12)**.
+                      Find the error message from Firestore starting with:
+                      <br />
+                      <code className="bg-destructive/20 px-1 rounded text-xs">FirebaseError: The query requires an index...</code>
+                    </p>
+                    <p className="text-sm mb-4">
+                      **CRITICAL: Click the link provided in that error message.** It will take you to the Firebase console to create the missing index.
+                      Then, click 'Create Index' in the Firebase console and wait a few minutes for it to build.
+                    </p>
+                     <Button
+                      variant="outline"
+                      onClick={() => window.open(firestoreIndexErrorLink, "_blank")}
+                      className="border-destructive text-destructive hover:bg-destructive/10"
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Open Firestore Index Link (if available)
+                    </Button>
+                    <p className="text-xs mt-3">The link above is an attempt to extract it from the error. The most reliable link is in your browser console.</p>
+                  </>
+                ) : (
+                   <p className="text-xs mt-3">Please check your browser console for more details, or try again later.</p>
                 )}
              </div>
         ) : blogs.length === 0 ? (
