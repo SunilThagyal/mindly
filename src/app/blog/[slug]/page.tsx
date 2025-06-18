@@ -8,7 +8,6 @@ import type { Blog, UserProfile } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, query, where, limit, getDocs, doc, getDoc, updateDoc, increment, Timestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
 async function getBlogBySlug(slug: string): Promise<Blog | null> {
@@ -26,13 +25,23 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
   if (blogData.status === 'published') {
      await updateDoc(doc(db, 'blogs', blogDoc.id), { views: increment(1) });
   }
-  
-  return { 
+
+  return {
     id: blogDoc.id,
     ...blogData,
+    title: blogData.title || '',
+    content: blogData.content || '',
+    slug: blogData.slug || '',
+    authorId: blogData.authorId || '',
+    authorDisplayName: blogData.authorDisplayName || null,
+    authorPhotoURL: blogData.authorPhotoURL || null,
+    tags: blogData.tags || [],
+    views: (blogData.views || 0) + (blogData.status === 'published' ? 1: 0),
+    readingTime: blogData.readingTime || 0,
+    status: blogData.status || 'draft',
     createdAt: blogData.createdAt instanceof Timestamp ? blogData.createdAt : Timestamp.now(),
     publishedAt: blogData.publishedAt instanceof Timestamp ? blogData.publishedAt : null,
-    views: (blogData.views || 0) + (blogData.status === 'published' ? 1: 0) 
+    coverImageUrl: blogData.coverImageUrl || null,
   } as Blog;
 }
 
@@ -55,7 +64,7 @@ export default function BlogPage() {
   useEffect(() => {
     if (!slug) {
       setLoading(false);
-      notFound(); 
+      notFound();
       return;
     }
 
@@ -69,7 +78,7 @@ export default function BlogPage() {
             setAuthorProfile(fetchedAuthor);
           }
         } else {
-          notFound(); 
+          notFound();
         }
       } catch (error) {
         console.error("Error fetching blog:", error);
@@ -100,7 +109,7 @@ export default function BlogPage() {
   if (!blog) {
     return <div className="text-center py-10">Blog post not found.</div>;
   }
-  
+
   if (blog.status === 'draft' && (!authUser || authUser?.uid !== blog.authorId)) {
      return <div className="text-center py-10">This blog post is currently a draft and not publicly visible.</div>;
   }

@@ -1,3 +1,4 @@
+
 "use client"; // Marking as client component due to data fetching and state
 
 import { useEffect, useState } from 'react';
@@ -11,20 +12,30 @@ async function getTrendingBlogs(): Promise<Blog[]> {
   const blogsCol = collection(db, 'blogs');
   // Query for published blogs, ordered by views, limited to a certain number (e.g., 6)
   const q = query(
-    blogsCol, 
-    where('status', '==', 'published'), 
-    orderBy('views', 'desc'), 
+    blogsCol,
+    where('status', '==', 'published'),
+    orderBy('views', 'desc'),
     limit(6)
   );
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => {
     const data = doc.data();
-    return { 
+    return {
       id: doc.id,
       ...data,
-      // Ensure Timestamps are correctly handled if they are nested or direct
+      title: data.title || '',
+      content: data.content || '',
+      slug: data.slug || '',
+      authorId: data.authorId || '',
+      authorDisplayName: data.authorDisplayName || null,
+      authorPhotoURL: data.authorPhotoURL || null,
+      tags: data.tags || [],
+      views: data.views || 0,
+      readingTime: data.readingTime || 0,
+      status: data.status || 'draft',
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
       publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt : null,
+      coverImageUrl: data.coverImageUrl || null,
     } as Blog;
   });
 }

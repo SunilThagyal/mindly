@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -30,15 +31,26 @@ async function getUserBlogs(userId: string, status?: 'published' | 'draft'): Pro
       orderBy('createdAt', 'desc')
     );
   }
- 
+
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => {
     const data = doc.data();
-    return { 
+    return {
       id: doc.id,
       ...data,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(), // Ensure createdAt is a Timestamp
+      title: data.title || '',
+      content: data.content || '',
+      slug: data.slug || '',
+      authorId: data.authorId || '',
+      authorDisplayName: data.authorDisplayName || null,
+      authorPhotoURL: data.authorPhotoURL || null,
+      tags: data.tags || [],
+      views: data.views || 0,
+      readingTime: data.readingTime || 0,
+      status: data.status || 'draft',
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
       publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt : null,
+      coverImageUrl: data.coverImageUrl || null,
     } as Blog;
   });
 }
@@ -75,7 +87,7 @@ export default function MyBlogsPage() {
     }
     fetchMyBlogs();
   }, [user, authLoading, router]);
-  
+
   const renderBlogList = (blogs: Blog[], type: string) => {
     if (isLoading) {
       return (
@@ -158,4 +170,3 @@ export default function MyBlogsPage() {
     </div>
   );
 }
-

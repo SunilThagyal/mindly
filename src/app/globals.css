@@ -37,6 +37,9 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --font-belleza: 'Belleza', sans-serif;
+    --font-alegreya: 'Alegreya', serif;
   }
   .dark {
     --background: 0 0% 3.9%;
@@ -86,6 +89,92 @@
   }
   main {
     flex-grow: 1;
+  }
+  /* Quill Editor Styles */
+  .quill-editor-override .ql-toolbar {
+    @apply bg-muted border-border rounded-t-lg;
+  }
+  .quill-editor-override .ql-container {
+    @apply border-border rounded-b-lg text-base;
+  }
+  .quill-editor-override .ql-editor {
+    min-height: 200px;
+    @apply bg-card text-card-foreground p-4 leading-relaxed;
+    font-family: var(--font-alegreya); /* Match body font */
+  }
+  .quill-editor-override .ql-editor.ql-blank::before {
+    @apply text-muted-foreground not-italic left-4 right-4; 
+    font-style: normal; /* Override Quill's italic placeholder */
+  }
+
+  /* Ensure toolbar select dropdowns match theme */
+  .quill-editor-override .ql-snow .ql-picker {
+    @apply text-foreground;
+  }
+  .quill-editor-override .ql-snow .ql-picker-label {
+    @apply hover:text-primary;
+  }
+   .quill-editor-override .ql-snow .ql-picker-options {
+    @apply bg-popover text-popover-foreground border-border shadow-md;
+  }
+  .quill-editor-override .ql-snow .ql-picker-item {
+    @apply hover:bg-accent hover:text-accent-foreground;
+  }
+  .quill-editor-override .ql-snow .ql-stroke {
+      stroke: hsl(var(--foreground) / 0.6);
+  }
+  .quill-editor-override .ql-snow .ql-fill {
+      fill: hsl(var(--foreground) / 0.6);
+  }
+  .quill-editor-override .ql-snow.ql-toolbar button:hover .ql-stroke,
+  .quill-editor-override .ql-snow .ql-toolbar button:hover .ql-stroke,
+  .quill-editor-override .ql-snow.ql-toolbar button:focus .ql-stroke,
+  .quill-editor-override .ql-snow .ql-toolbar button:focus .ql-stroke,
+  .quill-editor-override .ql-snow.ql-toolbar button.ql-active .ql-stroke,
+  .quill-editor-override .ql-snow .ql-toolbar button.ql-active .ql-stroke,
+  .quill-editor-override .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke,
+  .quill-editor-override .ql-snow .ql-toolbar .ql-picker-label:hover .ql-stroke,
+  .quill-editor-override .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-stroke,
+  .quill-editor-override .ql-snow .ql-toolbar .ql-picker-label.ql-active .ql-stroke,
+  .quill-editor-override .ql-snow.ql-toolbar .ql-picker-item:hover .ql-stroke,
+  .quill-editor-override .ql-snow .ql-toolbar .ql-picker-item:hover .ql-stroke,
+  .quill-editor-override .ql-snow.ql-toolbar .ql-picker-item.ql-selected .ql-stroke,
+  .quill-editor-override .ql-snow .ql-toolbar .ql-picker-item.ql-selected .ql-stroke {
+      stroke: hsl(var(--primary));
+  }
+
+  .quill-editor-override .ql-snow.ql-toolbar button:hover .ql-fill,
+  .quill-editor-override .ql-snow .ql-toolbar button:hover .ql-fill,
+  .quill-editor-override .ql-snow.ql-toolbar button:focus .ql-fill,
+  .quill-editor-override .ql-snow .ql-toolbar button:focus .ql-fill,
+  .quill-editor-override .ql-snow.ql-toolbar button.ql-active .ql-fill,
+  .quill-editor-override .ql-snow .ql-toolbar button.ql-active .ql-fill {
+      fill: hsl(var(--primary));
+  }
+  /* Dark mode specific Quill overrides */
+  .dark .quill-editor-override .ql-toolbar {
+    @apply bg-muted border-border;
+  }
+  .dark .quill-editor-override .ql-container {
+    @apply border-border;
+  }
+  .dark .quill-editor-override .ql-editor {
+    @apply bg-card text-card-foreground;
+  }
+   .dark .quill-editor-override .ql-editor.ql-blank::before {
+    @apply text-muted-foreground;
+  }
+  .dark .quill-editor-override .ql-snow .ql-picker {
+    @apply text-foreground;
+  }
+  .dark .quill-editor-override .ql-snow .ql-picker-options {
+    @apply bg-popover text-popover-foreground border-border;
+  }
+   .dark .quill-editor-override .ql-snow .ql-stroke {
+      stroke: hsl(var(--foreground) / 0.8);
+  }
+   .dark .quill-editor-override .ql-snow .ql-fill {
+      fill: hsl(var(--foreground) / 0.8);
   }
 }
 

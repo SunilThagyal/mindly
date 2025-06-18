@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -25,11 +26,22 @@ async function getUserBlogs(userId: string): Promise<Blog[]> {
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => {
     const data = doc.data();
-     return { 
+     return {
       id: doc.id,
       ...data,
+      title: data.title || '',
+      content: data.content || '',
+      slug: data.slug || '',
+      authorId: data.authorId || '',
+      authorDisplayName: data.authorDisplayName || null,
+      authorPhotoURL: data.authorPhotoURL || null,
+      tags: data.tags || [],
+      views: data.views || 0,
+      readingTime: data.readingTime || 0,
+      status: data.status || 'draft',
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
       publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt : null,
+      coverImageUrl: data.coverImageUrl || null,
     } as Blog;
   });
 }
@@ -37,7 +49,7 @@ async function getUserBlogs(userId: string): Promise<Blog[]> {
 export default function UserProfilePage() {
   const params = useParams();
   const userId = typeof params.userId === 'string' ? params.userId : '';
-  
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
