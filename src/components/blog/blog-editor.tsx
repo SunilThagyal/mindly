@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
@@ -17,6 +18,7 @@ import { slugify, estimateReadingTime } from '@/lib/helpers';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, UploadCloud, Lightbulb, X } from 'lucide-react';
 import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 
 interface BlogEditorProps {
   blogId?: string; // For editing existing blog
@@ -245,7 +247,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             />
             {coverImageUrl && (
               <div className="mt-2 relative w-full h-64 rounded-md overflow-hidden border">
-                <Image src={coverImageUrl} alt="Cover preview" layout="fill" objectFit="cover" />
+                <Image src={coverImageUrl} alt="Cover preview" layout="fill" objectFit="cover" data-ai-hint="abstract texture"/>
               </div>
             )}
         </div>
