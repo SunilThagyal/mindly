@@ -81,12 +81,12 @@ export default function MyBlogsPage() {
         setPublishedBlogs(fetchedPublished);
         setDraftBlogs(fetchedDrafts);
       } catch (error: any) {
-        console.error("Error fetching user's blogs:", error);
         if (error.message && error.message.includes("firestore/failed-precondition") && error.message.includes("query requires an index")) {
           setFetchError(
-            "ACTION REQUIRED: A Firestore index is missing to display your blogs. Please:\n\n1. Open your browser's developer console.\n2. Find the error message from Firestore (it starts with 'FirebaseError: The query requires an index...').\n3. Click the link provided in that error message to go to the Firebase console and create the index.\n\nAfter creating the index, it may take a few minutes to build before your blogs appear."
+            "ACTION REQUIRED: Firestore needs an index for this query.\n\n1. Open your browser's developer console (usually by pressing F12).\n2. Find the error message from Firestore starting with 'FirebaseError: The query requires an index...'.\n3. CRITICAL: Click the link provided in that error message. It will take you to the Firebase console to create the missing index.\n4. Click 'Create Index' in the Firebase console and wait a few minutes for it to build.\n\nYour blogs will appear here once the index is ready."
           );
         } else {
+          console.error("Error fetching user's blogs:", error);
           setFetchError("An error occurred while fetching your blogs. Please try again.");
         }
       } finally {
@@ -120,7 +120,7 @@ export default function MyBlogsPage() {
                 <p className="text-lg font-semibold mb-2">Error Loading Blogs</p>
                 <p className="text-sm whitespace-pre-wrap">{fetchError}</p>
                 {fetchError.includes("ACTION REQUIRED") && (
-                    <p className="text-xs mt-3">If the issue persists after creating the index and waiting a few minutes, please check the console again or contact support.</p>
+                    <p className="text-xs mt-3 font-semibold">Please follow the steps above. If the issue persists after creating the index and waiting, check the console again or contact support.</p>
                 )}
             </div>
         );

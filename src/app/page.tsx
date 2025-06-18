@@ -7,7 +7,7 @@ import type { Blog } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle } from 'lucide-react'; // Added AlertTriangle
+import { AlertTriangle } from 'lucide-react'; 
 
 async function getTrendingBlogs(): Promise<Blog[]> {
   const blogsCol = collection(db, 'blogs');
@@ -54,12 +54,12 @@ export default function HomePage() {
         const trendingBlogs = await getTrendingBlogs();
         setBlogs(trendingBlogs);
       } catch (error: any) {
-        console.error("Error fetching trending blogs:", error);
          if (error.message && error.message.includes("firestore/failed-precondition") && error.message.includes("query requires an index")) {
           setFetchError(
-            "ACTION REQUIRED: A Firestore index is missing to display trending blogs. Please:\n\n1. Open your browser's developer console.\n2. Find the error message from Firestore (it starts with 'FirebaseError: The query requires an index...').\n3. Click the link provided in that error message to go to the Firebase console and create the index.\n\nAfter creating the index, it may take a few minutes to build before blogs appear here."
+            "ACTION REQUIRED: Firestore needs an index to display trending blogs.\n\n1. Open your browser's developer console (usually F12).\n2. Find the error message from Firestore: 'FirebaseError: The query requires an index...'.\n3. CRITICAL: Click the link in that error message. It leads to the Firebase console to create the index.\n4. Click 'Create Index' in Firebase and wait a few minutes.\n\nTrending blogs will appear here once the index is ready."
           );
         } else {
+          console.error("Error fetching trending blogs:", error);
           setFetchError("An error occurred while fetching trending blogs. Please try again.");
         }
       } finally {
@@ -106,7 +106,7 @@ export default function HomePage() {
                 <p className="text-lg font-semibold mb-2">Error Loading Trending Blogs</p>
                 <p className="text-sm whitespace-pre-wrap">{fetchError}</p>
                 {fetchError.includes("ACTION REQUIRED") && (
-                    <p className="text-xs mt-3">If the issue persists after creating the index and waiting a few minutes, please check the console again or contact support.</p>
+                    <p className="text-xs mt-3 font-semibold">Please follow the steps above. If the issue persists after creating the index and waiting, check the console again or contact support.</p>
                 )}
              </div>
         ) : blogs.length === 0 ? (
