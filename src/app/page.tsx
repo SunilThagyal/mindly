@@ -56,7 +56,7 @@ export default function HomePage() {
       } catch (error: any) {
         console.error("Error fetching trending blogs:", error);
          if (error.message && error.message.includes("firestore/failed-precondition") && error.message.includes("query requires an index")) {
-          setFetchError("A Firestore index is missing for trending blogs. Please check your browser's developer console for a link to create it. After creating the index, it may take a few minutes to build before blogs appear here.");
+          setFetchError("ACTION REQUIRED: A Firestore index is missing for trending blogs. Please check your browser's developer console for an error message from Firestore, and click the link provided there to create the required index. After creating the index, it may take a few minutes to build before blogs appear here.");
         } else {
           setFetchError("An error occurred while fetching trending blogs. Please try again.");
         }
@@ -117,4 +117,3 @@ export default function HomePage() {
     </div>
   );
 }
-

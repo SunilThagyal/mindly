@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, FileText, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
+import { PlusCircle, FileText, AlertTriangle } from 'lucide-react';
 
 async function getUserBlogs(userId: string, status?: 'published' | 'draft'): Promise<Blog[]> {
   const blogsCol = collection(db, 'blogs');
@@ -83,7 +83,7 @@ export default function MyBlogsPage() {
       } catch (error: any) {
         console.error("Error fetching user's blogs:", error);
         if (error.message && error.message.includes("firestore/failed-precondition") && error.message.includes("query requires an index")) {
-          setFetchError("A Firestore index is missing. Please check your browser's developer console for a link to create it. After creating the index, it may take a few minutes to build before your blogs appear.");
+          setFetchError("ACTION REQUIRED: A Firestore index is missing. Please open your browser's developer console, find the error message from Firestore, and click the link provided there to create the required index. After creating the index, it may take a few minutes to build before your blogs appear.");
         } else {
           setFetchError("An error occurred while fetching your blogs. Please try again.");
         }
@@ -117,7 +117,9 @@ export default function MyBlogsPage() {
                 <AlertTriangle className="mx-auto h-12 w-12 mb-4" />
                 <p className="text-lg font-semibold mb-2">Error Loading Blogs</p>
                 <p className="text-sm">{fetchError}</p>
-                <p className="text-xs mt-3">If the issue persists after creating the index and waiting, please contact support.</p>
+                {fetchError.includes("ACTION REQUIRED") && (
+                    <p className="text-xs mt-3">If the issue persists after creating the index and waiting a few minutes, please check the console again or contact support.</p>
+                )}
             </div>
         );
     }
@@ -189,4 +191,3 @@ export default function MyBlogsPage() {
     </div>
   );
 }
-
