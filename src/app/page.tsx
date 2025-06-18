@@ -7,7 +7,7 @@ import type { Blog } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, limit, getDocs, Timestamp, startAfter, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, ExternalLink, RefreshCw, ListFilter, Flame, BookOpen, Search } from 'lucide-react';
+import { AlertTriangle, ExternalLink, RefreshCw, ListFilter, Flame, BookOpen, Search, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
@@ -78,6 +78,7 @@ async function getBlogs(
 
 async function getUniqueTagsSample(sampleLimit: number = 50): Promise<string[]> {
     const blogsCol = collection(db, 'blogs');
+    // Order by publishedAt to get tags from more recent posts, potentially more relevant
     const q = query(blogsCol, where('status', '==', 'published'), orderBy('publishedAt', 'desc'), limit(sampleLimit));
     const snapshot = await getDocs(q);
     const allTags: string[] = [];
@@ -87,7 +88,8 @@ async function getUniqueTagsSample(sampleLimit: number = 50): Promise<string[]> 
             allTags.push(...data.tags);
         }
     });
-    return [...new Set(allTags)].sort().slice(0, 20); // Limit to 20 unique tags for UI
+    // Get unique tags, sort them, and limit to 20 for the UI
+    return [...new Set(allTags)].sort().slice(0, 20);
 }
 
 
@@ -129,7 +131,7 @@ export default function HomePage() {
     if (errorMessage.includes("firestore/failed-precondition") && errorMessage.includes("query requires an index")) {
       const urlMatch = errorMessage.match(/https?:\/\/[^\s]+/);
       setErrorState({
-        message: `Firestore needs a composite index for '${tabName}' blogs. This is a common setup step. Please check your browser's developer console for a link to create the missing index, or use the link provided if extracted.`,
+        message: `Firestore needs a composite index for '${tabName}' blogs. This is a common setup step.`,
         indexLink: urlMatch ? urlMatch[0] : null,
       });
     } else {
@@ -158,14 +160,14 @@ export default function HomePage() {
         orderByField = 'readingTime'; orderDir = 'desc'; currentPosts = mostReadPosts; currentLastDoc = lastDocMostRead; setHasMore = setHasMoreMostRead;
         break;
       case 'explore':
-        if (!selectedTag && !isLoadMore) { // Don't fetch if no tag selected for initial load
-             setExplorePosts([]); // Clear posts if no tag is selected
+        if (!selectedTag && !isLoadMore) { 
+             setExplorePosts([]); 
              setLastDocExplore(null);
-             setHasMoreExplore(true); // Reset pagination
+             setHasMoreExplore(true); 
              setLoadingExplore(false);
              return;
         }
-        if (!selectedTag && isLoadMore) return; // Don't load more if no tag
+        if (!selectedTag && isLoadMore) return; 
         setPosts = setExplorePosts; setLastDoc = setLastDocExplore; setLoading = setLoadingExplore; setError = setErrorExplore;
         orderByField = 'publishedAt'; orderDir = 'desc'; currentPosts = explorePosts; currentLastDoc = lastDocExplore; setHasMore = setHasMoreExplore;
         currentTag = selectedTag;
@@ -174,17 +176,17 @@ export default function HomePage() {
     }
 
     setLoading(true);
-    if (!isLoadMore) setError({ message: null, indexLink: null }); // Reset error only on tab switch/initial load
+    if (!isLoadMore) setError({ message: null, indexLink: null }); 
 
     try {
       const lastDocToUse = isLoadMore ? currentLastDoc : null;
-      if (isLoadMore && !lastDocToUse && currentPosts.length > 0) { // If trying to load more but no last doc, probably reached end
+      if (isLoadMore && !lastDocToUse && currentPosts.length > 0) {
           setHasMore(false);
           setLoading(false);
           return;
       }
 
-      const { blogs: newBlogs, newLastDoc } = await getBlogs(orderByField, orderDir, POSTS_PER_PAGE, lastDocToUse, currentTag);
+      const { blogs: newBlogs, newLastDoc } = await getBlogs(orderByField, orderDir as "asc" | "desc", POSTS_PER_PAGE, lastDocToUse, currentTag);
       
       setPosts(prev => isLoadMore ? [...prev, ...newBlogs] : newBlogs);
       setLastDoc(newLastDoc);
@@ -194,10 +196,11 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [recentPosts, trendingPosts, mostReadPosts, explorePosts, lastDocRecent, lastDocTrending, lastDocMostRead, lastDocExplore, selectedTag]);
+  }, [recentPosts.length, trendingPosts.length, mostReadPosts.length, explorePosts.length, lastDocRecent, lastDocTrending, lastDocMostRead, lastDocExplore, selectedTag]);
 
   useEffect(() => {
-    fetchPosts('recent'); // Load recent posts by default
+    // Fetch initial data for the 'recent' tab on component mount
+    if (recentPosts.length === 0) fetchPosts('recent');
     
     const fetchInitialTags = async () => {
         setLoadingTags(true);
@@ -211,22 +214,22 @@ export default function HomePage() {
             setLoadingTags(false);
         }
     };
-    fetchInitialTags();
-  }, []); // Initial load
+    if (tagsForExplore.length === 0) fetchInitialTags();
+  }, []); 
 
   useEffect(() => {
+    // This effect handles fetching data when the activeTab or selectedTag changes.
     if (activeTab === 'explore') {
-        // Reset explore posts when switching to explore tab or when selectedTag changes to null
-        // and only fetch if a tag is selected.
+        // For the explore tab, always reset posts and pagination if the tag changes or it becomes active
         setExplorePosts([]);
         setLastDocExplore(null);
         setHasMoreExplore(true);
-        setErrorExplore({ message: null, indexLink: null });
-        if (selectedTag) {
+        setErrorExplore({ message: null, indexLink: null }); // Clear previous errors for explore
+        if (selectedTag) { // Only fetch if a tag is selected
             fetchPosts('explore');
         }
     } else if (activeTab) {
-        // Fetch if posts for the tab are empty
+        // For other tabs, fetch only if their posts array is empty
         if (activeTab === 'recent' && recentPosts.length === 0) fetchPosts('recent');
         else if (activeTab === 'trending' && trendingPosts.length === 0) fetchPosts('trending');
         else if (activeTab === 'mostRead' && mostReadPosts.length === 0) fetchPosts('mostRead');
@@ -236,16 +239,19 @@ export default function HomePage() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    setSelectedTag(null); // Reset selected tag when changing main tabs
+    // Reset selectedTag only if changing to a tab that is NOT 'explore' 
+    // or if 'explore' is selected directly (without a tag pre-selection logic)
+    if (value !== 'explore') {
+        setSelectedTag(null); 
+    }
   };
 
   const handleTagSelect = (tag: string) => {
     setSelectedTag(tag);
-    // Trigger fetch for explore tab by selectedTag change (handled in useEffect for activeTab='explore')
-    // Ensure explore tab is active if a tag is selected from another tab (optional, current behavior is fine)
     if (activeTab !== 'explore') {
-        setActiveTab('explore'); // This will also trigger the useEffect for 'explore'
+        setActiveTab('explore'); 
     }
+    // The useEffect for activeTab='explore' and selectedTag change will handle fetching
   };
   
   const renderBlogList = (
@@ -256,17 +262,17 @@ export default function HomePage() {
     loadMoreFn: () => void,
     tabNameForRetry: string
   ) => {
-    if (isLoading && blogs.length === 0) { // Show skeletons only on initial load for a tab
+    if (isLoading && blogs.length === 0) { 
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
           {Array(POSTS_PER_PAGE).fill(0).map((_, index) => (
             <div key={index} className="flex flex-col space-y-3">
               <Skeleton className="h-[200px] w-full rounded-xl" />
               <div className="space-y-2">
-                <Skeleton className="h-4 w-[250px]" />
-                <Skeleton className="h-4 w-[200px]" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between mt-1">
                 <Skeleton className="h-4 w-[50px]" />
                 <Skeleton className="h-4 w-[80px]" />
               </div>
@@ -316,9 +322,10 @@ export default function HomePage() {
     
     if (blogs.length === 0 && !isLoading) {
       return (
-          <p className="text-center text-muted-foreground py-10 text-lg">
-              {activeTab === 'explore' && !selectedTag ? "Select a category to explore." : "No blogs found for this section yet."}
-          </p>
+          <div className="text-center text-muted-foreground py-10 text-lg min-h-[200px] flex flex-col justify-center items-center">
+            <Search className="h-16 w-16 mb-4 opacity-50" />
+            <p>{activeTab === 'explore' && !selectedTag ? "Select a category to explore stories." : "No blogs found here yet. Be the first to contribute!"}</p>
+          </div>
       );
     }
 
@@ -331,10 +338,13 @@ export default function HomePage() {
         </div>
         {hasMorePosts && (
           <div className="mt-8 text-center">
-            <Button onClick={loadMoreFn} disabled={isLoading}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Load More"}
+            <Button onClick={loadMoreFn} disabled={isLoading} size="lg">
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Load More Posts"}
             </Button>
           </div>
+        )}
+         {!hasMorePosts && blogs.length > 0 && !isLoading && (
+            <p className="text-center text-muted-foreground mt-8">You've reached the end!</p>
         )}
       </>
     );
@@ -352,45 +362,55 @@ export default function HomePage() {
       </section>
 
       <Tabs defaultValue="recent" value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-8">
-          <TabsTrigger value="recent" className="flex items-center gap-2"><ListFilter />Recent</TabsTrigger>
-          <TabsTrigger value="trending" className="flex items-center gap-2"><Flame />Trending</TabsTrigger>
-          <TabsTrigger value="mostRead" className="flex items-center gap-2"><BookOpen />Most Read</TabsTrigger>
-          <TabsTrigger value="explore" className="flex items-center gap-2"><Search />Explore</TabsTrigger>
-        </TabsList>
+        <div className="flex justify-center mb-8">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 sm:max-w-2xl">
+              <TabsTrigger value="recent" className="flex items-center gap-2 py-2.5 text-sm sm:text-base"><ListFilter />Recent</TabsTrigger>
+              <TabsTrigger value="trending" className="flex items-center gap-2 py-2.5 text-sm sm:text-base"><Flame />Trending</TabsTrigger>
+              <TabsTrigger value="mostRead" className="flex items-center gap-2 py-2.5 text-sm sm:text-base"><BookOpen />Most Read</TabsTrigger>
+              <TabsTrigger value="explore" className="flex items-center gap-2 py-2.5 text-sm sm:text-base"><Search />Explore</TabsTrigger>
+            </TabsList>
+        </div>
 
-        <TabsContent value="recent">
+        <TabsContent value="recent" className="animate-fade-in">
           {renderBlogList(recentPosts, loadingRecent, errorRecent, hasMoreRecent, () => fetchPosts('recent', true), 'recent')}
         </TabsContent>
-        <TabsContent value="trending">
+        <TabsContent value="trending" className="animate-fade-in">
           {renderBlogList(trendingPosts, loadingTrending, errorTrending, hasMoreTrending, () => fetchPosts('trending', true), 'trending')}
         </TabsContent>
-        <TabsContent value="mostRead">
+        <TabsContent value="mostRead" className="animate-fade-in">
           {renderBlogList(mostReadPosts, loadingMostRead, errorMostRead, hasMoreMostRead, () => fetchPosts('mostRead', true), 'mostRead')}
         </TabsContent>
-        <TabsContent value="explore">
-          <div className="mb-6">
-            <h3 className="text-xl font-semibold mb-3 text-foreground">Categories</h3>
-            {loadingTags && <Skeleton className="h-8 w-1/3" />}
+        <TabsContent value="explore" className="animate-fade-in">
+          <div className="mb-6 p-4 bg-card rounded-lg shadow">
+            <h3 className="text-xl font-headline font-semibold mb-4 text-foreground">Explore by Category</h3>
+            {loadingTags && <Skeleton className="h-8 w-1/3 mb-2" />}
             {errorTags.message && <p className="text-destructive">{errorTags.message}</p>}
-            {!loadingTags && tagsForExplore.length === 0 && !errorTags.message && <p className="text-muted-foreground">No categories available to explore.</p>}
-            <div className="flex flex-wrap gap-2">
-              {tagsForExplore.map(tag => (
-                <Badge
-                  key={tag}
-                  variant={selectedTag === tag ? "default" : "secondary"}
-                  onClick={() => handleTagSelect(tag)}
-                  className="cursor-pointer text-sm px-3 py-1"
-                >
-                  {tag}
-                </Badge>
-              ))}
-            </div>
+            
+            {!loadingTags && tagsForExplore.length === 0 && !errorTags.message && (
+                <p className="text-muted-foreground">No categories available to explore at the moment.</p>
+            )}
+
+            {!loadingTags && tagsForExplore.length > 0 && (
+                <div className="flex flex-wrap gap-3">
+                {tagsForExplore.map(tag => (
+                    <Badge
+                    key={tag}
+                    variant={selectedTag === tag ? "default" : "secondary"}
+                    onClick={() => handleTagSelect(tag)}
+                    className="cursor-pointer text-sm px-4 py-1.5 hover:bg-primary/20 transition-colors duration-200"
+                    >
+                    {tag}
+                    </Badge>
+                ))}
+                </div>
+            )}
           </div>
-          {selectedTag && <h4 className="text-lg font-semibold mb-4 text-foreground">Showing posts for: <span className="text-primary">{selectedTag}</span></h4>}
+          {selectedTag && <h4 className="text-2xl font-headline font-semibold mb-6 text-foreground">Showing posts for: <span className="text-primary">{selectedTag}</span></h4>}
           {renderBlogList(explorePosts, loadingExplore, errorExplore, hasMoreExplore, () => fetchPosts('explore', true), 'explore')}
         </TabsContent>
       </Tabs>
     </div>
   );
 }
+
+    
