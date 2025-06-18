@@ -1,10 +1,11 @@
+
 "use client";
 
 import type { UserProfile, Blog } from '@/lib/types';
 import Image from 'next/image';
 import BlogCard from '@/components/blog/blog-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { UserCircle, Mail, BarChart3, Coins } from 'lucide-react';
+import { UserCircle, Mail, BarChart3, Coins, Eye } from 'lucide-react'; // Added Eye
 import { VIRTUAL_CURRENCY_RATE_PER_VIEW } from '@/lib/types';
 
 interface UserProfileViewProps {

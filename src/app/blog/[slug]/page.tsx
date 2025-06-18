@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -8,6 +9,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, limit, getDocs, doc, getDoc, updateDoc, increment, Timestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 async function getBlogBySlug(slug: string): Promise<Blog | null> {
   const blogsCol = collection(db, 'blogs');
@@ -21,9 +23,6 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
   const blogDoc = snapshot.docs[0];
   const blogData = blogDoc.data();
 
-  // Increment views - ensure this runs only once per "real" view if possible
-  // For this simple version, it increments on every load of this component
-  // A more robust solution would involve server-side logic or more complex client-side tracking
   if (blogData.status === 'published') {
      await updateDoc(doc(db, 'blogs', blogDoc.id), { views: increment(1) });
   }
@@ -31,10 +30,9 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
   return { 
     id: blogDoc.id,
     ...blogData,
-    // Ensure Timestamps are correctly handled
     createdAt: blogData.createdAt instanceof Timestamp ? blogData.createdAt : Timestamp.now(),
     publishedAt: blogData.publishedAt instanceof Timestamp ? blogData.publishedAt : null,
-    views: (blogData.views || 0) + (blogData.status === 'published' ? 1: 0) // Optimistic update for UI
+    views: (blogData.views || 0) + (blogData.status === 'published' ? 1: 0) 
   } as Blog;
 }
 
@@ -52,11 +50,12 @@ export default function BlogPage() {
   const [blog, setBlog] = useState<Blog | null>(null);
   const [authorProfile, setAuthorProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const { user: authUser } = useAuth(); // Call useAuth at the top level
 
   useEffect(() => {
     if (!slug) {
       setLoading(false);
-      notFound(); // Or redirect to a 404 page
+      notFound(); 
       return;
     }
 
@@ -70,11 +69,10 @@ export default function BlogPage() {
             setAuthorProfile(fetchedAuthor);
           }
         } else {
-          notFound(); // Trigger 404 if blog not found
+          notFound(); 
         }
       } catch (error) {
         console.error("Error fetching blog:", error);
-        // Handle error (e.g., show toast or error message)
       } finally {
         setLoading(false);
       }
@@ -100,15 +98,12 @@ export default function BlogPage() {
   }
 
   if (!blog) {
-    // This case should ideally be handled by notFound() during fetch,
-    // but as a fallback:
     return <div className="text-center py-10">Blog post not found.</div>;
   }
   
-  if (blog.status === 'draft' && (!useAuth().user || useAuth().user?.uid !== blog.authorId)) {
+  if (blog.status === 'draft' && (!authUser || authUser?.uid !== blog.authorId)) {
      return <div className="text-center py-10">This blog post is currently a draft and not publicly visible.</div>;
   }
-
 
   return <BlogPostView blog={blog} authorProfile={authorProfile} />;
 }
