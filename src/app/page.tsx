@@ -131,13 +131,12 @@ export default function HomePage() {
     if (errorMessage.includes("firestore/failed-precondition") && errorMessage.includes("query requires an index")) {
       const urlMatch = errorMessage.match(/https?:\/\/[^\s]+/);
       setErrorState({
-        message: `Firestore needs a composite index for '${tabName}' blogs. This is a common setup step.`,
+        message: `Firestore needs a composite index for '${tabName}' blogs. Please check your browser's developer console for a link to create it. This is a common one-time setup step per query type.`,
         indexLink: urlMatch ? urlMatch[0] : null,
       });
     } else {
-      setErrorState({ message: errorMessage, indexLink: null });
+      setErrorState({ message: `Error fetching ${tabName} blogs. Please try again or check the console.`, indexLink: null });
     }
-    console.error(`Error fetching ${tabName} blogs:`, error);
   };
 
   const fetchPosts = useCallback(async (
@@ -180,11 +179,17 @@ export default function HomePage() {
 
     try {
       const lastDocToUse = isLoadMore ? currentLastDoc : null;
-      if (isLoadMore && !lastDocToUse && currentPosts.length > 0) {
+      if (isLoadMore && !lastDocToUse && currentPosts.length > 0) { // No lastDoc means no more pages if already loaded some
           setHasMore(false);
           setLoading(false);
           return;
       }
+      if(isLoadMore && !currentLastDoc && currentPosts.length === 0) { // Trying to load more but never loaded initial and no last doc
+        setHasMore(false); // Should not happen if initial load worked
+        setLoading(false);
+        return;
+      }
+
 
       const { blogs: newBlogs, newLastDoc } = await getBlogs(orderByField, orderDir as "asc" | "desc", POSTS_PER_PAGE, lastDocToUse, currentTag);
       
@@ -199,8 +204,7 @@ export default function HomePage() {
   }, [recentPosts.length, trendingPosts.length, mostReadPosts.length, explorePosts.length, lastDocRecent, lastDocTrending, lastDocMostRead, lastDocExplore, selectedTag]);
 
   useEffect(() => {
-    // Fetch initial data for the 'recent' tab on component mount
-    if (recentPosts.length === 0) fetchPosts('recent');
+    if (recentPosts.length === 0 && !loadingRecent && hasMoreRecent) fetchPosts('recent');
     
     const fetchInitialTags = async () => {
         setLoadingTags(true);
@@ -214,33 +218,28 @@ export default function HomePage() {
             setLoadingTags(false);
         }
     };
-    if (tagsForExplore.length === 0) fetchInitialTags();
+    if (tagsForExplore.length === 0 && !loadingTags) fetchInitialTags();
   }, []); 
 
   useEffect(() => {
-    // This effect handles fetching data when the activeTab or selectedTag changes.
     if (activeTab === 'explore') {
-        // For the explore tab, always reset posts and pagination if the tag changes or it becomes active
         setExplorePosts([]);
         setLastDocExplore(null);
         setHasMoreExplore(true);
-        setErrorExplore({ message: null, indexLink: null }); // Clear previous errors for explore
-        if (selectedTag) { // Only fetch if a tag is selected
+        setErrorExplore({ message: null, indexLink: null }); 
+        if (selectedTag && !loadingExplore) { 
             fetchPosts('explore');
         }
     } else if (activeTab) {
-        // For other tabs, fetch only if their posts array is empty
-        if (activeTab === 'recent' && recentPosts.length === 0) fetchPosts('recent');
-        else if (activeTab === 'trending' && trendingPosts.length === 0) fetchPosts('trending');
-        else if (activeTab === 'mostRead' && mostReadPosts.length === 0) fetchPosts('mostRead');
+        if (activeTab === 'recent' && recentPosts.length === 0 && !loadingRecent && hasMoreRecent) fetchPosts('recent');
+        else if (activeTab === 'trending' && trendingPosts.length === 0 && !loadingTrending && hasMoreTrending) fetchPosts('trending');
+        else if (activeTab === 'mostRead' && mostReadPosts.length === 0 && !loadingMostRead && hasMoreMostRead) fetchPosts('mostRead');
     }
   }, [activeTab, selectedTag, fetchPosts]);
 
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    // Reset selectedTag only if changing to a tab that is NOT 'explore' 
-    // or if 'explore' is selected directly (without a tag pre-selection logic)
     if (value !== 'explore') {
         setSelectedTag(null); 
     }
@@ -251,7 +250,6 @@ export default function HomePage() {
     if (activeTab !== 'explore') {
         setActiveTab('explore'); 
     }
-    // The useEffect for activeTab='explore' and selectedTag change will handle fetching
   };
   
   const renderBlogList = (
@@ -292,9 +290,7 @@ export default function HomePage() {
             <>
               <p className="text-sm mb-2">
                 To fix this, please **open your browser's developer console (usually F12)**.
-                Find the error message from Firestore starting with:
-                <br />
-                <code className="bg-destructive/20 px-1 rounded text-xs">FirebaseError: The query requires an index...</code>
+                Find the error message from Firestore. It will contain a link.
               </p>
               <p className="text-sm mb-4">
                 **CRITICAL: Click the link provided in that error message.** It will take you to the Firebase console to create the missing index.
@@ -338,7 +334,7 @@ export default function HomePage() {
         </div>
         {hasMorePosts && (
           <div className="mt-8 text-center">
-            <Button onClick={loadMoreFn} disabled={isLoading} size="lg">
+            <Button onClick={loadMoreFn} disabled={isLoading || !hasMorePosts} size="lg">
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Load More Posts"}
             </Button>
           </div>
@@ -363,7 +359,7 @@ export default function HomePage() {
 
       <Tabs defaultValue="recent" value={activeTab} onValueChange={handleTabChange} className="w-full">
         <div className="flex justify-center mb-8">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 sm:max-w-2xl">
+            <TabsList className="flex flex-wrap justify-center gap-1 p-1 h-auto sm:grid sm:grid-cols-4 sm:max-w-2xl">
               <TabsTrigger value="recent" className="flex items-center gap-2 py-2.5 text-sm sm:text-base"><ListFilter />Recent</TabsTrigger>
               <TabsTrigger value="trending" className="flex items-center gap-2 py-2.5 text-sm sm:text-base"><Flame />Trending</TabsTrigger>
               <TabsTrigger value="mostRead" className="flex items-center gap-2 py-2.5 text-sm sm:text-base"><BookOpen />Most Read</TabsTrigger>
@@ -412,5 +408,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
