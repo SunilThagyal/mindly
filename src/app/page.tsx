@@ -56,7 +56,9 @@ export default function HomePage() {
       } catch (error: any) {
         console.error("Error fetching trending blogs:", error);
          if (error.message && error.message.includes("firestore/failed-precondition") && error.message.includes("query requires an index")) {
-          setFetchError("ACTION REQUIRED: A Firestore index is missing for trending blogs. Please check your browser's developer console for an error message from Firestore, and click the link provided there to create the required index. After creating the index, it may take a few minutes to build before blogs appear here.");
+          setFetchError(
+            "ACTION REQUIRED: A Firestore index is missing to display trending blogs. Please:\n\n1. Open your browser's developer console.\n2. Find the error message from Firestore (it starts with 'FirebaseError: The query requires an index...').\n3. Click the link provided in that error message to go to the Firebase console and create the index.\n\nAfter creating the index, it may take a few minutes to build before blogs appear here."
+          );
         } else {
           setFetchError("An error occurred while fetching trending blogs. Please try again.");
         }
@@ -102,7 +104,10 @@ export default function HomePage() {
              <div className="mt-6 text-center p-6 border border-destructive/50 rounded-lg bg-destructive/5 text-destructive">
                 <AlertTriangle className="mx-auto h-12 w-12 mb-4" />
                 <p className="text-lg font-semibold mb-2">Error Loading Trending Blogs</p>
-                <p className="text-sm">{fetchError}</p>
+                <p className="text-sm whitespace-pre-wrap">{fetchError}</p>
+                {fetchError.includes("ACTION REQUIRED") && (
+                    <p className="text-xs mt-3">If the issue persists after creating the index and waiting a few minutes, please check the console again or contact support.</p>
+                )}
              </div>
         ) : blogs.length === 0 ? (
           <p className="text-center text-muted-foreground py-10 text-lg">No blogs available yet. Be the first to create one!</p>
