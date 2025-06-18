@@ -33,6 +33,7 @@ async function getUserBlogs(userId: string, status?: 'published' | 'draft'): Pro
   }
 
   const snapshot = await getDocs(q);
+  console.log(`[MyBlogsPage] Fetched ${snapshot.docs.length} blogs for user ${userId} with status ${status || 'any'}. Check browser console for Firestore index errors if count is unexpectedly zero.`);
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return {
@@ -127,7 +128,7 @@ export default function MyBlogsPage() {
   };
 
 
-  if (authLoading && !user) { // Show skeleton or loader only if auth is still loading and user is not yet determined.
+  if (authLoading && !user) { 
     return (
       <div className="container mx-auto px-4 py-8">
         <Skeleton className="h-10 w-1/3 mb-4" />

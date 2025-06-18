@@ -1,5 +1,5 @@
 
-"use client"; // Marking as client component due to data fetching and state
+"use client"; 
 
 import { useEffect, useState } from 'react';
 import BlogCard from '@/components/blog/blog-card';
@@ -10,7 +10,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 async function getTrendingBlogs(): Promise<Blog[]> {
   const blogsCol = collection(db, 'blogs');
-  // Query for published blogs, ordered by views, limited to a certain number (e.g., 6)
   const q = query(
     blogsCol,
     where('status', '==', 'published'),
@@ -18,6 +17,7 @@ async function getTrendingBlogs(): Promise<Blog[]> {
     limit(6)
   );
   const snapshot = await getDocs(q);
+  console.log(`[HomePage] Fetched ${snapshot.docs.length} trending blogs. Check browser console for Firestore index errors if count is unexpectedly zero.`);
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return {
