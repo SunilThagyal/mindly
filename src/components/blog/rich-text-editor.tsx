@@ -3,34 +3,33 @@
 import React, { useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css'; // Import Quill styles
-import type QuillTypes from 'quill'; 
 import sanitizeHtml from 'sanitize-html';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Dynamically import ReactQuill to avoid SSR issues
 const ReactQuill = dynamic(
   async () => {
-    const { default: RQ } = await import('react-quill');
-    // Ensure custom fonts are registered
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const Quill = RQ.Quill; // Use RQ.Quill if available, otherwise Quill global
-    const Font = Quill.import('formats/font');
-    Font.whitelist = ['arial', 'times-new-roman', 'roboto', 'belleza', 'alegreya', 'sans-serif', 'serif', 'monospace'];
-    Quill.register(Font, true);
+    const { default: RQComponent, Quill: QuillNamespace } = await import('react-quill');
 
-    const Size = Quill.import('formats/size');
-    Size.whitelist = ['small', 'large', 'huge']; // default is ['small', false, 'large', 'huge'] where false is normal
-    Quill.register(Size, true);
-    
-    const AlignStyle = Quill.import('attributors/style/align');
-    Quill.register(AlignStyle, true);
-    
-    // Allow classes for alignment if not using inline styles
-    const AlignClass = Quill.import('attributors/class/align');
-    Quill.register(AlignClass, true);
+    if (QuillNamespace) {
+      // Ensure custom fonts are registered
+      const Font = QuillNamespace.import('formats/font');
+      Font.whitelist = ['arial', 'times-new-roman', 'roboto', 'belleza', 'alegreya', 'sans-serif', 'serif', 'monospace'];
+      QuillNamespace.register(Font, true);
 
+      const Size = QuillNamespace.import('formats/size');
+      Size.whitelist = ['small', 'large', 'huge']; // default is ['small', false, 'large', 'huge'] where false is normal
+      QuillNamespace.register(Size, true);
+      
+      const AlignStyle = QuillNamespace.import('attributors/style/align');
+      QuillNamespace.register(AlignStyle, true);
+      
+      // Allow classes for alignment if not using inline styles
+      const AlignClass = QuillNamespace.import('attributors/class/align');
+      QuillNamespace.register(AlignClass, true);
+    }
 
-    return RQ;
+    return RQComponent;
   },
   { 
     ssr: false, 
