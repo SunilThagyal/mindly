@@ -16,14 +16,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
   const quillRef = useRef<HTMLDivElement>(null);
   const quillInstanceRef = useRef<Quill | null>(null);
   const [isClient, setIsClient] = useState(false);
-  // This ref helps distinguish between user edits and programmatic updates
   const selfEditRef = useRef(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Effect for Quill initialization and attaching event listeners
   useEffect(() => {
     if (!isClient || !quillRef.current) {
       return;
@@ -32,6 +30,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     let quill: Quill;
 
     if (!quillInstanceRef.current) {
+      console.log("[RTE] Initializing Quill instance.");
       const options: QuillOptions = {
         theme: 'snow',
         modules: {
@@ -57,11 +56,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
 
       // Set initial content if value is provided and editor is empty
       if (value && typeof value === 'string' && quill.getLength() <= 1) {
+         console.log("[RTE] Setting initial content from prop during init:", JSON.stringify(value));
          try {
-           const delta = quill.clipboard.convert(value as any); // 'as any' for broader HTML compatibility
-           quill.setContents(delta, 'silent'); // Use 'silent' for initial content
+           const delta = quill.clipboard.convert(value as any);
+           quill.setContents(delta, 'silent');
          } catch (e) {
-            console.error("Error setting initial Quill content:", e, "HTML:", value);
+            console.error("[RTE] Error setting initial Quill content:", e, "HTML:", value);
          }
       }
     } else {
@@ -69,71 +69,76 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     }
 
     const handleChange = (delta: any, oldDelta: any, source: string) => {
-      if (source === 'user') { // Only react to changes made by the user directly in the editor
-        selfEditRef.current = true; // Set the flag to true *before* calling onChange
+      console.log("[RTE] text-change event. Source:", source);
+      if (source === 'user') {
+        console.log("[RTE] User edit detected. Setting selfEditRef to true.");
+        selfEditRef.current = true;
         let html = quill.root.innerHTML;
-        // If editor is empty, Quill often represents it as <p><br></p>. Normalize to empty string.
         if (html === '<p><br></p>') {
           html = '';
         }
-        onChange(html); // Propagate the change to the parent component
+        console.log("[RTE] Propagating user change to parent:", JSON.stringify(html));
+        onChange(html);
       }
     };
 
     quill.on('text-change', handleChange);
 
     return () => {
+      console.log("[RTE] Cleaning up text-change listener.");
       quill.off('text-change', handleChange);
-      // Consider destroying Quill instance if component unmounts, though often not necessary for single instance
-      // if (quillInstanceRef.current && quillRef.current?.innerHTML) {
-      //   quillRef.current.innerHTML = ''; // Clear the div
-      // }
     };
-  // `value` is intentionally omitted from this effect's dependencies after initial setup.
-  // Prop-based updates are handled by the next useEffect.
-  }, [isClient, onChange, placeholder]);
+  }, [isClient, onChange, placeholder, value]); // Added `value` here to ensure initial content is set if `value` is present on first client render.
 
 
-  // Effect for synchronizing editor content when 'value' prop changes externally
   useEffect(() => {
+    console.log("[RTE] useEffect for value sync. Value:", JSON.stringify(value), "isClient:", isClient);
     const quill = quillInstanceRef.current;
     if (!isClient || !quill) {
+      console.log("[RTE] Quill instance or isClient not ready for prop sync. Aborting.");
       return;
     }
 
-    // If selfEditRef is true, it means the change originated from this editor's 'text-change' event,
-    // was propagated to the parent, and then came back as a 'value' prop. We should ignore it to prevent loops.
     if (selfEditRef.current) {
-      selfEditRef.current = false; // Reset the flag and do nothing more for this render cycle
+      console.log("[RTE] selfEditRef is true during prop sync. Resetting and aborting to prevent loop.");
+      selfEditRef.current = false;
       return;
     }
+    
+    console.log("[RTE] External update detected for 'value' prop (selfEditRef is false).");
 
-    // If selfEditRef is false, the change to 'value' came from an external source (e.g., AI generation)
-    // or it's an update that needs to be reflected.
     try {
       const incomingHtml = typeof value === 'string' ? value : '';
       const currentEditorHtml = quill.root.innerHTML;
 
-      // Normalize empty HTML representations for a more reliable comparison
-      const normalizedIncomingHtml = (incomingHtml === '<p><br></p>') ? '' : incomingHtml;
-      const normalizedEditorHtml = (currentEditorHtml === '<p><br></p>') ? '' : currentEditorHtml;
+      const normalizedIncomingHtml = (incomingHtml === '<p><br></p>' || incomingHtml.trim() === '') ? '' : incomingHtml;
+      const normalizedEditorHtml = (currentEditorHtml === '<p><br></p>' || currentEditorHtml.trim() === '') ? '' : currentEditorHtml;
       
+      console.log("[RTE] Prop Sync - Normalized Incoming HTML:", JSON.stringify(normalizedIncomingHtml));
+      console.log("[RTE] Prop Sync - Normalized Editor HTML:", JSON.stringify(normalizedEditorHtml));
+
       if (normalizedEditorHtml !== normalizedIncomingHtml) {
-        // Convert the incoming HTML prop 'value' to a Delta.
-        const delta = quill.clipboard.convert(incomingHtml as any); // Use 'as any' because Quill's types can be tricky here
-        quill.setContents(delta, 'silent'); // Use 'silent' to prevent 'text-change' from firing for this programmatic change
+        console.log("[RTE] Prop Sync - Content differs. Attempting to set new content.");
+        const delta = quill.clipboard.convert(incomingHtml as any); 
+        console.log("[RTE] Prop Sync - Converted Delta:", JSON.stringify(delta));
+        quill.setContents(delta, 'silent'); // 'silent' is crucial
+        console.log("[RTE] Prop Sync - Set new content silently.");
+      } else {
+        console.log("[RTE] Prop Sync - Content is the same. No update needed.");
       }
     } catch (e) {
-      console.error("Error synchronizing Quill content from 'value' prop:", e, "Incoming HTML value:", value);
+      console.error("[RTE] Prop Sync - Error synchronizing Quill content from 'value' prop:", e, "Incoming HTML value:", value);
     }
-  }, [value, isClient]); // Trigger this effect when 'value' prop or 'isClient' status changes
+  // This effect specifically handles external changes to `value`.
+  // The Quill initialization effect handles initial content.
+  }, [value, isClient]); 
 
 
   if (!isClient) {
     return (
       <div className="space-y-2 quill-editor-override">
-        <Skeleton className="h-10 w-full" /> {/* Mock toolbar */}
-        <Skeleton className="h-48 w-full rounded-b-lg border border-input" /> {/* Mock editor area */}
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-48 w-full rounded-b-lg border border-input" />
       </div>
     );
   }

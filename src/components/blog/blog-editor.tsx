@@ -21,6 +21,7 @@ import { Loader2, Lightbulb, X, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import sanitizeHtml from 'sanitize-html';
 
 interface BlogEditorProps {
   blogId?: string;
@@ -161,8 +162,70 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         let contentGenerated = false;
 
         if (typeof result.htmlContent === 'string' && result.htmlContent.trim() !== '') {
-          console.log("Setting content from AI:", result.htmlContent);
-          setContent(result.htmlContent);
+          const sanitizedContent = sanitizeHtml(result.htmlContent, {
+            allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+              'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+              'img', 'video', 'iframe', 
+              'span', 'div', 'br', 'hr',
+              'table', 'thead', 'tbody', 'tr', 'th', 'td', 'caption',
+              'figure', 'figcaption',
+              'pre', 'code', // For code blocks
+            ]),
+            allowedAttributes: {
+              ...sanitizeHtml.defaults.allowedAttributes,
+              a: ['href', 'name', 'target', 'rel', 'title'],
+              img: ['src', 'srcset', 'alt', 'title', 'width', 'height', 'style', 'class'],
+              iframe: ['src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'title'],
+              video: ['src', 'width', 'height', 'controls', 'autoplay', 'muted', 'loop', 'poster'],
+              table: ['class', 'style', 'width', 'border', 'cellspacing', 'cellpadding', 'summary'],
+              th: ['colspan', 'rowspan', 'scope', 'class', 'style'],
+              td: ['colspan', 'rowspan', 'headers', 'class', 'style'],
+              span: ['style', 'class'],
+              div: ['style', 'class'],
+              p: ['style', 'class'],
+              pre: ['class', 'style'], // For code blocks
+              code: ['class', 'style'], // For code blocks
+              '*': ['style', 'class', 'id', 'title', 'lang', 'dir'],
+            },
+            allowedSchemes: ['http', 'https', 'ftp', 'mailto', 'tel', 'data'],
+            allowedSchemesByTag: {
+              img: ['data', 'http', 'https'],
+            },
+            // To better preserve pasted styles, allow more CSS properties if Quill is configured to handle them.
+            // Be very careful with style sanitization.
+            allowedStyles: {
+              '*': {
+                // General
+                'color': [/^#(0x)?[0-9a-f]+$/i, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/, /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d\.]+\s*\)$/, /^hsl\(\s*\d+\s*,\s*[\d\.]*%\s*,\s*[\d\.]*%\s*\)$/, /^[a-z-]+$/],
+                'background-color': [/^#(0x)?[0-9a-f]+$/i, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/, /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d\.]+\s*\)$/, /^hsl\(\s*\d+\s*,\s*[\d\.]*%\s*,\s*[\d\.]*%\s*\)$/, /^[a-z-]+$/, /^transparent$/],
+                'text-align': [/^left$/, /^right$/, /^center$/, /^justify$/],
+                'font-size': [/^\d*\.?\d+(?:px|em|rem|%|pt|pc|in|cm|mm|ex|ch|vw|vh|vmin|vmax)?$/],
+                'font-family': [/^[\s\w,-]+$/], // Allow common font families
+                'font-weight': [/^(normal|bold|bolder|lighter|\d+)$/],
+                'font-style': [/^(normal|italic|oblique)$/],
+                'text-decoration': [/^(none|underline|overline|line-through|blink)$/],
+                'line-height': [/^\d*\.?\d+(?:px|em|rem|%|pt)?$/ , /^[normal|inherit|initial|unset]+$/],
+                'margin': [/^\s*auto\s*$|^(\s*(-?\d*\.?\d+(px|em|%|rem|pt|pc|in|cm|mm)\s*)){1,4}$/],
+                'padding': [/^\s*auto\s*$|^(\s*(-?\d*\.?\d+(px|em|%|rem|pt|pc|in|cm|mm)\s*)){1,4}$/],
+                'border': [/.*/], // Simplified for example, can be more specific
+                'width': [/^\d*\.?\d+(?:px|em|%|rem|pt|pc|in|cm|mm|vw|vh)?$/, /^auto$/],
+                'height': [/^\d*\.?\d+(?:px|em|%|rem|pt|pc|in|cm|mm|vw|vh)?$/, /^auto$/],
+                'display': [/^inline$/, /^block$/, /^inline-block$/, /^flex$/, /^none$/, /^grid$/],
+                'float': [/^left$/, /^right$/, /^none$/],
+                'clear': [/^left$/, /^right$/, /^both$/, /^none$/],
+                'list-style-type': [/.*/],
+                // For code blocks from Quill
+                'white-space': [/^(normal|nowrap|pre|pre-wrap|pre-line|break-spaces)$/],
+              },
+            },
+            parseStyleAttributes: true, // Allow parsing of style attributes
+            exclusiveFilter: function(frame) { // Remove empty <a> tags that some editors might produce
+              return frame.tag === 'a' && !frame.text.trim() && !frame.children.length && (!frame.attribs.href || frame.attribs.href === '#');
+            }
+          });
+
+          console.log("Sanitized AI Content to be set:", JSON.stringify(sanitizedContent));
+          setContent(sanitizedContent); // This is what updates the 'value' prop of RichTextEditor
           contentGenerated = true;
         } else {
           console.warn("AI generated a title but htmlContent was empty, missing, or not a string. Received:", result.htmlContent);
