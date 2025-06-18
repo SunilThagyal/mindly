@@ -17,7 +17,11 @@ async function getTrendingBlogs(): Promise<Blog[]> {
     limit(6)
   );
   const snapshot = await getDocs(q);
-  console.log(`[HomePage] Fetched ${snapshot.docs.length} trending blogs. Check browser console for Firestore index errors if count is unexpectedly zero.`);
+   console.log(
+    `[HomePage] Firestore query for trending blogs (status == 'published', orderBy views DESC) returned ${snapshot.docs.length} documents.
+    IF THIS IS UNEXPECTEDLY ZERO, **CHECK BROWSER CONSOLE FOR FIRESTORE INDEX ERRORS.**
+    Firestore may require a composite index for this query (e.g., on status, views). Look for a URL in the console error to create it.`
+  );
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return {

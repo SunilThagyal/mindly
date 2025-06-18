@@ -33,7 +33,11 @@ async function getUserBlogs(userId: string, status?: 'published' | 'draft'): Pro
   }
 
   const snapshot = await getDocs(q);
-  console.log(`[MyBlogsPage] Fetched ${snapshot.docs.length} blogs for user ${userId} with status ${status || 'any'}. Check browser console for Firestore index errors if count is unexpectedly zero.`);
+  console.log(
+    `[MyBlogsPage] Firestore query for ${status || 'all user'} blogs by user ${userId} returned ${snapshot.docs.length} documents.
+    IF THIS IS UNEXPECTEDLY ZERO, **CHECK BROWSER CONSOLE FOR FIRESTORE INDEX ERRORS.**
+    Firestore may require a composite index for this query (e.g., on authorId, status, createdAt). Look for a URL in the console error to create it.`
+  );
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return {
@@ -115,6 +119,11 @@ export default function MyBlogsPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Create Your First Blog
             </Link>
           </Button>
+          <p className="mt-6 text-sm p-4 border border-dashed border-primary/50 rounded-md bg-primary/5">
+            <strong>Important:</strong> If you've created blogs and they aren't appearing,
+            please <strong className="text-primary">check your browser's developer console</strong> for any Firestore error messages.
+            You might need to create a composite index in Firestore. Firestore usually provides a direct link in the error message to create it.
+          </p>
         </div>
       );
     }
