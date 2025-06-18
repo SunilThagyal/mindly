@@ -1,6 +1,6 @@
 
 "use client";
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css'; // Import Quill styles
 import sanitizeHtml from 'sanitize-html';
@@ -9,24 +9,24 @@ import { Skeleton } from '@/components/ui/skeleton';
 // Dynamically import ReactQuill to avoid SSR issues
 const ReactQuill = dynamic(
   async () => {
-    const { default: RQComponent, Quill: QuillNamespace } = await import('react-quill');
+    const { default: RQComponent, Quill } = await import('react-quill');
 
-    if (QuillNamespace) {
+    if (Quill) {
       // Ensure custom fonts are registered
-      const Font = QuillNamespace.import('formats/font');
+      const Font = Quill.import('formats/font');
       Font.whitelist = ['arial', 'times-new-roman', 'roboto', 'belleza', 'alegreya', 'sans-serif', 'serif', 'monospace'];
-      QuillNamespace.register(Font, true);
+      Quill.register(Font, true);
 
-      const Size = QuillNamespace.import('formats/size');
+      const Size = Quill.import('formats/size');
       Size.whitelist = ['small', 'large', 'huge']; // default is ['small', false, 'large', 'huge'] where false is normal
-      QuillNamespace.register(Size, true);
+      Quill.register(Size, true);
       
-      const AlignStyle = QuillNamespace.import('attributors/style/align');
-      QuillNamespace.register(AlignStyle, true);
+      const AlignStyle = Quill.import('attributors/style/align');
+      Quill.register(AlignStyle, true);
       
       // Allow classes for alignment if not using inline styles
-      const AlignClass = QuillNamespace.import('attributors/class/align');
-      QuillNamespace.register(AlignClass, true);
+      const AlignClass = Quill.import('attributors/class/align');
+      Quill.register(AlignClass, true);
     }
 
     return RQComponent;
@@ -50,6 +50,12 @@ interface RichTextEditorProps {
 }
 
 const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeholder }) => {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const modules = useMemo(() => ({
     toolbar: {
       container: [
@@ -123,8 +129,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
         'float': [/^(left|right|none)$/i],
         'width': [/^\d+(?:px|em|%|pt)?$/, 'auto'],
         'height': [/^\d+(?:px|em|%|pt)?$/, 'auto'],
-        // Allow CSS variables for theming if Quill uses them internally or if you plan to
-        // Example: '--custom-property': [/.*/]
       },
     },
     allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat(['data']), // Allow data URIs for images
@@ -132,9 +136,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
         return frame.tag === 'script' || frame.tag === 'style' || frame.tag === 'link' && frame.attribs.rel === 'stylesheet';
     },
     nonTextTags: [ 'style', 'script', 'textarea', 'noscript', 'button', 'iframe', 'embed', 'object', 'select', 'option' ],
-    // Allow specific classes used by Quill
     allowedClasses: {
-        '*': [ 'ql-*', 'ql-indent-*', 'ql-align-*', 'ql-font-*', 'ql-size-*' ] // Allow all ql- prefixed classes
+        '*': [ 'ql-*', 'ql-indent-*', 'ql-align-*', 'ql-font-*', 'ql-size-*' ] 
     },
   };
 
@@ -147,6 +150,17 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
       onChange(cleanHtml);
     }
   };
+
+  if (!isClient) {
+    // Render a skeleton or null while waiting for the client to mount.
+    // This matches the loading prop of the dynamic import for consistency.
+    return (
+      <div className="space-y-2">
+          <Skeleton className="h-10 w-full" /> {/* Mock Toolbar */}
+          <Skeleton className="h-48 w-full" /> {/* Mock Editor Area */}
+      </div>
+    );
+  }
 
   return (
     <ReactQuill
