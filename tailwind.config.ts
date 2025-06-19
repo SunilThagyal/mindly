@@ -10,8 +10,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Poppins', 'sans-serif'],
+        body: ['var(--font-merriweather)', 'serif'],
+        headline: ['var(--font-montserrat)', 'sans-serif'],
+        accent: ['var(--font-lora)', 'serif'], // For blockquotes or special text
         code: ['monospace'],
       },
       colors: {
@@ -71,6 +72,105 @@ export default {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
+      lineHeight: {
+        'body': '1.7', // For Merriweather
+        'heading': '1.3', // For Montserrat
+      },
+      typography: (theme: (path: string) => string) => ({
+        DEFAULT: {
+          css: {
+            color: theme('colors.foreground'),
+            a: {
+              color: theme('colors.primary.DEFAULT'),
+              '&:hover': {
+                color: theme('colors.primary.DEFAULT'),
+                opacity: '0.8',
+              },
+            },
+            h1: {
+              fontFamily: theme('fontFamily.headline'),
+              fontWeight: theme('fontWeight.bold'),
+              color: theme('colors.foreground'),
+              lineHeight: theme('lineHeight.heading'),
+            },
+            h2: {
+              fontFamily: theme('fontFamily.headline'),
+              fontWeight: theme('fontWeight.semibold'),
+              color: theme('colors.foreground'),
+              lineHeight: theme('lineHeight.heading'),
+            },
+            h3: {
+              fontFamily: theme('fontFamily.headline'),
+              fontWeight: theme('fontWeight.medium'),
+              color: theme('colors.foreground'),
+              lineHeight: theme('lineHeight.heading'),
+            },
+            p: {
+              fontFamily: theme('fontFamily.body'),
+              lineHeight: theme('lineHeight.body'),
+              marginTop: '1em',
+              marginBottom: '1em',
+            },
+            blockquote: {
+              fontFamily: theme('fontFamily.accent'),
+              fontStyle: 'italic',
+              color: theme('colors.muted.foreground'),
+              borderLeftColor: theme('colors.primary.DEFAULT'),
+              paddingLeft: '1em',
+              quotes: '"\\201C""\\201D""\\2018""\\2019"',
+            },
+            'blockquote p:first-of-type::before': {
+              content: 'open-quote',
+            },
+            'blockquote p:last-of-type::after': {
+              content: 'close-quote',
+            },
+            ul: {
+              listStyleType: 'disc',
+              paddingLeft: '1.5em',
+              fontFamily: theme('fontFamily.body'),
+              lineHeight: theme('lineHeight.body'),
+            },
+            ol: {
+              listStyleType: 'decimal',
+              paddingLeft: '1.5em',
+              fontFamily: theme('fontFamily.body'),
+              lineHeight: theme('lineHeight.body'),
+            },
+            li: {
+              marginTop: '0.25em',
+              marginBottom: '0.25em',
+            },
+            code: {
+              fontFamily: theme('fontFamily.code'),
+              backgroundColor: theme('colors.muted.DEFAULT'),
+              padding: '0.2em 0.4em',
+              borderRadius: theme('borderRadius.sm'),
+              color: theme('colors.muted.foreground'),
+            },
+            'code::before': {
+              content: 'none',
+            },
+            'code::after': {
+              content: 'none',
+            },
+            pre: {
+               fontFamily: theme('fontFamily.code'),
+               backgroundColor: theme('colors.muted.DEFAULT'),
+               color: theme('colors.muted.foreground'),
+               padding: theme('spacing.4'),
+               borderRadius: theme('borderRadius.md'),
+               overflowX: 'auto',
+            },
+            // Ensure prose plugin styles for images, etc., are sensible
+            img: {
+              marginTop: '2em',
+              marginBottom: '2em',
+              borderRadius: theme('borderRadius.md'),
+            },
+          },
+        },
+      }),
       keyframes: {
         'accordion-down': {
           from: {
@@ -100,5 +200,5 @@ export default {
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [require('tailwindcss-animate'), require('@tailwindcss/typography')],
 } satisfies Config;

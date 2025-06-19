@@ -3,7 +3,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import Quill, { type QuillOptions, type DeltaStatic, type Sources } from 'quill';
-import 'quill/dist/quill.snow.css'; // Import Quill styles
+import 'quill/dist/quill.snow.css'; 
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface RichTextEditorProps {
@@ -17,14 +17,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
   const quillInstanceRef = useRef<Quill | null>(null);
   const [isClient, setIsClient] = useState(false);
   
-  const internalUpdateRef = useRef(false); // To track if the update is from internal editor changes
+  const internalUpdateRef = useRef(false); 
 
   useEffect(() => {
     setIsClient(true);
     console.log("[RTE-MountEffect] Component mounted, isClient set to true.");
   }, []);
 
-  // Effect for Quill Initialization & attaching event listeners
   useEffect(() => {
     if (!isClient || !quillRef.current || quillInstanceRef.current) {
       console.log("[RTE-InitEffect] Guard: Not client-side, quillRef not available, or Quill already initialized. Aborting.");
@@ -32,11 +31,14 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     }
     
     const fontWhitelist = [
-      false, // Default system font
+      false, 
+      'sans-serif', 'serif', 'monospace', // Generic families
       'Arial', 'Verdana', 'Times New Roman', 'Georgia', // Common system fonts
-      'Inter', 'Poppins', // Our app's primary fonts
-      'Courier New', 'monospace' // Monospace for code
+      'Montserrat', 'Merriweather', 'Lora', // App specific fonts
+      'Inter', 'Poppins', // Previous app fonts, kept for compatibility if content exists
+      'Courier New', 
     ];
+    const sizeWhitelist = ['small', false, 'large', 'huge']; // Standard sizes
 
     console.log("[RTE-InitEffect] Initializing Quill instance.");
     const options: QuillOptions = {
@@ -45,37 +47,37 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
         toolbar: [
           [{ 'header': [1, 2, 3, false] }],
           ['bold', 'italic', 'underline', 'strike'],
-          [{ 'font': fontWhitelist }, { 'size': [] }],
+          [{ 'font': fontWhitelist }, { 'size': sizeWhitelist }],
           [{ 'color': [] }, { 'background': [] }],
-          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+          [{ 'list': 'ordered'}, { 'list': 'bullet' }, { 'list': 'check' }],
           [{ 'script': 'sub'}, { 'script': 'super' }],
           [{ 'indent': '-1'}, { 'indent': '+1' }],
           [{ 'align': [] }],
           ['blockquote', 'code-block'],
-          ['link', 'image'],
+          ['link', 'image', 'video'],
           ['clean']
         ],
         clipboard: { matchVisual: false },
       },
-      placeholder: placeholder || "Start writing...",
+      placeholder: placeholder || "Start writing your amazing blog post here...",
     };
     const quill = new Quill(quillRef.current, options);
     quillInstanceRef.current = quill;
     console.log("[RTE-InitEffect] Quill instance created.");
 
-    // Set initial content if `value` prop is provided and editor is empty
     const initialHtml = typeof value === 'string' ? value : '';
-    console.log("[RTE-InitEffect] Initial `value` prop during Quill init:", JSON.stringify(initialHtml));
-    if (initialHtml && quill.getLength() <= 1) {
+    console.log("[RTE-InitEffect] Initial `value` prop during Quill init:", JSON.stringify(initialHtml.substring(0,100) + "..."));
+    
+    if (initialHtml && quill.getLength() <= 1 && initialHtml !== "<p><br></p>") {
       console.log("[RTE-InitEffect] Attempting to set initial content from `value` prop using dangerouslyPasteHTML.");
       try {
         quill.clipboard.dangerouslyPasteHTML(0, initialHtml, 'silent');
         console.log("[RTE-InitEffect] Initial content successfully set in Quill editor.");
       } catch (e) {
-        console.error("[RTE-InitEffect] Error setting initial Quill content:", e, "Input HTML was:", initialHtml);
+        console.error("[RTE-InitEffect] Error setting initial Quill content:", e, "Input HTML was:", initialHtml.substring(0,100) + "...");
       }
     } else {
-       console.log("[RTE-InitEffect] No initial content to set (value was empty or editor not empty). Quill length:", quill.getLength());
+       console.log("[RTE-InitEffect] No initial content to set (value empty, editor not empty, or value is default empty paragraph). Quill length:", quill.getLength(), "Normalized Initial HTML for check:", initialHtml === "<p><br></p>" ? "" : initialHtml);
     }
 
     const handleChange = (delta: DeltaStatic, oldDelta: DeltaStatic, source: Sources) => {
@@ -86,7 +88,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
         if (html === '<p><br></p>') { 
           html = '';
         }
-        console.log("[RTE-Event] Marking internalUpdateRef=true and calling onChange. HTML:", JSON.stringify(html));
+        console.log("[RTE-Event] Marking internalUpdateRef=true and calling onChange. HTML:", JSON.stringify(html.substring(0,100) + "..."));
         internalUpdateRef.current = true;
         onChange(html);
       }
@@ -101,10 +103,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
         quillInstanceRef.current.off('text-change', handleChange);
       }
     };
-  }, [isClient, onChange, placeholder, value]);
+  // Added `value` to deps here to ensure initial content gets set if value is ready on first client render.
+  }, [isClient, onChange, placeholder, value]); 
 
 
-  // Effect for Synchronizing with External `value` Prop Changes (e.g., from AI)
   useEffect(() => {
     const quill = quillInstanceRef.current;
     console.log("[RTE-ValueSyncEffect] Triggered. isClient:", isClient, "Quill ready:", !!quill);
@@ -122,24 +124,26 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
 
     const incomingHtml = typeof value === 'string' ? value : '';
     let currentEditorHtml = quill.root.innerHTML;
-    if (currentEditorHtml === '<p><br></p>') {
-      currentEditorHtml = '';
-    }
     
-    console.log("[RTE-ValueSyncEffect] Comparing content. Normalized Incoming HTML:", JSON.stringify(incomingHtml), "Normalized Editor Current HTML:", JSON.stringify(currentEditorHtml));
+    // Normalize empty states for comparison
+    const normalizedIncomingHtml = (incomingHtml === "<p><br></p>") ? "" : incomingHtml;
+    const normalizedCurrentEditorHtml = (currentEditorHtml === "<p><br></p>") ? "" : currentEditorHtml;
+    
+    console.log("[RTE-ValueSyncEffect] Comparing content. Normalized Incoming HTML:", JSON.stringify(normalizedIncomingHtml.substring(0,100) + "..."), "Normalized Editor Current HTML:", JSON.stringify(normalizedCurrentEditorHtml.substring(0,100) + "..."));
 
-    if (incomingHtml !== currentEditorHtml) {
-      console.log("[RTE-ValueSyncEffect] Content differs. Attempting to set new content to Quill editor.");
+    if (normalizedIncomingHtml !== normalizedCurrentEditorHtml) {
+      console.log("[RTE-ValueSyncEffect] Content differs. Attempting to update Quill editor.");
       try {
-        quill.setContents([], 'silent'); // Clear current content silently
-        if (incomingHtml) { 
-            quill.clipboard.dangerouslyPasteHTML(0, incomingHtml, 'silent');
-            console.log("[RTE-ValueSyncEffect] Editor updated with dangerouslyPasteHTML.");
+        // Directly paste the HTML. Quill's clipboard module handles conversion to Delta.
+        quill.setContents([], 'silent'); // Clear current content silently first
+        if (normalizedIncomingHtml) { // Only paste if there's actual content
+            quill.clipboard.dangerouslyPasteHTML(0, normalizedIncomingHtml, 'silent');
+            console.log("[RTE-ValueSyncEffect] Editor updated with dangerouslyPasteHTML. Pasted:", normalizedIncomingHtml.substring(0,100) + "...");
         } else {
-             console.log("[RTE-ValueSyncEffect] Incoming HTML was empty, editor cleared.");
+            console.log("[RTE-ValueSyncEffect] Incoming HTML was empty, editor cleared.");
         }
       } catch (e) {
-        console.error("[RTE-ValueSyncEffect] Error during content update in Quill:", e, "Problematic Incoming HTML was:", incomingHtml);
+        console.error("[RTE-ValueSyncEffect] Error during content update in Quill:", e, "Problematic Incoming HTML was:", normalizedIncomingHtml.substring(0,100) + "...");
       }
     } else {
       console.log("[RTE-ValueSyncEffect] Content is the same. No update to Quill editor needed.");
@@ -151,15 +155,15 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     console.log("[RTE-Render] Not client-side yet, rendering Skeleton.");
     return (
       <div className="space-y-2 quill-editor-override">
-        <Skeleton className="h-10 w-full" /> 
-        <Skeleton className="h-48 w-full rounded-b-lg border border-input" /> 
+        <Skeleton className="h-10 w-full rounded-t-lg border-x border-t border-input" /> 
+        <Skeleton className="h-60 w-full rounded-b-lg border border-input" /> 
       </div>
     );
   }
 
   return (
     <div className="quill-editor-override">
-      <div ref={quillRef} style={{ minHeight: '200px' }} />
+      <div ref={quillRef} style={{ minHeight: '250px' }} />
     </div>
   );
 };
