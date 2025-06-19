@@ -17,8 +17,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
   const quillInstanceRef = useRef<Quill | null>(null);
   const [isClient, setIsClient] = useState(false);
   
-  // Ref to track if the current update to `value` prop originated from an internal editor change
-  const internalUpdateRef = useRef(false);
+  const internalUpdateRef = useRef(false); // To track if the update is from internal editor changes
 
   useEffect(() => {
     setIsClient(true);
@@ -27,10 +26,17 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
 
   // Effect for Quill Initialization & attaching event listeners
   useEffect(() => {
-    if (!isClient || !quillRef.current || quillInstanceRef.current) { // Only initialize once
+    if (!isClient || !quillRef.current || quillInstanceRef.current) {
       console.log("[RTE-InitEffect] Guard: Not client-side, quillRef not available, or Quill already initialized. Aborting.");
       return;
     }
+    
+    const fontWhitelist = [
+      false, // Default system font
+      'Arial', 'Verdana', 'Times New Roman', 'Georgia', // Common system fonts
+      'Inter', 'Poppins', // Our app's primary fonts
+      'Courier New', 'monospace' // Monospace for code
+    ];
 
     console.log("[RTE-InitEffect] Initializing Quill instance.");
     const options: QuillOptions = {
@@ -39,7 +45,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
         toolbar: [
           [{ 'header': [1, 2, 3, false] }],
           ['bold', 'italic', 'underline', 'strike'],
-          [{ 'font': [] }, { 'size': [] }],
+          [{ 'font': fontWhitelist }, { 'size': [] }],
           [{ 'color': [] }, { 'background': [] }],
           [{ 'list': 'ordered'}, { 'list': 'bullet' }],
           [{ 'script': 'sub'}, { 'script': 'super' }],
@@ -60,49 +66,42 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     // Set initial content if `value` prop is provided and editor is empty
     const initialHtml = typeof value === 'string' ? value : '';
     console.log("[RTE-InitEffect] Initial `value` prop during Quill init:", JSON.stringify(initialHtml));
-    if (initialHtml && quill.getLength() <= 1) { // Editor is essentially empty
-      console.log("[RTE-InitEffect] Attempting to set initial content from `value` prop.");
+    if (initialHtml && quill.getLength() <= 1) {
+      console.log("[RTE-InitEffect] Attempting to set initial content from `value` prop using dangerouslyPasteHTML.");
       try {
-        // Use dangerouslyPasteHTML for initial content as well for consistency
         quill.clipboard.dangerouslyPasteHTML(0, initialHtml, 'silent');
-        console.log("[RTE-InitEffect] Initial content successfully set in Quill editor using dangerouslyPasteHTML.");
+        console.log("[RTE-InitEffect] Initial content successfully set in Quill editor.");
       } catch (e) {
-        console.error("[RTE-InitEffect] Error setting initial Quill content with dangerouslyPasteHTML:", e, "Input HTML was:", initialHtml);
+        console.error("[RTE-InitEffect] Error setting initial Quill content:", e, "Input HTML was:", initialHtml);
       }
     } else {
        console.log("[RTE-InitEffect] No initial content to set (value was empty or editor not empty). Quill length:", quill.getLength());
     }
 
-    // Handler for when text changes in the editor
     const handleChange = (delta: DeltaStatic, oldDelta: DeltaStatic, source: Sources) => {
       console.log("[RTE-Event] 'text-change' event fired. Source:", source);
       if (source === 'user') {
         console.log("[RTE-Event] User edit detected.");
         let html = quill.root.innerHTML;
-        if (html === '<p><br></p>') { // Normalize Quill's empty state
+        if (html === '<p><br></p>') { 
           html = '';
         }
         console.log("[RTE-Event] Marking internalUpdateRef=true and calling onChange. HTML:", JSON.stringify(html));
-        internalUpdateRef.current = true; // Signal that the upcoming prop change is from internal editor
-        onChange(html); // Propagate the new HTML content to the parent component
+        internalUpdateRef.current = true;
+        onChange(html);
       }
     };
 
     quill.on('text-change', handleChange);
     console.log("[RTE-InitEffect] 'text-change' listener attached.");
 
-    // Cleanup function
     return () => {
       console.log("[RTE-Cleanup] Cleaning up 'text-change' listener.");
-      if (quillInstanceRef.current) { // Check if instance exists before calling off
+      if (quillInstanceRef.current) {
         quillInstanceRef.current.off('text-change', handleChange);
-        // Consider if quillInstanceRef.current should be set to null or editor destroyed
-        // For simplicity here, we're just removing the listener.
-        // If the component fully unmounts and Quill is not needed elsewhere,
-        // you might want to fully destroy it.
       }
     };
-  }, [isClient, onChange, placeholder, value]); // value is needed here for initial content
+  }, [isClient, onChange, placeholder, value]);
 
 
   // Effect for Synchronizing with External `value` Prop Changes (e.g., from AI)
@@ -117,14 +116,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     
     if (internalUpdateRef.current) {
       console.log("[RTE-ValueSyncEffect] Guard: Internal update, resetting flag and returning.");
-      internalUpdateRef.current = false; // Reset the flag
+      internalUpdateRef.current = false; 
       return;
     }
 
-    // The `value` prop has changed externally
     const incomingHtml = typeof value === 'string' ? value : '';
     let currentEditorHtml = quill.root.innerHTML;
-    // Normalize Quill's empty state representation for comparison
     if (currentEditorHtml === '<p><br></p>') {
       currentEditorHtml = '';
     }
@@ -132,30 +129,30 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     console.log("[RTE-ValueSyncEffect] Comparing content. Normalized Incoming HTML:", JSON.stringify(incomingHtml), "Normalized Editor Current HTML:", JSON.stringify(currentEditorHtml));
 
     if (incomingHtml !== currentEditorHtml) {
-      console.log("[RTE-ValueSyncEffect] Content differs. Attempting to set new content to Quill editor using dangerouslyPasteHTML.");
+      console.log("[RTE-ValueSyncEffect] Content differs. Attempting to set new content to Quill editor.");
       try {
         quill.setContents([], 'silent'); // Clear current content silently
-        if (incomingHtml) { // Only paste if there's actual incoming HTML
-            quill.clipboard.dangerouslyPasteHTML(0, incomingHtml, 'silent'); // Paste new HTML at index 0
+        if (incomingHtml) { 
+            quill.clipboard.dangerouslyPasteHTML(0, incomingHtml, 'silent');
             console.log("[RTE-ValueSyncEffect] Editor updated with dangerouslyPasteHTML.");
         } else {
              console.log("[RTE-ValueSyncEffect] Incoming HTML was empty, editor cleared.");
         }
       } catch (e) {
-        console.error("[RTE-ValueSyncEffect] Error during dangerouslyPasteHTML in Quill:", e, "Problematic Incoming HTML was:", incomingHtml);
+        console.error("[RTE-ValueSyncEffect] Error during content update in Quill:", e, "Problematic Incoming HTML was:", incomingHtml);
       }
     } else {
-      console.log("[RTE-ValueSyncEffect] Content is the same (after normalization). No update to Quill editor needed.");
+      console.log("[RTE-ValueSyncEffect] Content is the same. No update to Quill editor needed.");
     }
-  }, [value, isClient]); // React to `value` and `isClient`.
+  }, [value, isClient]);
 
 
   if (!isClient) {
     console.log("[RTE-Render] Not client-side yet, rendering Skeleton.");
     return (
       <div className="space-y-2 quill-editor-override">
-        <Skeleton className="h-10 w-full" /> {/* Mimics toolbar */}
-        <Skeleton className="h-48 w-full rounded-b-lg border border-input" /> {/* Mimics editor area */}
+        <Skeleton className="h-10 w-full" /> 
+        <Skeleton className="h-48 w-full rounded-b-lg border border-input" /> 
       </div>
     );
   }
