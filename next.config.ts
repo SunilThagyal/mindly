@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -19,6 +20,10 @@ const nextConfig: NextConfig = {
     ],
   },
   reactStrictMode: false, // Disabled Strict Mode
+  env: {
+    ADMIN_USER_UID: process.env.ADMIN_USER_UID,
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, // If you have this for client-side use
+  }
 };
 
 export default nextConfig;

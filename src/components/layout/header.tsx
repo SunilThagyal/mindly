@@ -1,10 +1,11 @@
+
 "use client";
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/context/auth-context';
-import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText } from 'lucide-react';
+import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings } from 'lucide-react'; // Added Settings
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function Header() {
-  const { user, userProfile, signOut, loading } = useAuth();
+  const { user, userProfile, signOut, loading, isAdmin } = useAuth(); // Added isAdmin
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
@@ -83,6 +84,14 @@ export default function Header() {
                     My Blogs
                   </Link>
                 </DropdownMenuItem>
+                {isAdmin && ( // Show Admin link if user is admin
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="flex items-center">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Admin Panel
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:text-destructive-foreground focus:bg-destructive">
                   <LogOut className="mr-2 h-4 w-4" />

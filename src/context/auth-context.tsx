@@ -9,8 +9,19 @@ import type { UserProfile } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-// IMPORTANT: Replace this with your actual Admin User's UID from Firebase Authentication
-const ADMIN_USER_UID = 'REPLACE_WITH_YOUR_ADMIN_UID'; 
+// Admin UID will be read from environment variable
+const ADMIN_USER_UID = process.env.NEXT_PUBLIC_ADMIN_USER_UID || process.env.ADMIN_USER_UID;
+
+if (!ADMIN_USER_UID || ADMIN_USER_UID === "YOUR_ACTUAL_ADMIN_FIREBASE_UID_HERE") {
+  console.warn(
+    "********************************************************************\n" +
+    "WARNING: Admin User UID is not configured or is using placeholder. \n" +
+    "Please set ADMIN_USER_UID in your .env file with your admin's Firebase UID.\n" +
+    "Admin functionality will be limited until this is set correctly.\n" +
+    "********************************************************************"
+  );
+}
+
 
 interface AuthContextType {
   user: User | null;
@@ -26,7 +37,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false); 
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -48,7 +59,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await setDoc(userDocRef, newProfile);
           setUserProfile(newProfile);
         }
-        setIsAdmin(firebaseUser.uid === ADMIN_USER_UID); 
+        // Check if the logged-in user's UID matches the ADMIN_USER_UID from .env
+        setIsAdmin(!!ADMIN_USER_UID && firebaseUser.uid === ADMIN_USER_UID);
       } else {
         setUser(null);
         setUserProfile(null);
@@ -67,14 +79,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       setUserProfile(null);
       setIsAdmin(false);
-      router.push('/'); 
+      router.push('/');
     } catch (error) {
       console.error("Error signing out: ", error);
     } finally {
       setLoading(false);
     }
   };
-  
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
