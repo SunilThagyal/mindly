@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -291,17 +292,22 @@
     @apply w-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 border border-dashed border-gray-400 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-sm;
     /* Default height, can be overridden by specific ad slot classes */
   }
-  .ad-placeholder-leaderboard-header { @apply h-[90px] my-4; } /* 728x90 or 320x50 on mobile */
+
+  /* Responsive ad placeholders: Mobile-first approach */
+  .ad-placeholder-leaderboard-header { 
+    @apply h-[50px] max-w-[320px] mx-auto my-4; /* Mobile styles as base */
+  }
+  @screen sm {
+    .ad-placeholder-leaderboard-header { 
+      @apply h-[90px] max-w-[728px]; /* Desktop overrides (mx-auto and my-4 inherited) */
+    }
+  }
+
   .ad-placeholder-incontent { @apply h-[250px] my-6 mx-auto max-w-[336px] sm:max-w-none; } /* 300x250 or 336x280 */
   .ad-placeholder-sidebar { @apply h-[600px] w-full; } /* 300x600 */
   .ad-placeholder-below-content { @apply h-[90px] sm:h-[250px] my-6; }
   
-  /* Responsive ad placeholders */
-  @screen sm {
-    .ad-placeholder-leaderboard-header { @apply max-w-[728px] mx-auto; }
-  }
-  @screen max-sm {
-    .ad-placeholder-leaderboard-header { @apply h-[50px] max-w-[320px] mx-auto; }
-  }
-
 }
+
+
+    
