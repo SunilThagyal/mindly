@@ -27,6 +27,8 @@ interface AuthFormProps {
   mode: 'signup' | 'login';
 }
 
+const ADMIN_USER_UID = process.env.NEXT_PUBLIC_ADMIN_USER_UID || process.env.ADMIN_USER_UID;
+
 export default function AuthForm({ mode }: AuthFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,7 +53,25 @@ export default function AuthForm({ mode }: AuthFormProps) {
         }
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName });
-        await sendEmailVerification(userCredential.user);
+        
+        // Send verification email
+        try {
+            await sendEmailVerification(userCredential.user);
+            toast({
+              title: 'Account Created & Verification Email Sent!',
+              description: `IMPORTANT: A verification email has been sent to ${userCredential.user.email}. Please check your inbox (and especially your spam/junk folder) to verify your account before logging in.`,
+              duration: 10000, // Longer duration for important messages
+            });
+        } catch (verificationError: any) {
+            console.error("Error sending verification email:", verificationError);
+            toast({
+                title: 'Account Created, But Verification Email Failed',
+                description: `Your account was created, but we couldn't send the verification email. Error: ${verificationError.message}. You might need to try logging in and resending it.`,
+                variant: 'destructive',
+                duration: 10000,
+            });
+        }
+
 
         // Create user profile in Firestore
         const userDocRef = doc(db, 'users', userCredential.user.uid);
@@ -63,26 +83,38 @@ export default function AuthForm({ mode }: AuthFormProps) {
           virtualEarnings: 0,
         };
         await setDoc(userDocRef, newUserProfile);
-
-        toast({
-          title: 'Account Created & Verification Email Sent!',
-          description: `A verification email has been sent to ${userCredential.user.email}. Please check your inbox (and spam/junk folder) to verify your account before logging in.`,
-        });
         router.push('/auth/login');
-      } else {
+
+      } else { // Login mode
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        if (!userCredential.user.emailVerified && mode === 'login') {
-           await auth.signOut(); // Sign out user if email is not verified
-           toast({
-             title: 'Email Not Verified',
-             description: 'Please verify your email before logging in. A new verification email has been sent.',
-             variant: 'destructive',
-           });
-           await sendEmailVerification(userCredential.user); // Resend verification email
+        const loggedInUser = userCredential.user;
+
+        // Bypass email verification for the admin user
+        const isAdminLogin = ADMIN_USER_UID && loggedInUser.uid === ADMIN_USER_UID;
+
+        if (!isAdminLogin && !loggedInUser.emailVerified) {
+           await auth.signOut(); 
+           try {
+               await sendEmailVerification(loggedInUser);
+               toast({
+                 title: 'Email Not Verified',
+                 description: 'Your email is not verified. Please check your inbox (and spam/junk folder) for the verification link. A new verification email has been sent.',
+                 variant: 'destructive',
+                 duration: 10000,
+               });
+           } catch (resendError: any) {
+                console.error("Error resending verification email:", resendError);
+                toast({
+                    title: 'Email Not Verified & Resend Failed',
+                    description: `Your email is not verified. We also encountered an error trying to resend the verification email: ${resendError.message}`,
+                    variant: 'destructive',
+                    duration: 10000,
+                });
+           }
            setIsLoading(false);
            return;
         }
-        toast({ title: 'Logged In!', description: 'Welcome back!' });
+        toast({ title: 'Logged In!', description: `Welcome back, ${loggedInUser.displayName || 'User'}!` });
         router.push('/');
       }
     } catch (error: any) {
@@ -103,7 +135,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
-      // Check if user profile exists, if not, create it
       const userDocRef = doc(db, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
       if (!userDocSnap.exists()) {
@@ -117,7 +148,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
         await setDoc(userDocRef, newUserProfile);
       }
       
-      toast({ title: 'Logged In!', description: `Welcome, ${user.displayName}!` });
+      toast({ title: 'Logged In!', description: `Welcome, ${user.displayName || 'User'}!` });
       router.push('/');
     } catch (error: any) {
       toast({
