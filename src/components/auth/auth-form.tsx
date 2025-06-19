@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent } from 'react';
@@ -64,8 +65,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
         await setDoc(userDocRef, newUserProfile);
 
         toast({
-          title: 'Account Created!',
-          description: 'Please check your email to verify your account before logging in.',
+          title: 'Account Created & Verification Email Sent!',
+          description: `A verification email has been sent to ${userCredential.user.email}. Please check your inbox (and spam/junk folder) to verify your account before logging in.`,
         });
         router.push('/auth/login');
       } else {
