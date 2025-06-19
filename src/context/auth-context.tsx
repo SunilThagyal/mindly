@@ -9,14 +9,15 @@ import type { UserProfile } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-// Admin UID will be read from environment variable
-const ADMIN_USER_UID = process.env.NEXT_PUBLIC_ADMIN_USER_UID || process.env.ADMIN_USER_UID;
+// Admin UID will be read from environment variable, passed via next.config.js
+const ADMIN_ENV_UID = process.env.ADMIN_USER_UID;
 
-if (!ADMIN_USER_UID || ADMIN_USER_UID === "YOUR_ACTUAL_ADMIN_FIREBASE_UID_HERE") {
+if (!ADMIN_ENV_UID || ADMIN_ENV_UID === "YOUR_ACTUAL_ADMIN_FIREBASE_UID_HERE") {
   console.warn(
     "********************************************************************\n" +
     "WARNING: Admin User UID is not configured or is using placeholder. \n" +
-    "Please set ADMIN_USER_UID in your .env file with your admin's Firebase UID.\n" +
+    "Please ensure ADMIN_USER_UID is set in your .env file and next.config.ts correctly exposes it.\n" +
+    "The value currently read from process.env.ADMIN_USER_UID is: ", ADMIN_ENV_UID + "\n" +
     "Admin functionality will be limited until this is set correctly.\n" +
     "********************************************************************"
   );
@@ -41,9 +42,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
+    console.log('Auth Context: ADMIN_ENV_UID from process.env at context level:', ADMIN_ENV_UID);
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
+        console.log('Auth Context: Current firebaseUser.uid:', firebaseUser.uid);
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
@@ -60,11 +63,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUserProfile(newProfile);
         }
         // Check if the logged-in user's UID matches the ADMIN_USER_UID from .env
-        setIsAdmin(!!ADMIN_USER_UID && firebaseUser.uid === ADMIN_USER_UID);
+        const isAdminCheck = !!ADMIN_ENV_UID && firebaseUser.uid === ADMIN_ENV_UID;
+        setIsAdmin(isAdminCheck);
+        console.log('Auth Context: isAdmin determined as:', isAdminCheck, `(ADMIN_ENV_UID: ${ADMIN_ENV_UID}, User UID: ${firebaseUser.uid})`);
       } else {
         setUser(null);
         setUserProfile(null);
         setIsAdmin(false);
+        console.log('Auth Context: No user logged in, isAdmin set to false.');
       }
       setLoading(false);
     });
