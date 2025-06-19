@@ -1,6 +1,10 @@
 
 import type {NextConfig} from 'next';
 
+// Log the value of ADMIN_USER_UID when next.config.ts is processed
+// This log will appear in the terminal where your Next.js server is running.
+console.log('[next.config.ts] ADMIN_USER_UID from server process.env:', process.env.ADMIN_USER_UID);
+
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
