@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Loader2, Share2 } from 'lucide-react';
 import { VIRTUAL_CURRENCY_RATE_PER_VIEW } from '@/lib/types';
 import { useAuth } from '@/context/auth-context';
+import { useAdSettings } from '@/context/ad-settings-context'; // Import useAdSettings
 import Link from 'next/link';
 import { Button } from '../ui/button';
 import {
@@ -31,14 +32,14 @@ import RelatedPosts from './related-posts';
 import CommentsSection from './comments-section';
 import SocialShareButtons from './social-share-buttons';
 
-
 interface BlogPostViewProps {
   blog: Blog;
-  authorProfile?: UserProfile | null; // Optional author profile for more details
+  authorProfile?: UserProfile | null;
 }
 
 export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps) {
   const { user } = useAuth();
+  const { adDensity } = useAdSettings(); // Get adDensity
   const router = useRouter();
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -66,13 +67,40 @@ export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps)
       setIsDeleting(false);
     }
   };
+
+  // Determine number of in-content ads based on density
+  const showSecondInContentAd = adDensity === 'high';
+  const showThirdInContentAd = adDensity === 'high' || adDensity === 'medium';
+
+  // Split content for ad insertion (simplified logic)
+  // A more robust approach might involve parsing HTML or using markers
+  const contentParts = blog.content.split(/(<\/p>)/); // Split by closing paragraph tags
+  const firstAdInsertionIndex = 6; // Approx after 3 paragraphs (p, /p, p, /p, p, /p)
+  const secondAdInsertionIndex = 14; // Approx after 7 paragraphs
+  const thirdAdInsertionIndex = 22; // Approx after 11 paragraphs
+
+  const renderContentWithAds = () => {
+    let contentWithAds: (string | JSX.Element)[] = [];
+    contentParts.forEach((part, index) => {
+      contentWithAds.push(part);
+      if (index === firstAdInsertionIndex) {
+        contentWithAds.push(<AdPlaceholder key="ad1" type="in-content" className="my-8" />);
+      }
+      if (showSecondInContentAd && index === secondAdInsertionIndex) {
+        contentWithAds.push(<AdPlaceholder key="ad2" type="in-content" className="my-8" />);
+      }
+      if (showThirdInContentAd && index === thirdAdInsertionIndex && blog.content.length > 3000) { // Example condition for 3rd ad
+         contentWithAds.push(<AdPlaceholder key="ad3" type="in-content" className="my-8" />);
+      }
+    });
+    return contentWithAds.map((item, i) => 
+        typeof item === 'string' ? <span key={i} dangerouslySetInnerHTML={{ __html: item }}/> : item
+    );
+  };
   
-  // Sanitize HTML content (already done in editor, but good for direct display if needed)
-  // For this component, we assume blog.content is already sanitized HTML from Quill.
 
   return (
     <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto py-8 px-4 animate-fade-in">
-      {/* Main Content Area */}
       <main className="flex-1 w-full lg:max-w-3xl xl:max-w-4xl">
         <AdPlaceholder type="leaderboard-header" className="mb-6" />
         <article>
@@ -144,17 +172,9 @@ export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps)
             </div>
           )}
           
-          {/* First In-Content Ad Placeholder */}
-          <AdPlaceholder type="in-content" className="my-8" />
-
-          <div
-            className="prose dark:prose-invert max-w-none" // Tailwind Typography styles applied globally and here
-            dangerouslySetInnerHTML={{ __html: blog.content }} 
-          />
-
-          {/* Second In-Content Ad Placeholder (example) */}
-          {blog.content.length > 3000 && <AdPlaceholder type="in-content" className="my-8" /> }
-
+          <div className="prose dark:prose-invert max-w-none">
+             {renderContentWithAds()}
+          </div>
 
           {blog.tags && blog.tags.length > 0 && (
             <div className="mt-12 pt-6 border-t">
@@ -176,9 +196,8 @@ export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps)
         </article>
       </main>
 
-      {/* Sidebar for Desktop */}
       <aside className="w-full lg:w-1/4 lg:max-w-xs xl:max-w-sm hidden lg:block space-y-6">
-        <div className="sticky top-20 space-y-6"> {/* top-20 to account for sticky header height */}
+        <div className="sticky top-20 space-y-6"> 
             <h3 className="text-xl font-headline font-semibold text-foreground">Author</h3>
             {authorProfile ? (
                 <div className="p-4 bg-card rounded-lg shadow">

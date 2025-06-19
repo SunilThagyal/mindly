@@ -9,11 +9,14 @@ import type { UserProfile } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
+// IMPORTANT: Replace this with your actual Admin User's UID from Firebase Authentication
+const ADMIN_USER_UID = 'REPLACE_WITH_YOUR_ADMIN_UID'; 
+
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
-  isAdmin: boolean; // Simplified admin check
+  isAdmin: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -30,13 +33,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        // Fetch or create user profile in Firestore
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
           setUserProfile(userDocSnap.data() as UserProfile);
         } else {
-          // Create a new profile if it doesn't exist
           const newProfile: UserProfile = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
@@ -47,7 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await setDoc(userDocRef, newProfile);
           setUserProfile(newProfile);
         }
-        // setIsAdmin(firebaseUser.uid === 'ADMIN_UID_HERE'); 
+        setIsAdmin(firebaseUser.uid === ADMIN_USER_UID); 
       } else {
         setUser(null);
         setUserProfile(null);
@@ -69,14 +70,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       router.push('/'); 
     } catch (error) {
       console.error("Error signing out: ", error);
-      // Handle error (e.g., show toast)
     } finally {
       setLoading(false);
     }
   };
   
-  // If auth state is still loading, display a global loader.
-  // This ensures server-rendered HTML and initial client-rendered HTML match.
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -85,7 +83,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
   }
 
-  // Once loading is complete, render the provider and children.
   return (
     <AuthContext.Provider value={{ user, userProfile, loading, isAdmin, signOut }}>
       {children}

@@ -1,12 +1,14 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
+import { AdSettingsProvider } from '@/context/ad-settings-context'; // Import AdSettingsProvider
 import Header from '@/components/layout/header';
+import AdPlaceholder from '@/components/layout/ad-placeholder'; // Import AdPlaceholder
 import { cn } from '@/lib/utils';
 import { Montserrat, Merriweather, Lora } from 'next/font/google';
 
-// Define fonts with subsets and weights
 const montserrat = Montserrat({
   subsets: ['latin'],
   variable: '--font-montserrat',
@@ -40,18 +42,20 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={cn(montserrat.variable, merriweather.variable, lora.variable)}>
       <head>
         {/* Google Fonts preconnect - Next/font handles optimal loading */}
+        {/* Consider adding AdSense script here if using AdSense */}
+        {/* <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=YOUR_ADSENSE_CLIENT_ID" crossOrigin="anonymous"></script> */}
       </head>
       <body className={cn("font-body antialiased flex flex-col min-h-screen")}>
         <AuthProvider>
-          <Header />
-          <main className="flex-grow container mx-auto px-4 py-8">
-            {children}
-          </main>
-          {/* Placeholder for Mobile Sticky Anchor Ad - visible only on mobile */}
-          <div className="sm:hidden fixed bottom-0 left-0 right-0 h-12 bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center z-50 border-t border-border">
-            <span className="text-sm text-muted-foreground">Ad Placeholder (320x50)</span>
-          </div>
-          <Toaster />
+          <AdSettingsProvider> {/* Wrap with AdSettingsProvider */}
+            <Header />
+            <main className="flex-grow container mx-auto px-4 py-8">
+              {children}
+            </main>
+            {/* Mobile Sticky Anchor Ad - Now uses AdPlaceholder for conditional rendering */}
+            <AdPlaceholder type="mobile-sticky-footer" />
+            <Toaster />
+          </AdSettingsProvider>
         </AuthProvider>
       </body>
     </html>
