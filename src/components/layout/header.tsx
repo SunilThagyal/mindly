@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/context/auth-context';
-import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings, DollarSign, Bell, Loader2, MessageSquare, CornerDownRight, Heart as HeartIcon } from 'lucide-react'; 
+import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings, DollarSign, Bell, Loader2, MessageSquare, CornerDownRight, Heart as HeartIcon, ThumbsUp } from 'lucide-react'; 
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -113,6 +113,7 @@ export default function Header() {
   const getNotificationIcon = (type: Notification['type']) => {
     if (type === 'new_reply') return <CornerDownRight className="mt-0.5 h-4 w-4 shrink-0" />;
     if (type === 'new_like') return <HeartIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />;
+    if (type === 'new_post_like') return <ThumbsUp className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />;
     return <MessageSquare className="mt-0.5 h-4 w-4 shrink-0" />;
   };
   
@@ -126,6 +127,9 @@ export default function Header() {
         text = <><span className="font-semibold">{notif.likerName}</span> liked: <span className="italic">"{notif.likedCommentTextSnippet}"</span> on:</>;
       }
       return text;
+    }
+    if (notif.type === 'new_post_like') {
+        return <><span className="font-semibold">{notif.likerName}</span> liked your post:</>;
     }
     return <><span className="font-semibold">{notif.commenterName}</span> commented on:</>;
   };
@@ -294,4 +298,3 @@ export default function Header() {
     </header>
   );
 }
-    

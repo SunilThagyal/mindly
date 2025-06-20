@@ -42,6 +42,8 @@ async function getUserBlogs(userId: string): Promise<Blog[]> {
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
       publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt : null,
       coverImageUrl: data.coverImageUrl || null,
+      likes: data.likes || 0,
+      likedBy: data.likedBy || [],
     } as Blog;
   });
 }

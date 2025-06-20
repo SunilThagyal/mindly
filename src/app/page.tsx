@@ -73,6 +73,8 @@ async function getBlogs(
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
       publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt : null,
       coverImageUrl: data.coverImageUrl || null,
+      likes: data.likes || 0,
+      likedBy: data.likedBy || [],
     } as Blog;
   });
   const newLastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
@@ -199,8 +201,6 @@ export default function HomePage() {
     setLoadingFunc(true);
     if (!isLoadMoreOperation) {
         setErrorFunc({ message: null, indexLink: null });
-        // Crucially, reset posts for the tab if it's a new fetch (not load more)
-        // This is especially important for 'explore' tab when tag changes
         setPostsFunc([]); 
         setLastDocFunc(null);
         setHasMoreFunc(true);
@@ -208,12 +208,6 @@ export default function HomePage() {
 
     try {
       const lastDocToQueryWith = isLoadMoreOperation ? currentLastDoc : null;
-      // if (isLoadMoreOperation && !lastDocToQueryWith && currentPostList.length > 0) { // Already handled by hasMore state
-      //     setHasMoreFunc(false);
-      //     setLoadingFunc(false);
-      //     return;
-      // }
-      
       const { blogs: newBlogs, newLastDoc: newCursor } = await getBlogs(fieldToOrderBy, sortDirection as "asc" | "desc", POSTS_PER_PAGE, lastDocToQueryWith, currentSelectedTag);
       
       setPostsFunc(prev => isLoadMoreOperation ? [...prev, ...newBlogs] : newBlogs);
@@ -226,9 +220,8 @@ export default function HomePage() {
     } finally {
       setLoadingFunc(false);
     }
-  }, [selectedTag, recentPosts, trendingPosts, mostReadPosts, explorePosts, lastDocRecent, lastDocTrending, lastDocMostRead, lastDocExplore]); // Dependencies are key
+  }, [selectedTag, recentPosts, trendingPosts, mostReadPosts, explorePosts, lastDocRecent, lastDocTrending, lastDocMostRead, lastDocExplore]); 
 
-  // Initial fetch for recent posts and tags
   useEffect(() => {
     if (recentPosts.length === 0 && !loadingRecent && hasMoreRecent) {
         fetchPosts('recent');
@@ -250,13 +243,10 @@ export default function HomePage() {
     if (allSampledTags.length === 0 && !loadingTags) {
         fetchInitialTagsData();
     }
-  }, []); // Runs once on mount
+  }, []); 
 
-  // Effect to handle fetching posts when activeTab changes or selectedTag changes (for explore)
   useEffect(() => {
     if (activeTab === 'explore') {
-      // Explore tab logic is now: if selectedTag exists, fetch. fetchPosts will handle reset.
-      // If no selectedTag, fetchPosts itself will clear explorePosts.
       fetchPosts('explore');
     } else if (activeTab === 'recent') {
       if (recentPosts.length === 0 && !loadingRecent && hasMoreRecent) fetchPosts('recent');
@@ -265,13 +255,12 @@ export default function HomePage() {
     } else if (activeTab === 'mostRead') {
       if (mostReadPosts.length === 0 && !loadingMostRead && hasMoreMostRead) fetchPosts('mostRead');
     }
-  }, [activeTab, selectedTag]); // Removed fetchPosts from deps, it's stable via useCallback
+  }, [activeTab, selectedTag]); 
 
 
-  // Effect to filter tags for search in Explore tab
   useEffect(() => {
     if (tagSearchQuery.trim() === '') {
-      setFilteredSearchTags(topDisplayTags); // Show top tags when search is empty
+      setFilteredSearchTags(topDisplayTags); 
     } else {
       setFilteredSearchTags(
         allSampledTags.filter(tag => tag.toLowerCase().includes(tagSearchQuery.toLowerCase()))
@@ -282,21 +271,12 @@ export default function HomePage() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    // if (value !== 'explore') { // Keep selectedTag even when switching away, so switching back remembers
-    //     setSelectedTag(null); 
-    // }
   };
 
   const handleTagSelect = (tag: string) => {
-    // If the same tag is clicked, we could deselect it or do nothing.
-    // For now, setting it will trigger the fetch if it's different or if the tab wasn't 'explore'.
-    setSelectedTag(prev => prev === tag ? null : tag); // Toggle selection or simply set
-    
+    setSelectedTag(prev => prev === tag ? null : tag); 
     if (activeTab !== 'explore') {
         setActiveTab('explore'); 
-    } else if (selectedTag === tag) { // If already on explore and clicked same tag, effectively deselecting
-        // fetchPosts('explore') will be called by useEffect due to selectedTag change (to null)
-        // and will clear posts.
     }
   };
   
@@ -452,4 +432,3 @@ export default function HomePage() {
     </div>
   );
 }
-

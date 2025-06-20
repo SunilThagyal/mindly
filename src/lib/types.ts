@@ -43,6 +43,8 @@ export interface Blog {
   createdAt: Timestamp;
   publishedAt: Timestamp | null;
   coverImageUrl: string | null;
+  likes?: number; // Added for post likes count
+  likedBy?: string[]; // Added for list of user UIDs who liked the post
 }
 
 export interface BlogInput {
@@ -108,7 +110,7 @@ export interface WithdrawalRequest {
 
 export interface Notification {
   id: string;
-  type: 'new_comment' | 'new_reply' | 'new_like';
+  type: 'new_comment' | 'new_reply' | 'new_like' | 'new_post_like'; // Added 'new_post_like'
   blogId: string;
   blogSlug: string;
   blogTitle: string;
@@ -116,11 +118,10 @@ export interface Notification {
   replierName?: string | null;   
   likerName?: string | null; 
   likedCommentTextSnippet?: string | null;
-  commentId: string; 
+  commentId?: string | null; // Optional for post likes
   parentCommentId?: string | null; 
   parentCommentAuthorId?: string | null; 
   createdAt: Timestamp;
   isRead: boolean;
   link: string;
 }
-

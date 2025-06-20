@@ -66,6 +66,8 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
     createdAt: blogData.createdAt instanceof Timestamp ? blogData.createdAt : Timestamp.now(),
     publishedAt: blogData.publishedAt instanceof Timestamp ? blogData.publishedAt : null,
     coverImageUrl: blogData.coverImageUrl || null,
+    likes: blogData.likes || 0,
+    likedBy: blogData.likedBy || [],
   } as Blog;
 }
 

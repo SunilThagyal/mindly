@@ -5,7 +5,7 @@ import type { Blog, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Loader2, Share2 } from 'lucide-react';
+import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Loader2, Share2, Heart } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useAdSettings } from '@/context/ad-settings-context'; 
 import { useEarningsSettings } from '@/context/earnings-settings-context';
@@ -22,11 +22,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { deleteDoc, doc } from 'firebase/firestore';
+import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AdPlaceholder from '@/components/layout/ad-placeholder';
 import RelatedPosts from './related-posts';
 import CommentsSection from './comments-section';
@@ -37,19 +37,29 @@ interface BlogPostViewProps {
   authorProfile?: UserProfile | null;
 }
 
-export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps) {
-  const { user } = useAuth();
+export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogPostViewProps) {
+  const { user, userProfile: currentUserProfile } = useAuth();
   const { adDensity } = useAdSettings(); 
   const { baseEarningPerView } = useEarningsSettings();
   const router = useRouter();
   const { toast } = useToast();
+
+  const [blog, setBlog] = useState<Blog>(initialBlog);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
+
+  // Update local blog state if initialBlog prop changes (e.g., due to revalidation)
+  useEffect(() => {
+    setBlog(initialBlog);
+  }, [initialBlog]);
 
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Draft - Not Published';
 
   const earnings = (blog.views * baseEarningPerView).toFixed(2); 
+  const currentLikes = blog.likes || 0;
+  const isLikedByCurrentUser = user ? blog.likedBy?.includes(user.uid) : false;
 
   const handleDelete = async () => {
     if (!user || user.uid !== blog.authorId) {
@@ -68,6 +78,77 @@ export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps)
       setIsDeleting(false);
     }
   };
+
+  const handleLikePost = async () => {
+    if (!user || !currentUserProfile) {
+      toast({ title: "Login Required", description: "Please log in to like a post.", variant: "destructive" });
+      return;
+    }
+    if (isLiking) return;
+    setIsLiking(true);
+
+    const blogRef = doc(db, "blogs", blog.id);
+    const alreadyLiked = blog.likedBy?.includes(user.uid);
+
+    // Optimistic UI update
+    setBlog(prevBlog => ({
+      ...prevBlog,
+      likes: (prevBlog.likes || 0) + (alreadyLiked ? -1 : 1),
+      likedBy: alreadyLiked 
+        ? prevBlog.likedBy?.filter(uid => uid !== user.uid) 
+        : [...(prevBlog.likedBy || []), user.uid]
+    }));
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const blogDoc = await transaction.get(blogRef);
+        if (!blogDoc.exists()) {
+          throw "Document does not exist!";
+        }
+        const currentLikedBy = blogDoc.data().likedBy || [];
+        let newLikesCount = blogDoc.data().likes || 0;
+
+        if (currentLikedBy.includes(user.uid)) { // User is unliking
+          transaction.update(blogRef, {
+            likes: increment(-1),
+            likedBy: arrayRemove(user.uid)
+          });
+          newLikesCount--;
+        } else { // User is liking
+          transaction.update(blogRef, {
+            likes: increment(1),
+            likedBy: arrayUnion(user.uid)
+          });
+          newLikesCount++;
+          
+          // Send notification if not liking own post
+          if (user.uid !== blog.authorId) {
+            const notificationRef = collection(db, 'users', blog.authorId, 'notifications');
+            // Check for existing unread like notification from this user for this post? (More complex, skip for now)
+            await addDoc(notificationRef, { // Use addDoc directly as it's okay if multiple like notifs exist
+              type: 'new_post_like',
+              blogId: blog.id,
+              blogSlug: blog.slug,
+              blogTitle: blog.title,
+              likerName: currentUserProfile.displayName || 'Anonymous',
+              createdAt: serverTimestamp(),
+              isRead: false,
+              link: `/blog/${blog.slug}`,
+            });
+          }
+        }
+      });
+      // Firestore listener will eventually update the state, or rely on optimistic update
+    } catch (error) {
+      console.error("Error liking post:", error);
+      toast({ title: "Error", description: "Could not update like status.", variant: "destructive" });
+      // Revert optimistic update
+      setBlog(initialBlog); 
+    } finally {
+      setIsLiking(false);
+    }
+  };
+
 
   const renderContentWithAds = () => {
     let contentWithAds: (string | JSX.Element)[] = [];
@@ -141,38 +222,54 @@ export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps)
               <span className="flex items-center font-semibold"><Coins className="h-4 w-4 mr-1 text-yellow-500" /> ${earnings}</span>
             </div>
           </header>
-
-          {user && user.uid === blog.authorId && (
-            <div className="mb-6 flex gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/blog/edit/${blog.id}`} className="flex items-center">
-                  <Edit className="mr-2 h-4 w-4" /> Edit
-                </Link>
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" className="flex items-center" disabled={isDeleting}>
-                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />} Delete
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete your blog post.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
-                      {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      Yes, delete it
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
+          
+          <div className="my-6 flex items-center gap-4">
+            <Button
+              variant={isLikedByCurrentUser ? "default" : "outline"}
+              size="default"
+              onClick={handleLikePost}
+              disabled={isLiking || !user}
+              className={`transition-colors duration-200 ${isLikedByCurrentUser ? 'bg-red-500 hover:bg-red-600 text-white border-red-500' : 'border-muted-foreground/50 hover:border-primary hover:text-primary'}`}
+            >
+              {isLiking ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Heart className={`mr-2 h-4 w-4 ${isLikedByCurrentUser ? 'fill-current' : ''}`} />
+              )}
+              {currentLikes > 0 ? `${currentLikes} Like${currentLikes === 1 ? '' : 's'}` : 'Like'}
+            </Button>
+            {user && user.uid === blog.authorId && (
+              <div className="flex gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/blog/edit/${blog.id}`} className="flex items-center">
+                    <Edit className="mr-2 h-4 w-4" /> Edit
+                  </Link>
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="flex items-center" disabled={isDeleting}>
+                      {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />} Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete your blog post.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                        {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Yes, delete it
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+          </div>
           
           <div className="prose dark:prose-invert max-w-none">
              {renderContentWithAds()}

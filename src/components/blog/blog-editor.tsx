@@ -74,6 +74,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             setTags(blogData.tags || []);
             setCurrentStatus(blogData.status);
             setCoverImageUrl(blogData.coverImageUrl || null);
+            // Note: 'likes' and 'likedBy' are not managed here; they are interaction metrics.
           } else {
             toast({ title: 'Not Found', description: 'Blog post not found.', variant: 'destructive' });
             router.push('/');
@@ -169,7 +170,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
               'span', 'div', 'br', 'hr',
               'table', 'thead', 'tbody', 'tr', 'th', 'td', 'caption',
               'figure', 'figcaption',
-              'pre', 'code', // For code blocks
+              'pre', 'code', 
             ]),
             allowedAttributes: {
               ...sanitizeHtml.defaults.allowedAttributes,
@@ -183,53 +184,49 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
               span: ['style', 'class'],
               div: ['style', 'class'],
               p: ['style', 'class'],
-              pre: ['class', 'style'], // For code blocks
-              code: ['class', 'style'], // For code blocks
+              pre: ['class', 'style'], 
+              code: ['class', 'style'], 
               '*': ['style', 'class', 'id', 'title', 'lang', 'dir'],
             },
             allowedSchemes: ['http', 'https', 'ftp', 'mailto', 'tel', 'data'],
             allowedSchemesByTag: {
               img: ['data', 'http', 'https'],
             },
-            // To better preserve pasted styles, allow more CSS properties if Quill is configured to handle them.
-            // Be very careful with style sanitization.
             allowedStyles: {
               '*': {
-                // General
                 'color': [/^#(0x)?[0-9a-f]+$/i, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/, /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d\.]+\s*\)$/, /^hsl\(\s*\d+\s*,\s*[\d\.]*%\s*,\s*[\d\.]*%\s*\)$/, /^[a-z-]+$/],
                 'background-color': [/^#(0x)?[0-9a-f]+$/i, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/, /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d\.]+\s*\)$/, /^hsl\(\s*\d+\s*,\s*[\d\.]*%\s*,\s*[\d\.]*%\s*\)$/, /^[a-z-]+$/, /^transparent$/],
                 'text-align': [/^left$/, /^right$/, /^center$/, /^justify$/],
                 'font-size': [/^\d*\.?\d+(?:px|em|rem|%|pt|pc|in|cm|mm|ex|ch|vw|vh|vmin|vmax)?$/],
-                'font-family': [/^[\s\w,-]+$/], // Allow common font families
+                'font-family': [/^[\s\w,-]+$/], 
                 'font-weight': [/^(normal|bold|bolder|lighter|\d+)$/],
                 'font-style': [/^(normal|italic|oblique)$/],
                 'text-decoration': [/^(none|underline|overline|line-through|blink)$/],
                 'line-height': [/^\d*\.?\d+(?:px|em|rem|%|pt)?$/ , /^[normal|inherit|initial|unset]+$/],
                 'margin': [/^\s*auto\s*$|^(\s*(-?\d*\.?\d+(px|em|%|rem|pt|pc|in|cm|mm)\s*)){1,4}$/],
                 'padding': [/^\s*auto\s*$|^(\s*(-?\d*\.?\d+(px|em|%|rem|pt|pc|in|cm|mm)\s*)){1,4}$/],
-                'border': [/.*/], // Simplified for example, can be more specific
+                'border': [/.*/], 
                 'width': [/^\d*\.?\d+(?:px|em|%|rem|pt|pc|in|cm|mm|vw|vh)?$/, /^auto$/],
                 'height': [/^\d*\.?\d+(?:px|em|%|rem|pt|pc|in|cm|mm|vw|vh)?$/, /^auto$/],
                 'display': [/^inline$/, /^block$/, /^inline-block$/, /^flex$/, /^none$/, /^grid$/],
                 'float': [/^left$/, /^right$/, /^none$/],
                 'clear': [/^left$/, /^right$/, /^both$/, /^none$/],
                 'list-style-type': [/.*/],
-                // For code blocks from Quill
                 'white-space': [/^(normal|nowrap|pre|pre-wrap|pre-line|break-spaces)$/],
               },
             },
-            parseStyleAttributes: true, // Allow parsing of style attributes
-            exclusiveFilter: function(frame) { // Remove empty <a> tags that some editors might produce
+            parseStyleAttributes: true, 
+            exclusiveFilter: function(frame) { 
               return frame.tag === 'a' && !frame.text.trim() && !frame.children.length && (!frame.attribs.href || frame.attribs.href === '#');
             }
           });
 
           console.log("Sanitized AI Content to be set:", JSON.stringify(sanitizedContent));
-          setContent(sanitizedContent); // This is what updates the 'value' prop of RichTextEditor
+          setContent(sanitizedContent); 
           contentGenerated = true;
         } else {
           console.warn("AI generated a title but htmlContent was empty, missing, or not a string. Received:", result.htmlContent);
-          setContent(''); // Explicitly set to empty if AI returns no valid content
+          setContent(''); 
         }
 
         if (contentGenerated) {
@@ -306,11 +303,8 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         const updatePayload: Partial<Blog> = {
           ...blogDataPayload,
           publishedAt: newPublishedAt,
-          authorId: existingBlogData?.authorId, 
-          authorDisplayName: existingBlogData?.authorDisplayName,
-          authorPhotoURL: existingBlogData?.authorPhotoURL,
-          createdAt: existingBlogData?.createdAt,
-          views: existingBlogData?.views
+          // Fields like authorId, createdAt, views, likes, likedBy should not be overwritten by editor updates
+          // Only user-editable content, status, and associated metadata like publishedAt should be updated here.
         };
 
 
@@ -323,6 +317,8 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
           authorDisplayName: userProfile.displayName || 'Anonymous',
           authorPhotoURL: userProfile.photoURL || null,
           views: 0,
+          likes: 0, // Initialize likes for new posts
+          likedBy: [], // Initialize likedBy for new posts
           createdAt: serverTimestamp() as Timestamp, 
           publishedAt: newSaveStatus === 'published' ? serverTimestamp() as Timestamp : null,
         };
@@ -489,4 +485,3 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     </Card>
   );
 }
-
