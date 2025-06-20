@@ -61,6 +61,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const currentLikes = blog.likes || 0;
   const isLikedByCurrentUser = user ? blog.likedBy?.includes(user.uid) : false;
   const canShowEarningsToAuthor = user && user.uid === blog.authorId && currentUserProfile?.isMonetizationApproved;
+  const isGeneratedCover = blog.coverImageUrl?.includes('api.a0.dev');
 
   const handleDelete = async () => {
     if (!user || user.uid !== blog.authorId) {
@@ -82,7 +83,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
   const handleLikePost = async () => {
     if (!user || !currentUserProfile) {
-      toast({ title: "Login Required", description: "Redirecting to login...", variant: "default", duration: 3000 });
+      toast({ title: "Login Required", description: "Redirecting to login...", variant: "default", duration: 2000 });
       router.push(`/auth/login?redirect=/blog/${blog.slug}`);
       return;
     }
@@ -96,7 +97,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         : [...(prevBlog.likedBy || []), user.uid],
     }));
     
-    if (isLiking) return;
+    if (isLiking) return; // Prevent multiple simultaneous requests
     setIsLiking(true); 
 
     const blogRef = doc(db, "blogs", blog.id);
@@ -111,7 +112,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         const firestoreLikedBy = blogDoc.data().likedBy || [];
         let operationType: 'like' | 'unlike';
 
-        // Use the pre-optimistic update state for the DB transaction
+        // Use the pre-optimistic update state (initialBlog) for the DB transaction's logic
         if (initialBlog.likedBy?.includes(user.uid)) { 
           transaction.update(blogRef, {
             likes: increment(-1),
@@ -143,8 +144,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
-      // Revert UI on error by re-setting to initialBlog (or the version before this attempt)
-      setBlog(initialBlog); 
+      setBlog(initialBlog); // Revert UI on error
     } finally {
       setIsLiking(false);
     }
@@ -152,12 +152,12 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
   const renderContentWithAds = () => {
     let contentWithAds: (string | JSX.Element)[] = [];
-    const contentParts = blog.content.split(/(<\/p>)/);
+    const contentParts = blog.content.split(/(<\/p>)/); // Basic split, might need refinement
 
     const adSlotIndices = {
-      slot1: 6,
-      slot2: 14,
-      slot3: 22,
+      slot1: 6, // After ~3 paragraphs
+      slot2: 14, // After ~7 paragraphs
+      slot3: 22, // After ~11 paragraphs
     };
 
     contentParts.forEach((part, index) => {
@@ -178,6 +178,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     );
   };
 
+
   return (
     <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto py-8 px-4 animate-fade-in">
       <main className="flex-1 w-full lg:max-w-3xl xl:max-w-4xl">
@@ -191,7 +192,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                 layout="fill"
                 objectFit="cover"
                 priority
-                data-ai-hint="blog hero"
+                data-ai-hint={isGeneratedCover ? "generated banner" : "blog hero"}
               />
             </div>
           )}
@@ -224,20 +225,19 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           <div className="my-6 flex items-center gap-3 sm:gap-4">
              <Button
                 onClick={handleLikePost}
-                disabled={isLiking} // Only disable if actually processing, not if user is null (handled by redirect)
+                disabled={isLiking}
                 variant="ghost"
-                className="group relative p-0 h-auto rounded-xl font-semibold focus:outline-none focus:ring-2 ring-offset-background focus:ring-red-400"
+                className="group relative p-0 h-auto rounded-xl font-semibold shadow-md hover:shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-background focus:ring-red-400"
                 aria-pressed={isLikedByCurrentUser}
                 title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
               >
                  <span className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200",
-                    "shadow-md group-hover:shadow-lg transform group-hover:scale-105 group-active:scale-95",
                     isLikedByCurrentUser
-                      ? "bg-red-500 border-red-500 text-white"
-                      : "border-muted-foreground/30 text-muted-foreground",
-                     isLikedByCurrentUser && "hover:bg-red-600 hover:border-red-700", // Maintained hover for liked
-                     !isLikedByCurrentUser && "group-hover:border-accent/50 group-hover:text-accent group-hover:fill-accent/20", // Maintained hover for unliked
+                      ? "bg-red-500 border-red-500 text-white" // Liked state
+                      : "border-muted-foreground/30 text-muted-foreground", // Unliked state
+                    isLikedByCurrentUser && "hover:bg-red-600 hover:border-red-700", // Liked hover: Darken red
+                    !isLikedByCurrentUser && "group-hover:border-accent/50 group-hover:text-accent group-hover:fill-accent/20", // Unliked hover: Light orange effects
                     isLiking && "cursor-not-allowed"
                 )}>
                   {isLiking ? (
@@ -247,14 +247,14 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                       <Heart className={cn(
                         "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-125",
                         isLikedByCurrentUser
-                          ? "fill-white text-white" 
-                          : "group-hover:text-accent group-hover:fill-accent/20", // Icon stroke and fill change for unliked hover
+                          ? "fill-white text-white" // Liked: Filled white icon
+                          : "group-hover:text-accent group-hover:fill-accent/20", // Unliked hover: Orange icon with light orange fill
                       )} />
                       <span className={cn(
                         "text-sm tabular-nums",
                          isLikedByCurrentUser 
-                            ? "text-white" 
-                            : "group-hover:text-accent" // Text color change for unliked hover
+                            ? "text-white" // Liked: White text
+                            : "group-hover:text-accent" // Unliked hover: Orange text
                       )}>
                         {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
                       </span>
@@ -401,13 +401,3 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     </div>
   );
 }
-    
-
-    
-
-
-
-
-
-
-    

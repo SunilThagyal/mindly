@@ -5,6 +5,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import Quill, { type QuillOptions, type DeltaStatic, type Sources } from 'quill';
 import 'quill/dist/quill.snow.css';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from '@/config/cloudinary'; // Import Cloudinary config
 
 interface RichTextEditorProps {
   value: string;
@@ -16,148 +17,162 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
   const quillRef = useRef<HTMLDivElement>(null);
   const quillInstanceRef = useRef<Quill | null>(null);
   const [isClient, setIsClient] = useState(false);
-
   const internalUpdateRef = useRef(false);
 
   useEffect(() => {
     setIsClient(true);
-    console.log("[RTE-MountEffect] Component mounted, isClient set to true.");
   }, []);
 
-  useEffect(() => {
-    if (!isClient || !quillRef.current || quillInstanceRef.current) {
-      console.log("[RTE-InitEffect] Guard: Not client-side, quillRef not available, or Quill already initialized. Aborting.");
+  const imageHandler = () => {
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET === 'your_unsigned_upload_preset_name') {
+      alert("Cloudinary is not configured for image uploads. Please check your environment settings and ensure an unsigned upload preset is specified.");
+      console.error("Cloudinary config missing: CLOUDINARY_CLOUD_NAME or CLOUDINARY_UPLOAD_PRESET not set or is placeholder.");
       return;
     }
 
-    // Revised fontWhitelist to be more specific and reduce generic "sans-serif" repetition.
-    // `false` represents the editor's default font (usually a system sans-serif).
-    // Specific sans-serif fonts like 'Montserrat' and 'Arial' are explicitly listed.
-    const fontWhitelist = [
-      false,            // Default editor font (often sans-serif)
-      'serif',          // Generic Serif
-      'monospace',      // Generic Monospace
-      'Arial',          // Specific Sans-Serif
-      'Verdana',        // Specific Sans-Serif
-      'Times New Roman',// Specific Serif
-      'Georgia',        // Specific Serif
-      'Montserrat',     // App-specific Sans-Serif (from theme)
-      'Merriweather',   // App-specific Serif (from theme)
-      'Lora',           // App-specific Serif (from theme)
-      'Courier New',    // Specific Monospace
-    ];
-    const sizeWhitelist = ['small', false, 'large', 'huge']; // Standard sizes
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
 
-    console.log("[RTE-InitEffect] Initializing Quill instance.");
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      const quill = quillInstanceRef.current;
+      if (file && quill) {
+        const range = quill.getSelection(true);
+        quill.insertText(range.index, " [Uploading image...] ", { color: 'grey', italic: true });
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+        try {
+          const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+            method: 'POST',
+            body: formData,
+          });
+          const data = await response.json();
+          
+          quill.deleteText(range.index, " [Uploading image...] ".length); // Remove placeholder text
+
+          if (data.secure_url) {
+            quill.insertEmbed(range.index, 'image', data.secure_url);
+            quill.setSelection(range.index + 1, 0); // Move cursor after image
+          } else {
+            throw new Error(data.error?.message || 'Cloudinary upload failed to return a secure_url.');
+          }
+        } catch (error) {
+          console.error('Cloudinary upload error:', error);
+          quill.deleteText(range.index, " [Uploading image...] ".length); // Also remove on error
+          alert('Image upload failed: ' + (error as Error).message);
+           // Potentially restore cursor or provide more robust error handling in editor
+        }
+      }
+    };
+  };
+
+
+  useEffect(() => {
+    if (!isClient || !quillRef.current || quillInstanceRef.current) {
+      return;
+    }
+    
+    const fontWhitelist = [
+      false, // Default editor font
+      'serif', 'monospace',
+      'Arial', 'Verdana', 'Times New Roman', 'Georgia',
+      'Montserrat', 'Merriweather', 'Lora', // App-specific fonts
+      'Courier New',
+    ];
+    const sizeWhitelist = ['small', false, 'large', 'huge'];
+
     const options: QuillOptions = {
       theme: 'snow',
       modules: {
-        toolbar: [
-          [{ 'header': [1, 2, 3, false] }],
-          ['bold', 'italic', 'underline', 'strike'],
-          [{ 'font': fontWhitelist }, { 'size': sizeWhitelist }],
-          [{ 'color': [] }, { 'background': [] }],
-          [{ 'list': 'ordered'}, { 'list': 'bullet' }, { 'list': 'check' }],
-          [{ 'script': 'sub'}, { 'script': 'super' }],
-          [{ 'indent': '-1'}, { 'indent': '+1' }],
-          [{ 'align': [] }],
-          ['blockquote', 'code-block'],
-          ['link', 'image', 'video'],
-          ['clean']
-        ],
+        toolbar: {
+          container: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'font': fontWhitelist }, { 'size': sizeWhitelist }],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }, { 'list': 'check' }],
+            [{ 'script': 'sub'}, { 'script': 'super' }],
+            [{ 'indent': '-1'}, { 'indent': '+1' }],
+            [{ 'align': [] }],
+            ['blockquote', 'code-block'],
+            ['link', 'image', 'video'], // 'image' will now use our handler
+            ['clean']
+          ],
+          handlers: {
+            image: imageHandler, // Register custom image handler
+          }
+        },
         clipboard: { matchVisual: false },
       },
       placeholder: placeholder || "Start writing your amazing blog post here...",
     };
     const quill = new Quill(quillRef.current, options);
     quillInstanceRef.current = quill;
-    console.log("[RTE-InitEffect] Quill instance created.");
 
     const initialHtml = typeof value === 'string' ? value : '';
-    console.log("[RTE-InitEffect] Initial `value` prop during Quill init:", JSON.stringify(initialHtml.substring(0,100) + "..."));
-
     if (initialHtml && quill.getLength() <= 1 && initialHtml !== "<p><br></p>") {
-      console.log("[RTE-InitEffect] Attempting to set initial content from `value` prop using dangerouslyPasteHTML.");
       try {
         quill.clipboard.dangerouslyPasteHTML(0, initialHtml, 'silent');
-        console.log("[RTE-InitEffect] Initial content successfully set in Quill editor.");
       } catch (e) {
-        console.error("[RTE-InitEffect] Error setting initial Quill content:", e, "Input HTML was:", initialHtml.substring(0,100) + "...");
+        console.error("[RTE-InitEffect] Error setting initial Quill content:", e);
       }
-    } else {
-       console.log("[RTE-InitEffect] No initial content to set (value empty, editor not empty, or value is default empty paragraph). Quill length:", quill.getLength(), "Normalized Initial HTML for check:", initialHtml === "<p><br></p>" ? "" : initialHtml);
     }
 
     const handleChange = (delta: DeltaStatic, oldDelta: DeltaStatic, source: Sources) => {
-      console.log("[RTE-Event] 'text-change' event fired. Source:", source);
       if (source === 'user') {
-        console.log("[RTE-Event] User edit detected.");
         let html = quill.root.innerHTML;
         if (html === '<p><br></p>') {
           html = '';
         }
-        console.log("[RTE-Event] Marking internalUpdateRef=true and calling onChange. HTML:", JSON.stringify(html.substring(0,100) + "..."));
         internalUpdateRef.current = true;
         onChange(html);
       }
     };
 
     quill.on('text-change', handleChange);
-    console.log("[RTE-InitEffect] 'text-change' listener attached.");
 
     return () => {
-      console.log("[RTE-Cleanup] Cleaning up 'text-change' listener.");
       if (quillInstanceRef.current) {
         quillInstanceRef.current.off('text-change', handleChange);
       }
     };
-  }, [isClient, onChange, placeholder, value]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClient, placeholder]); // Removed onChange and value from dependencies as per previous logic to avoid re-init cycles
 
 
   useEffect(() => {
     const quill = quillInstanceRef.current;
-    console.log("[RTE-ValueSyncEffect] Triggered. isClient:", isClient, "Quill ready:", !!quill);
-
-    if (!isClient || !quill) {
-      console.log("[RTE-ValueSyncEffect] Guard: Not client or Quill not ready.");
-      return;
-    }
+    if (!isClient || !quill) return;
 
     if (internalUpdateRef.current) {
-      console.log("[RTE-ValueSyncEffect] Guard: Internal update, resetting flag and returning.");
       internalUpdateRef.current = false;
       return;
     }
 
     const incomingHtml = typeof value === 'string' ? value : '';
     let currentEditorHtml = quill.root.innerHTML;
-
     const normalizedIncomingHtml = (incomingHtml === "<p><br></p>") ? "" : incomingHtml;
     const normalizedCurrentEditorHtml = (currentEditorHtml === "<p><br></p>") ? "" : currentEditorHtml;
 
-    console.log("[RTE-ValueSyncEffect] Comparing content. Normalized Incoming HTML:", JSON.stringify(normalizedIncomingHtml.substring(0,100) + "..."), "Normalized Editor Current HTML:", JSON.stringify(normalizedCurrentEditorHtml.substring(0,100) + "..."));
-
     if (normalizedIncomingHtml !== normalizedCurrentEditorHtml) {
-      console.log("[RTE-ValueSyncEffect] Content differs. Attempting to update Quill editor.");
       try {
         quill.setContents([], 'silent'); 
         if (normalizedIncomingHtml) { 
             quill.clipboard.dangerouslyPasteHTML(0, normalizedIncomingHtml, 'silent');
-            console.log("[RTE-ValueSyncEffect] Editor updated with dangerouslyPasteHTML. Pasted:", normalizedIncomingHtml.substring(0,100) + "...");
-        } else {
-            console.log("[RTE-ValueSyncEffect] Incoming HTML was empty, editor cleared.");
         }
       } catch (e) {
-        console.error("[RTE-ValueSyncEffect] Error during content update in Quill:", e, "Problematic Incoming HTML was:", normalizedIncomingHtml.substring(0,100) + "...");
+        console.error("[RTE-ValueSyncEffect] Error during content update in Quill:", e);
       }
-    } else {
-      console.log("[RTE-ValueSyncEffect] Content is the same. No update to Quill editor needed.");
     }
   }, [value, isClient]);
 
 
   if (!isClient) {
-    console.log("[RTE-Render] Not client-side yet, rendering Skeleton.");
     return (
       <div className="space-y-2 quill-editor-override">
         <Skeleton className="h-10 w-full rounded-t-lg border-x border-t border-input" />

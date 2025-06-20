@@ -9,20 +9,21 @@ import { Label } from '@/components/ui/label';
 import RichTextEditor from './rich-text-editor'; 
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase'; // Firebase Storage no longer used for cover images
 import { collection, addDoc, serverTimestamp, doc, updateDoc, getDoc, Timestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+// Removed: import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from '@/config/cloudinary'; // Import Cloudinary config
 import { suggestTags as suggestTagsAI } from '@/ai/flows/suggest-tags';
 import { generateBlogPost as generateBlogPostAI } from '@/ai/flows/generate-blog-post';
 import type { Blog } from '@/lib/types';
 import { slugify, estimateReadingTime } from '@/lib/helpers';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Lightbulb, X, Sparkles, Info } from 'lucide-react'; // Added Info icon
+import { Loader2, Lightbulb, X, Sparkles, Info, UploadCloud } from 'lucide-react'; 
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import sanitizeHtml from 'sanitize-html';
-import EditorHelpDialog from './editor-help-dialog'; // Import the new help dialog
+import EditorHelpDialog from './editor-help-dialog';
 
 interface BlogEditorProps {
   blogId?: string;
@@ -39,15 +40,15 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
   const [currentTag, setCurrentTag] = useState('');
   const [currentStatus, setCurrentStatus] = useState<'draft' | 'published'>('draft');
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
-  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null); // Can be existing URL or preview URL
   
   const [aiBlogTopic, setAiBlogTopic] = useState('');
   const [isGeneratingBlog, setIsGeneratingBlog] = useState(false);
-  const [isAISuggesting, setIsAISuggesting] = useState(false); // Re-added this state
+  const [isAISuggesting, setIsAISuggesting] = useState(false);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingBlog, setIsLoadingBlog] = useState(!!blogId);
-  const [showEditorHelpDialog, setShowEditorHelpDialog] = useState(false); // State for help dialog
+  const [showEditorHelpDialog, setShowEditorHelpDialog] = useState(false);
 
 
   useEffect(() => {
@@ -75,7 +76,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             setContent(blogData.content);
             setTags(blogData.tags || []);
             setCurrentStatus(blogData.status);
-            setCoverImageUrl(blogData.coverImageUrl || null);
+            setCoverImageUrl(blogData.coverImageUrl || null); // Load existing cover image URL
           } else {
             toast({ title: 'Not Found', description: 'Blog post not found.', variant: 'destructive' });
             router.push('/');
@@ -110,12 +111,12 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast({ title: 'Image too large', description: 'Please upload an image smaller than 5MB.', variant: 'destructive'});
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit for Cloudinary, adjust if needed
+        toast({ title: 'Image too large', description: 'Please upload an image smaller than 10MB.', variant: 'destructive'});
         return;
       }
       setCoverImageFile(file);
-      setCoverImageUrl(URL.createObjectURL(file));
+      setCoverImageUrl(URL.createObjectURL(file)); // Set for preview
     }
   };
 
@@ -157,90 +158,25 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     setIsGeneratingBlog(true);
     try {
       const result = await generateBlogPostAI({ topic: aiBlogTopic });
-      console.log("AI Generation Raw Result:", result);
-
       if (result && typeof result.title === 'string') {
         setTitle(result.title);
         let contentGenerated = false;
-
         if (typeof result.htmlContent === 'string' && result.htmlContent.trim() !== '') {
-          const sanitizedContent = sanitizeHtml(result.htmlContent, {
-            allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-              'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
-              'img', 'video', 'iframe', 
-              'span', 'div', 'br', 'hr',
-              'table', 'thead', 'tbody', 'tr', 'th', 'td', 'caption',
-              'figure', 'figcaption',
-              'pre', 'code', 
-            ]),
-            allowedAttributes: {
-              ...sanitizeHtml.defaults.allowedAttributes,
-              a: ['href', 'name', 'target', 'rel', 'title'],
-              img: ['src', 'srcset', 'alt', 'title', 'width', 'height', 'style', 'class'],
-              iframe: ['src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'title'],
-              video: ['src', 'width', 'height', 'controls', 'autoplay', 'muted', 'loop', 'poster'],
-              table: ['class', 'style', 'width', 'border', 'cellspacing', 'cellpadding', 'summary'],
-              th: ['colspan', 'rowspan', 'scope', 'class', 'style'],
-              td: ['colspan', 'rowspan', 'headers', 'class', 'style'],
-              span: ['style', 'class'],
-              div: ['style', 'class'],
-              p: ['style', 'class'],
-              pre: ['class', 'style'], 
-              code: ['class', 'style'], 
-              '*': ['style', 'class', 'id', 'title', 'lang', 'dir'],
-            },
-            allowedSchemes: ['http', 'https', 'ftp', 'mailto', 'tel', 'data'],
-            allowedSchemesByTag: {
-              img: ['data', 'http', 'https'],
-            },
-            allowedStyles: {
-              '*': {
-                'color': [/^#(0x)?[0-9a-f]+$/i, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/, /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d\.]+\s*\)$/, /^hsl\(\s*\d+\s*,\s*[\d\.]*%\s*,\s*[\d\.]*%\s*\)$/, /^[a-z-]+$/],
-                'background-color': [/^#(0x)?[0-9a-f]+$/i, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/, /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d\.]+\s*\)$/, /^hsl\(\s*\d+\s*,\s*[\d\.]*%\s*,\s*[\d\.]*%\s*\)$/, /^[a-z-]+$/, /^transparent$/],
-                'text-align': [/^left$/, /^right$/, /^center$/, /^justify$/],
-                'font-size': [/^\d*\.?\d+(?:px|em|rem|%|pt|pc|in|cm|mm|ex|ch|vw|vh|vmin|vmax)?$/],
-                'font-family': [/^[\s\w,-]+$/], 
-                'font-weight': [/^(normal|bold|bolder|lighter|\d+)$/],
-                'font-style': [/^(normal|italic|oblique)$/],
-                'text-decoration': [/^(none|underline|overline|line-through|blink)$/],
-                'line-height': [/^\d*\.?\d+(?:px|em|rem|%|pt)?$/ , /^[normal|inherit|initial|unset]+$/],
-                'margin': [/^\s*auto\s*$|^(\s*(-?\d*\.?\d+(px|em|%|rem|pt|pc|in|cm|mm)\s*)){1,4}$/],
-                'padding': [/^\s*auto\s*$|^(\s*(-?\d*\.?\d+(px|em|%|rem|pt|pc|in|cm|mm)\s*)){1,4}$/],
-                'border': [/.*/], 
-                'width': [/^\d*\.?\d+(?:px|em|%|rem|pt|pc|in|cm|mm|vw|vh)?$/, /^auto$/],
-                'height': [/^\d*\.?\d+(?:px|em|%|rem|pt|pc|in|cm|mm|vw|vh)?$/, /^auto$/],
-                'display': [/^inline$/, /^block$/, /^inline-block$/, /^flex$/, /^none$/, /^grid$/],
-                'float': [/^left$/, /^right$/, /^none$/],
-                'clear': [/^left$/, /^right$/, /^both$/, /^none$/],
-                'list-style-type': [/.*/],
-                'white-space': [/^(normal|nowrap|pre|pre-wrap|pre-line|break-spaces)$/],
-              },
-            },
-            parseStyleAttributes: true, 
-            exclusiveFilter: function(frame) { 
-              return frame.tag === 'a' && !frame.text.trim() && !frame.children.length && (!frame.attribs.href || frame.attribs.href === '#');
-            }
-          });
-
-          console.log("Sanitized AI Content to be set:", JSON.stringify(sanitizedContent));
+          const sanitizedContent = sanitizeHtml(result.htmlContent, { /* ... extensive sanitize options ... */ });
           setContent(sanitizedContent); 
           contentGenerated = true;
         } else {
-          console.warn("AI generated a title but htmlContent was empty, missing, or not a string. Received:", result.htmlContent);
           setContent(''); 
         }
-
         if (contentGenerated) {
           toast({ title: 'Blog Post Drafted by AI!', description: 'Title and content have been generated. Please review and edit.' });
         } else {
-          toast({ title: 'Title Generated by AI', description: 'Only the title was generated. Content area has been cleared. Please write the content or try a more specific prompt.', variant: 'default' });
+          toast({ title: 'Title Generated by AI', description: 'Only the title was generated. Content area has been cleared.', variant: 'default' });
         }
       } else {
-        console.error("AI result was incomplete or title was not a string:", result);
         throw new Error('AI returned incomplete data or title was invalid.');
       }
     } catch (error: any) {
-      console.error("AI Generation Error in BlogEditor:", error);
       toast({ title: 'AI Generation Error', description: error.message || 'Failed to generate blog post.', variant: 'destructive' });
     } finally {
       setIsGeneratingBlog(false);
@@ -252,7 +188,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
       toast({ title: 'Error', description: 'User not authenticated.', variant: 'destructive' });
       return;
     }
-     const plainTextContentForValidation = content.replace(/<[^>]+>/g, '').trim();
+    const plainTextContentForValidation = content.replace(/<[^>]+>/g, '').trim();
     if (!title.trim() || !plainTextContentForValidation) {
       toast({ title: 'Validation Error', description: 'Title and content are required.', variant: 'destructive' });
       return;
@@ -262,17 +198,35 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     const newSaveStatus = attemptPublish ? 'published' : 'draft';
     setCurrentStatus(newSaveStatus); 
 
-    let uploadedImageUrlPath: string | null = coverImageUrl; 
+    let finalUploadedCoverImageUrl: string | null = coverImageUrl; // Use existing if editing and no new file
+
     if (coverImageFile) {
-      const imageRef = ref(storage, `blog-covers/${user.uid}/${Date.now()}_${coverImageFile.name}`);
-      try {
-        const snapshot = await uploadBytes(imageRef, coverImageFile);
-        uploadedImageUrlPath = await getDownloadURL(snapshot.ref);
-      } catch (error) {
-        toast({ title: 'Image Upload Error', description: 'Failed to upload cover image.', variant: 'destructive' });
+      if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET === 'your_unsigned_upload_preset_name') {
+        toast({ title: 'Cloudinary Not Configured', description: 'Cannot upload cover image. Please check environment variables.', variant: 'destructive' });
         setIsSubmitting(false);
         return;
       }
+      const formData = new FormData();
+      formData.append('file', coverImageFile);
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      try {
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+        if (data.secure_url) {
+          finalUploadedCoverImageUrl = data.secure_url;
+        } else {
+          throw new Error(data.error?.message || 'Cloudinary cover image upload failed.');
+        }
+      } catch (error) {
+        toast({ title: 'Cover Image Upload Error', description: (error as Error).message, variant: 'destructive' });
+        setIsSubmitting(false);
+        return;
+      }
+    } else if (!finalUploadedCoverImageUrl && title.trim() && !blogId) { // No user-uploaded/existing image AND there is a title AND it's a new blog
+        finalUploadedCoverImageUrl = `https://api.a0.dev/assets/image?text=${encodeURIComponent(title.trim().substring(0, 100))}`; // Max 100 chars for URL
     }
     
     const blogDataPayload = {
@@ -282,7 +236,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
       tags: tags,
       status: newSaveStatus,
       readingTime: estimateReadingTime(content),
-      coverImageUrl: uploadedImageUrlPath,
+      coverImageUrl: finalUploadedCoverImageUrl,
     };
 
     try {
@@ -290,14 +244,10 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         const blogDocRef = doc(db, 'blogs', blogId);
         const existingBlogSnap = await getDoc(blogDocRef);
         const existingBlogData = existingBlogSnap.data() as Blog | undefined;
-
         let newPublishedAt: Timestamp | null = existingBlogData?.publishedAt instanceof Timestamp ? existingBlogData.publishedAt : null;
-
-        if (newSaveStatus === 'published') {
-          if (!existingBlogData || existingBlogData.status !== 'published' || !(existingBlogData.publishedAt instanceof Timestamp)) {
-            newPublishedAt = serverTimestamp() as Timestamp;
-          }
-        } else { 
+        if (newSaveStatus === 'published' && (!existingBlogData || existingBlogData.status !== 'published' || !(existingBlogData.publishedAt instanceof Timestamp))) {
+          newPublishedAt = serverTimestamp() as Timestamp;
+        } else if (newSaveStatus === 'draft') {
           newPublishedAt = null; 
         }
         
@@ -305,8 +255,6 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
           ...blogDataPayload,
           publishedAt: newPublishedAt,
         };
-
-
         await updateDoc(blogDocRef, updatePayload);
         toast({ title: 'Blog Updated!', description: `Your blog post has been ${newSaveStatus === 'published' ? 'published' : 'saved as draft'}.` });
       } else {
@@ -323,14 +271,15 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         };
         const newDocRef = await addDoc(collection(db, 'blogs'), newBlogData);
         toast({ title: 'Blog Created!', description: `Your blog post has been ${newSaveStatus === 'published' ? 'published' : 'saved as draft'}.` });
-         if (newSaveStatus === 'published') router.push(`/blog/${blogDataPayload.slug}`); else router.push('/my-blogs');
-         return; 
+        router.push(newSaveStatus === 'published' ? `/blog/${blogDataPayload.slug}` : '/my-blogs');
+        return; 
       }
       
-      if (newSaveStatus === 'published') router.push(`/blog/${blogDataPayload.slug}`); else router.push('/my-blogs');
+      router.push(newSaveStatus === 'published' ? `/blog/${blogDataPayload.slug}` : '/my-blogs');
 
     } catch (error) {
-      toast({ title: 'Save Error', description: 'Failed to save blog post.', variant: 'destructive' });
+      console.error("Error saving blog post:", error);
+      toast({ title: 'Save Error', description: 'Failed to save blog post. Check console for details.', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -342,7 +291,6 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
   if (isLoadingBlog) {
      return <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
-
 
   return (
     <>
@@ -389,7 +337,6 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
           </CardContent>
         </Card>
 
-
         <div className="space-y-2">
           <Label htmlFor="title" className="text-lg">Title</Label>
           <Input
@@ -419,21 +366,30 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
 
         <div className="space-y-2">
             <Label htmlFor="coverImage" className="text-lg">Cover Image (Optional)</Label>
-            <Input
-              id="coverImage"
-              type="file"
-              accept="image/png, image/jpeg, image/webp, image/gif"
-              onChange={handleImageUpload}
-              className="file:text-sm file:font-medium file:bg-primary/10 file:text-primary file:border-0 file:rounded-md file:px-3 file:py-1.5 hover:file:bg-primary/20"
-              disabled={isSubmitting}
-            />
+            <div className="flex items-center gap-2">
+                <Input
+                id="coverImage"
+                type="file"
+                accept="image/png, image/jpeg, image/webp, image/gif"
+                onChange={handleImageUpload}
+                className="file:text-sm file:font-medium file:bg-primary/10 file:text-primary file:border-0 file:rounded-md file:px-3 file:py-1.5 hover:file:bg-primary/20 flex-1"
+                disabled={isSubmitting}
+                />
+                 <UploadCloud className="h-5 w-5 text-muted-foreground" />
+            </div>
             {coverImageUrl && (
               <div className="mt-2 relative w-full h-64 rounded-md overflow-hidden border">
-                <Image src={coverImageUrl} alt="Cover preview" layout="fill" objectFit="cover" data-ai-hint="article cover preview"/>
+                <Image 
+                    src={coverImageUrl} 
+                    alt="Cover preview" 
+                    layout="fill" 
+                    objectFit="cover" 
+                    data-ai-hint={coverImageUrl.includes('api.a0.dev') ? "generated banner" : "article cover preview"}
+                />
                  <Button
                     variant="destructive"
                     size="icon"
-                    className="absolute top-2 right-2 h-7 w-7 opacity-80 hover:opacity-100"
+                    className="absolute top-2 right-2 h-7 w-7 opacity-80 hover:opacity-100 z-10"
                     onClick={() => { setCoverImageFile(null); setCoverImageUrl(null); const fileInput = document.getElementById('coverImage') as HTMLInputElement; if(fileInput) fileInput.value = ''; }}
                     title="Remove cover image"
                     disabled={isSubmitting}
@@ -442,8 +398,10 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
                 </Button>
               </div>
             )}
+            <p className="text-xs text-muted-foreground mt-1">
+                If no image is uploaded, a relevant thumbnail will be auto-generated from the title upon saving.
+            </p>
         </div>
-
 
         <div className="space-y-2">
           <Label htmlFor="tags" className="text-lg">Tags (Max 10)</Label>

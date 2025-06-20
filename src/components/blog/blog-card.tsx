@@ -27,6 +27,7 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
 
   // Check if the current user is the author and is approved for monetization
   const canShowEarnings = user?.uid === blog.authorId && userProfile?.isMonetizationApproved;
+  const isGeneratedCover = blog.coverImageUrl?.includes('api.a0.dev');
 
   return (
     <Card className="w-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full animate-fade-in">
@@ -37,7 +38,7 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
             alt={blog.title}
             layout="fill"
             objectFit="cover"
-            data-ai-hint={blog.coverImageUrl ? "article cover" : "placeholder"}
+            data-ai-hint={isGeneratedCover ? "generated banner" : (blog.coverImageUrl ? "article cover" : "placeholder")}
           />
         </div>
       </Link>
