@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import type { Blog, UserProfile } from '@/lib/types';
@@ -88,16 +87,14 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     if (isLiking) return;
 
     const originallyLiked = blog.likedBy?.includes(user.uid);
-    const newLikesCount = (blog.likes || 0) + (originallyLiked ? -1 : 1);
-    const newLikedByArray = originallyLiked
-      ? (blog.likedBy || []).filter(uid => uid !== user.uid)
-      : [...(blog.likedBy || []), user.uid];
     
     // Optimistic UI Update First
     setBlog(prevBlog => ({
       ...prevBlog,
-      likes: newLikesCount,
-      likedBy: newLikedByArray,
+      likes: (prevBlog.likes || 0) + (originallyLiked ? -1 : 1),
+      likedBy: originallyLiked
+        ? (prevBlog.likedBy || []).filter(uid => uid !== user.uid)
+        : [...(prevBlog.likedBy || []), user.uid],
     }));
 
     setIsLiking(true); 
@@ -145,12 +142,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
-      // Revert UI on error
-      setBlog(prevBlog => ({ 
-        ...prevBlog, 
-        likes: originallyLiked ? (blog.likes || 0) +1 : (blog.likes || 0) -1, // reverse the optimistic count
-        likedBy: originallyLiked ? [...(prevBlog.likedBy || []), user.uid] : (prevBlog.likedBy || []).filter(uid => uid !== user.uid) // reverse the optimistic array
-      }));
+      // Revert UI on error by fetching the original blog state or the state before optimistic update
+      setBlog(initialBlog); // Simple revert to initial, or store pre-optimistic state
     } finally {
       setIsLiking(false);
     }
@@ -225,7 +218,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
             </div>
           </header>
 
-          <div className="my-6 flex items-center gap-3">
+          <div className="my-6 flex items-center gap-3 sm:gap-4">
              <Button
                 onClick={handleLikePost}
                 disabled={!user || isLiking}
@@ -236,11 +229,11 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               >
                 <span
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors duration-150",
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-150",
                     "shadow-md group-hover:shadow-lg transform group-hover:scale-105 group-active:scale-95",
                     isLikedByCurrentUser
-                      ? "bg-red-500 border-red-500 text-white group-hover:bg-red-600 group-hover:border-red-700"
-                      : "border-muted-foreground/30 text-muted-foreground group-hover:bg-accent/10 group-hover:border-accent/50 group-hover:text-accent"
+                      ? "bg-red-500 border-red-500 text-white group-hover:border-red-600" // Liked: No background change on hover, subtle border change
+                      : "border-muted-foreground/30 text-muted-foreground group-hover:border-accent/50 group-hover:text-accent" // Unliked: No background change on hover
                   )}
                 >
                   {isLiking ? (
@@ -249,8 +242,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     <Heart className={cn(
                       "h-5 w-5 transition-all duration-150 ease-in-out group-active:scale-125",
                        isLikedByCurrentUser
-                        ? "fill-white text-white" // Liked: white fill, white stroke (effectively just fill)
-                        : "fill-transparent group-hover:fill-accent/20" // Unliked: no fill, on hover light orange fill
+                        ? "fill-white text-white"
+                        : "fill-transparent group-hover:fill-accent/20" 
                     )} />
                   )}
                   <span className="text-sm tabular-nums">
@@ -398,5 +391,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     
 
     
+
 
 
