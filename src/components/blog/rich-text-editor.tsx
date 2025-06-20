@@ -13,6 +13,12 @@ interface RichTextEditorProps {
   placeholder?: string;
 }
 
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/ogg'];
+
 const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeholder }) => {
   const quillRef = useRef<HTMLDivElement>(null);
   const quillInstanceRef = useRef<Quill | null>(null);
@@ -23,15 +29,21 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     setIsClient(true);
   }, []);
 
-  const commonUploadHandler = async (fileType: 'image' | 'video', acceptType: string) => {
+  const commonUploadHandler = async (fileType: 'image' | 'video') => {
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET === 'blogchain_unsigned_preset' || CLOUDINARY_UPLOAD_PRESET === 'your_unsigned_upload_preset_name') {
-      alert(`Cloudinary is not configured for ${fileType} uploads. Please check your environment settings and ensure NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET is correctly set to your unsigned preset name.`);
-      console.error(`Cloudinary config missing: CLOUDINARY_CLOUD_NAME or CLOUDINARY_UPLOAD_PRESET not set or is placeholder for ${fileType}s.`);
+      alert(`Cloudinary is not fully configured for ${fileType} uploads. 
+Please check your environment variables:
+- NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME (Current: ${CLOUDINARY_CLOUD_NAME || 'Not Set'})
+- NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET (Current: ${CLOUDINARY_UPLOAD_PRESET || 'Not Set'})
+Ensure the preset is an 'unsigned' preset created in your Cloudinary dashboard. 
+Image/Video uploads via the editor will not work until this is resolved.`);
+      console.error(`Cloudinary config incomplete for ${fileType} uploads. Name: ${CLOUDINARY_CLOUD_NAME}, Preset: ${CLOUDINARY_UPLOAD_PRESET}`);
       return;
     }
 
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
+    const acceptType = fileType === 'image' ? ALLOWED_IMAGE_TYPES.join(',') : ALLOWED_VIDEO_TYPES.join(',');
     input.setAttribute('accept', acceptType);
     input.click();
 
@@ -39,15 +51,29 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
       const file = input.files?.[0];
       const quill = quillInstanceRef.current;
       if (file && quill) {
-        const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 }; // Fallback if no selection
-        const placeholderText = ` [Uploading ${fileType}...] `;
+        // File Type Validation
+        const allowedTypes = fileType === 'image' ? ALLOWED_IMAGE_TYPES : ALLOWED_VIDEO_TYPES;
+        if (!allowedTypes.includes(file.type)) {
+          alert(`Invalid file type for ${fileType}. Allowed types: ${allowedTypes.join(', ')}`);
+          return;
+        }
+
+        // File Size Validation
+        const maxSize = fileType === 'image' ? MAX_IMAGE_SIZE_BYTES : MAX_VIDEO_SIZE_BYTES;
+        if (file.size > maxSize) {
+          alert(`${fileType.charAt(0).toUpperCase() + fileType.slice(1)} file too large. Max size: ${maxSize / (1024 * 1024)}MB.`);
+          return;
+        }
+        
+        const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+        const placeholderText = ` [Uploading ${fileType}: ${file.name}...] `;
         quill.insertText(range.index, placeholderText, { color: 'grey', italic: true });
         
         const formData = new FormData();
         formData.append('file', file);
         formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+        formData.append('folder', 'blogs'); // Specify the folder
         formData.append('resource_type', fileType === 'video' ? 'video' : 'image');
-
 
         try {
           const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${fileType}/upload`, {
@@ -56,31 +82,41 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
           });
           const data = await response.json();
           
-          quill.deleteText(range.index, placeholderText.length); 
+          const currentPlaceholderIndex = quill.getText().indexOf(placeholderText);
+          if (currentPlaceholderIndex !== -1) {
+            quill.deleteText(currentPlaceholderIndex, placeholderText.length);
+          } else {
+             // Fallback if placeholder text changed or not found, delete from original range
+             // This path should ideally not be hit if editor content not changed externally
+            quill.deleteText(range.index, placeholderText.length);
+          }
+
 
           if (data.secure_url) {
             if (fileType === 'image') {
               quill.insertEmbed(range.index, 'image', data.secure_url);
             } else if (fileType === 'video') {
-              // Embed as HTML5 video tag
-              const videoEmbed = `<video controls width="100%" src="${data.secure_url}"></video>`;
+              const videoEmbed = `<video controls width="100%" src="${data.secure_url}"><p>Your browser does not support the video tag.</p></video>`;
               quill.clipboard.dangerouslyPasteHTML(range.index, videoEmbed, 'user');
             }
             quill.setSelection(range.index + 1, 0); 
           } else {
-            throw new Error(data.error?.message || `Cloudinary ${fileType} upload failed to return a secure_url.`);
+            throw new Error(data.error?.message || `Cloudinary ${fileType} upload failed. Check response for details.`);
           }
         } catch (error) {
           console.error(`Cloudinary ${fileType} upload error:`, error);
-          quill.deleteText(range.index, placeholderText.length);
+          const currentPlaceholderIndexOnError = quill.getText().indexOf(placeholderText);
+          if (currentPlaceholderIndexOnError !== -1) {
+            quill.deleteText(currentPlaceholderIndexOnError, placeholderText.length);
+          }
           alert(`${fileType.charAt(0).toUpperCase() + fileType.slice(1)} upload failed: ` + (error as Error).message);
         }
       }
     };
   };
   
-  const imageHandler = () => commonUploadHandler('image', 'image/*');
-  const videoHandler = () => commonUploadHandler('video', 'video/*');
+  const imageHandler = () => commonUploadHandler('image');
+  const videoHandler = () => commonUploadHandler('video');
 
 
   useEffect(() => {
@@ -172,9 +208,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
 
     if (normalizedIncomingHtml !== normalizedCurrentEditorHtml) {
       try {
+        const currentSelection = quill.getSelection(); // Store selection
         quill.setContents([], 'silent'); 
         if (normalizedIncomingHtml) { 
             quill.clipboard.dangerouslyPasteHTML(0, normalizedIncomingHtml, 'silent');
+        }
+        if (currentSelection) { // Restore selection if possible
+            quill.setSelection(currentSelection, 'silent');
         }
       } catch (e) {
         console.error("[RTE-ValueSyncEffect] Error during content update in Quill:", e);
@@ -200,3 +240,4 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
 };
 
 export default RichTextEditor;
+
