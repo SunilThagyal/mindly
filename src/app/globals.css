@@ -268,20 +268,30 @@
     hr {
       @apply my-8 border-border;
     }
+
     img { 
-      @apply block max-w-full h-auto rounded-md my-6 shadow-md mx-auto border border-border; 
+      @apply block max-w-full h-auto rounded-md shadow-md mx-auto border border-border; 
+      margin-top: 1.5rem; /* Equivalent to my-6 */
+      margin-bottom: 1.5rem; /* Equivalent to my-6 */
     }
+    figure { 
+      @apply mx-auto max-w-full; /* Centering figure elements and constraining width */
+      margin-top: 1.5rem; /* my-6 equivalent */
+      margin-bottom: 1.5rem; /* my-6 equivalent */
+    }
+    figure img { /* Images directly inside a figure should not have extra vertical margin */
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+    figcaption { 
+      @apply text-sm text-center text-muted-foreground mt-2 italic;
+    }
+
     iframe { 
       @apply block w-full max-w-full aspect-video rounded-md my-6 shadow-md border border-border;
     }
     video { 
       @apply block w-full max-w-full h-auto rounded-md my-6 shadow-md border border-border bg-black; 
-    }
-    figure { 
-      @apply my-6 mx-auto; /* Centering figure elements */
-    }
-    figcaption { 
-      @apply text-sm text-center text-muted-foreground mt-2 italic;
     }
   }
 
