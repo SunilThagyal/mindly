@@ -31,7 +31,7 @@ export default function MonetizationForm({ userProfile, userId }: MonetizationFo
     paymentContactDetails: userProfile.paymentContactDetails || '',
     paymentAddress: userProfile.paymentAddress || '',
     paymentUpiId: userProfile.paymentUpiId || '',
-    paymentBankAccountHolderName: userProfile.paymentBankAccountHolderName || '', // Added
+    paymentBankAccountHolderName: userProfile.paymentBankAccountHolderName || '',
     paymentAccountNumber: userProfile.paymentAccountNumber || '',
     paymentBankName: userProfile.paymentBankName || '',
     paymentIfscCode: userProfile.paymentIfscCode || '',
@@ -163,7 +163,7 @@ export default function MonetizationForm({ userProfile, userId }: MonetizationFo
           contact: formData.paymentContactDetails,
           address: formData.paymentAddress,
           upiId: formData.paymentCountry === 'India' && indiaPaymentMethod === 'upi' ? formData.paymentUpiId : null,
-          bankAccountHolderName: formData.paymentCountry === 'India' && indiaPaymentMethod === 'bank' ? formData.paymentBankAccountHolderName : null, // Added
+          bankAccountHolderName: formData.paymentCountry === 'India' && indiaPaymentMethod === 'bank' ? formData.paymentBankAccountHolderName : null,
           accountNumber: formData.paymentCountry === 'India' && indiaPaymentMethod === 'bank' ? formData.paymentAccountNumber : null,
           bankName: formData.paymentCountry === 'India' && indiaPaymentMethod === 'bank' ? formData.paymentBankName : null,
           ifscCode: formData.paymentCountry === 'India' && indiaPaymentMethod === 'bank' ? formData.paymentIfscCode : null,
@@ -290,9 +290,9 @@ export default function MonetizationForm({ userProfile, userId }: MonetizationFo
             {indiaPaymentMethod === 'bank' && (
               <div className="space-y-3">
                 <div><Label htmlFor="paymentBankAccountHolderName">Bank Account Holder Name</Label><Input id="paymentBankAccountHolderName" value={formData.paymentBankAccountHolderName || ''} onChange={(e) => handleDetailsChange('paymentBankAccountHolderName', e.target.value)} placeholder="Full name as per bank records" disabled={isSavingDetails} /></div>
-                <div><Label htmlFor="paymentAccountNumber">Account Number</Label><Input id="paymentAccountNumber" value={formData.paymentAccountNumber || ''} onChange={(e) => handleDetailsChange('paymentAccountNumber', e.target.value)} disabled={isSavingDetails} /></div>
-                <div><Label htmlFor="paymentBankName">Bank Name</Label><Input id="paymentBankName" value={formData.paymentBankName || ''} onChange={(e) => handleDetailsChange('paymentBankName', e.target.value)} disabled={isSavingDetails} /></div>
-                <div><Label htmlFor="paymentIfscCode">IFSC Code</Label><Input id="paymentIfscCode" value={formData.paymentIfscCode || ''} onChange={(e) => handleDetailsChange('paymentIfscCode', e.target.value)} disabled={isSavingDetails} /></div>
+                <div><Label htmlFor="paymentAccountNumber">Account Number</Label><Input id="paymentAccountNumber" value={formData.paymentAccountNumber || ''} onChange={(e) => handleDetailsChange('paymentAccountNumber', e.target.value)} placeholder="e.g., 123456789012" disabled={isSavingDetails} /></div>
+                <div><Label htmlFor="paymentBankName">Bank Name</Label><Input id="paymentBankName" value={formData.paymentBankName || ''} onChange={(e) => handleDetailsChange('paymentBankName', e.target.value)} placeholder="e.g., State Bank of India" disabled={isSavingDetails} /></div>
+                <div><Label htmlFor="paymentIfscCode">IFSC Code</Label><Input id="paymentIfscCode" value={formData.paymentIfscCode || ''} onChange={(e) => handleDetailsChange('paymentIfscCode', e.target.value)} placeholder="e.g., SBIN0000000" disabled={isSavingDetails} /></div>
               </div>
             )}
              {indiaPaymentMethod === 'paypal_india' && (
