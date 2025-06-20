@@ -20,6 +20,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger, // Added AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
 import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, collection, FieldValue } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -52,44 +53,58 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
 
   const wrapMediaElements = useCallback((htmlContent: string) => {
-    if (typeof window === 'undefined') return htmlContent;
+    if (typeof window === 'undefined' || !htmlContent) return htmlContent;
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, 'text/html');
     const body = doc.body;
 
-    const mediaElements = Array.from(body.querySelectorAll('img, video, iframe'));
+    // Process images, videos, and iframes
+    const mediaSelectors = 'img:not(.media-item), video:not(.media-item), iframe:not(.media-item)';
+    const mediaElements = Array.from(body.querySelectorAll(mediaSelectors));
 
     mediaElements.forEach(mediaEl => {
-      if (mediaEl.closest('.media-container')) {
-        return; // Already wrapped
-      }
+        if (mediaEl.closest('.media-container')) {
+            return; // Already wrapped or part of an intended structure
+        }
 
-      const container = doc.createElement('div');
-      container.classList.add('media-container');
+        const container = doc.createElement('div');
+        container.classList.add('media-container');
 
-      const mediaType = mediaEl.tagName.toLowerCase();
-      let mediaSrc = mediaEl.getAttribute('src') || '';
+        const mediaType = mediaEl.tagName.toLowerCase();
+        let mediaSrc = mediaEl.getAttribute('src') || '';
 
-      if (mediaType === 'img') {
-        container.style.setProperty('--bg-image', `url("${mediaSrc}")`);
-      } else if (mediaType === 'video') {
-        container.classList.add('video-container');
-      } else if (mediaType === 'iframe') {
-        container.classList.add('iframe-container');
-      }
-      
-      // Clone the media element to move it into the container
-      const clonedMedia = mediaEl.cloneNode(true) as HTMLElement;
-      clonedMedia.classList.add('media-item');
+        if (mediaType === 'img') {
+            container.style.setProperty('--bg-image', `url("${mediaSrc}")`);
+        } else if (mediaType === 'video') {
+            container.classList.add('video-container');
+        } else if (mediaType === 'iframe') {
+            container.classList.add('iframe-container');
+        }
+        
+        const clonedMedia = mediaEl.cloneNode(true) as HTMLElement;
+        clonedMedia.classList.add('media-item');
 
-      if (mediaType === 'iframe' && clonedMedia instanceof HTMLIFrameElement) {
-        clonedMedia.title = clonedMedia.title || "Embedded content"; // Ensure title for accessibility
-      }
+        if (mediaType === 'img' && clonedMedia instanceof HTMLImageElement) {
+           clonedMedia.alt = mediaEl.getAttribute('alt') || 'Blog media'; // Preserve or set alt
+           clonedMedia.removeAttribute('data-media-src'); // Clean up helper attributes if any
+           clonedMedia.removeAttribute('data-media-width');
+           clonedMedia.removeAttribute('data-media-height');
+           clonedMedia.removeAttribute('data-media-type');
+        } else if (mediaType === 'video' && clonedMedia instanceof HTMLVideoElement) {
+           clonedMedia.controls = true; // Ensure videos have controls
+           clonedMedia.removeAttribute('data-media-src');
+           clonedMedia.removeAttribute('data-media-width');
+           clonedMedia.removeAttribute('data-media-height');
+           clonedMedia.removeAttribute('data-media-type');
+        } else if (mediaType === 'iframe' && clonedMedia instanceof HTMLIFrameElement) {
+            clonedMedia.setAttribute('frameborder', '0');
+            clonedMedia.setAttribute('allowfullscreen', 'true');
+            clonedMedia.title = mediaEl.getAttribute('title') || "Embedded content";
+        }
 
-
-      container.appendChild(clonedMedia);
-      mediaEl.parentNode?.replaceChild(container, mediaEl);
+        container.appendChild(clonedMedia);
+        mediaEl.parentNode?.replaceChild(container, mediaEl);
     });
     
     return body.innerHTML;
@@ -98,7 +113,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
   useEffect(() => {
     setBlog(initialBlog);
-    // Process content initially and whenever initialBlog.content changes
     if (initialBlog.content) {
         const wrappedContent = wrapMediaElements(initialBlog.content);
         setProcessedContent(wrappedContent);
@@ -467,4 +481,3 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     </>
   );
 }
-
