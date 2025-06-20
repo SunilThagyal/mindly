@@ -26,7 +26,7 @@ import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTrans
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import React, { useState, useEffect } from 'react'; // Imported React
+import React, { useState, useEffect } from 'react'; 
 import AdPlaceholder from '@/components/layout/ad-placeholder';
 import RelatedPosts from './related-posts';
 import CommentsSection from './comments-section';
@@ -40,7 +40,7 @@ interface BlogPostViewProps {
 
 export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogPostViewProps) {
   const { user, userProfile: currentUserProfile } = useAuth();
-  const { adDensity } = useAdSettings();
+  const { adsEnabled, adDensity } = useAdSettings();
   const { baseEarningPerView } = useEarningsSettings();
   const router = useRouter();
   const { toast } = useToast();
@@ -85,13 +85,11 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const handleLikePost = async () => {
     if (!user || !currentUserProfile) {
       toast({ title: "Login Required", description: "Redirecting to login...", variant: "default", duration: 2000 });
-      // Construct the redirect URL including query parameters if they exist
       const currentPath = `/blog/${blog.slug}`;
       router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
       return;
     }
     
-    // Optimistic UI Update First
     setBlog(prevBlog => ({
       ...prevBlog,
       likes: (prevBlog.likes || 0) + (isLikedByCurrentUser ? -1 : 1),
@@ -100,7 +98,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         : [...(prevBlog.likedBy || []), user.uid],
     }));
     
-    if (isLiking) return; // Prevent multiple simultaneous requests
+    if (isLiking) return; 
     setIsLiking(true); 
 
     const blogRef = doc(db, "blogs", blog.id);
@@ -115,7 +113,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         const firestoreLikedBy = blogDoc.data().likedBy || [];
         let operationType: 'like' | 'unlike';
 
-        // Use the pre-optimistic update state (initialBlog) for the DB transaction's logic
         if (initialBlog.likedBy?.includes(user.uid)) { 
           transaction.update(blogRef, {
             likes: increment(-1),
@@ -147,38 +144,55 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
-      setBlog(initialBlog); // Revert UI on error
+      setBlog(initialBlog); 
     } finally {
       setIsLiking(false);
     }
   };
 
   const renderContentWithAds = () => {
-    let contentWithAds: (string | JSX.Element)[] = [];
-    const contentParts = blog.content.split(/(<\/p>)/); 
-
-    const adSlotIndices = {
-      slot1: 6, 
-      slot2: 14, 
-      slot3: 22, 
+    const contentParts = blog.content.split(/(<\/p>)/gi); // Split by </p> tag, case-insensitive, keep delimiter
+    const renderedElements: JSX.Element[] = [];
+  
+    // Define at which part indices ads should be considered for insertion.
+    // Each <p>content</p> block typically results in two parts: "<p>content" and "</p>".
+    // So, to insert after the Nth paragraph, target index around N*2.
+    const adInsertionPoints = {
+      point1: 6,  // Approx after 3rd paragraph
+      point2: 14, // Approx after 7th paragraph
+      point3: 22, // Approx after 11th paragraph
     };
-
+  
     contentParts.forEach((part, index) => {
-      contentWithAds.push(part);
-      if (index === adSlotIndices.slot1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
-        contentWithAds.push(<AdPlaceholder key={`ad-incontent-1-${index}`} type="in-content" className="my-8" />);
+      // Render every part of the content to ensure nothing is lost.
+      // It's crucial that `part` is a string. If blog.content is empty, contentParts might be `['']`.
+      if (typeof part === 'string') {
+        renderedElements.push(
+          <span key={`content-part-${index}`} dangerouslySetInnerHTML={{ __html: part }} />
+        );
       }
-      if (index === adSlotIndices.slot2 && (adDensity === 'medium' || adDensity === 'high')) {
-        contentWithAds.push(<AdPlaceholder key={`ad-incontent-2-${index}`} type="in-content" className="my-8" />);
-      }
-      if (index === adSlotIndices.slot3 && adDensity === 'high') {
-        contentWithAds.push(<AdPlaceholder key={`ad-incontent-3-${index}`} type="in-content" className="my-8" />);
+  
+      // Conditionally insert ads based on adDensity and whether ads are globally enabled
+      if (adsEnabled) {
+        if (index === adInsertionPoints.point1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
+          renderedElements.push(<AdPlaceholder key={`ad-incontent-1-${index}`} type="in-content" className="my-8" />);
+        } else if (index === adInsertionPoints.point2 && (adDensity === 'medium' || adDensity === 'high')) {
+          renderedElements.push(<AdPlaceholder key={`ad-incontent-2-${index}`} type="in-content" className="my-8" />);
+        } else if (index === adInsertionPoints.point3 && adDensity === 'high') {
+          renderedElements.push(<AdPlaceholder key={`ad-incontent-3-${index}`} type="in-content" className="my-8" />);
+        }
       }
     });
-
-    return contentWithAds.map((item, i) =>
-        typeof item === 'string' ? <span key={`content-part-${i}`} dangerouslySetInnerHTML={{ __html: item }}/> : React.cloneElement(item, { key: item.key || `ad-placeholder-${i}` }) 
-    );
+  
+    // If no content or parts, return null or a placeholder if desired
+    if (renderedElements.length === 0 && blog.content && blog.content.trim() !== '') {
+        // This case implies blog.content exists but resulted in no renderedElements,
+        // which is unlikely with the current logic unless content is just whitespace.
+        // Fallback to rendering the whole content if splitting somehow fails.
+        return [<span key="full-content-fallback" dangerouslySetInnerHTML={{ __html: blog.content }} />];
+    }
+    
+    return renderedElements;
   };
 
 
@@ -238,7 +252,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 group-hover:scale-105",
                     isLikedByCurrentUser
                       ? "bg-red-500 border-red-500 text-white" 
-                      : "border-muted-foreground/30 text-muted-foreground", 
+                      : "border-muted-foreground/30 text-muted-foreground",
                     isLiking && "cursor-not-allowed"
                 )}>
                   {isLiking ? (
@@ -247,11 +261,11 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     <>
                       <Heart className={cn(
                         "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-125",
-                         isLikedByCurrentUser ? "fill-white text-white" : "",
+                         isLikedByCurrentUser ? "fill-white text-white" : "group-hover:fill-accent/20 group-hover:text-accent",
                       )} />
                       <span className={cn(
                         "text-sm tabular-nums",
-                        isLikedByCurrentUser ? "text-white" : ""
+                        isLikedByCurrentUser ? "text-white" : "group-hover:text-accent"
                       )}>
                         {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
                       </span>
@@ -398,4 +412,3 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     </div>
   );
 }
-
