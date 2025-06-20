@@ -20,7 +20,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger, // Added missing import
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, collection, FieldValue } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -86,21 +86,20 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     }
     if (isLiking) return;
 
-    // Optimistic UI Update First
     const originallyLiked = blog.likedBy?.includes(user.uid);
     const newLikesCount = (blog.likes || 0) + (originallyLiked ? -1 : 1);
     const newLikedByArray = originallyLiked
       ? (blog.likedBy || []).filter(uid => uid !== user.uid)
       : [...(blog.likedBy || []), user.uid];
-
+    
+    // Optimistic UI Update First
     setBlog(prevBlog => ({
       ...prevBlog,
       likes: newLikesCount,
       likedBy: newLikedByArray,
     }));
 
-    // Then, start background operation
-    setIsLiking(true);
+    setIsLiking(true); // Set loading state after optimistic update
 
     const blogRef = doc(db, "blogs", blog.id);
 
@@ -145,7 +144,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
-      setBlog(initialBlog); // Revert UI on error
+      // Revert UI on error by resetting to the initialBlog state
+      setBlog(initialBlog); 
     } finally {
       setIsLiking(false);
     }
@@ -226,29 +226,34 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                 disabled={!user || isLiking}
                 variant="ghost"
                 className={cn(
-                  "group relative px-2 py-1.5 h-auto rounded-xl font-semibold shadow-md hover:shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-background",
-                  isLikedByCurrentUser
-                    ? "focus:ring-red-400"
-                    : "focus:ring-gray-400",
+                  "group relative p-0 h-auto rounded-xl font-semibold",
+                  "focus:outline-none focus:ring-2 ring-offset-background",
+                  isLikedByCurrentUser ? "focus:ring-red-400" : "focus:ring-gray-400"
                 )}
                 aria-pressed={isLikedByCurrentUser}
                 title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
               >
                 {isLiking ? (
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span className="flex items-center justify-center w-[76px] h-[38px]"> {/* Match size of span below */}
+                     <Loader2 className="h-5 w-5 animate-spin text-red-500" />
+                  </span>
                 ) : (
-                  <span className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors duration-150",
-                    isLikedByCurrentUser
-                      ? "border-red-500 text-red-500"
-                      : "border-muted-foreground/30 text-muted-foreground group-hover:border-red-400 group-hover:text-red-500"
-                  )}>
+                  <span
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors duration-150",
+                      "shadow-md group-hover:shadow-lg transform group-hover:scale-105 group-active:scale-95",
+                      isLikedByCurrentUser
+                        ? "border-red-500 bg-red-500 text-white group-hover:bg-red-600 group-hover:border-red-600"
+                        : "border-muted-foreground/30 text-muted-foreground bg-transparent group-hover:border-red-400 group-hover:text-red-500 group-hover:bg-red-500/10"
+                    )}
+                  >
                     <Heart
                       className={cn(
                         "h-5 w-5 transition-all duration-150 ease-in-out group-active:scale-125",
                         isLikedByCurrentUser
-                          ? "fill-red-500 text-red-500"
-                          : "text-inherit group-hover:text-red-500 group-hover:fill-red-500/20" 
+                          ? "fill-white text-white" 
+                          : "fill-transparent", 
+                        !isLikedByCurrentUser && "group-hover:fill-red-500/20 group-hover:text-red-500"
                       )}
                       fill={isLikedByCurrentUser ? "currentColor" : "none"}
                     />
@@ -265,7 +270,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                   asChild
                   variant="default"
                   className={cn(
-                    "px-4 py-2 rounded-xl font-semibold text-primary-foreground bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-2 ring-primary ring-offset-background"
+                    "px-4 py-2 rounded-xl font-semibold text-primary-foreground bg-primary hover:bg-primary/90",
+                    "shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 active:scale-95",
+                    "focus:outline-none focus:ring-2 ring-offset-2 ring-primary ring-offset-background"
                   )}
                 >
                   <Link href={`/blog/edit/${blog.id}`}>
@@ -279,7 +286,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     <Button
                       variant="destructive"
                       className={cn(
-                        "px-4 py-2 rounded-xl font-semibold text-destructive-foreground bg-destructive hover:bg-destructive/90 shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-2 ring-destructive ring-offset-background",
+                        "px-4 py-2 rounded-xl font-semibold text-destructive-foreground bg-destructive hover:bg-destructive/90",
+                        "shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 active:scale-95",
+                        "focus:outline-none focus:ring-2 ring-offset-2 ring-destructive ring-offset-background",
                         isDeleting && "cursor-not-allowed opacity-70"
                       )}
                       disabled={isDeleting}
