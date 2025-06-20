@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Loader2, Share2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useAdSettings } from '@/context/ad-settings-context'; 
-import { useEarningsSettings } from '@/context/earnings-settings-context'; // Import useEarningsSettings
+import { useEarningsSettings } from '@/context/earnings-settings-context';
 import Link from 'next/link';
 import { Button } from '../ui/button';
 import {
@@ -40,7 +40,7 @@ interface BlogPostViewProps {
 export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps) {
   const { user } = useAuth();
   const { adDensity } = useAdSettings(); 
-  const { baseEarningPerView } = useEarningsSettings(); // Get baseEarningPerView from context
+  const { baseEarningPerView } = useEarningsSettings();
   const router = useRouter();
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -49,7 +49,7 @@ export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps)
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Draft - Not Published';
 
-  const earnings = (blog.views * baseEarningPerView).toFixed(2); // Use baseEarningPerView from context
+  const earnings = (blog.views * baseEarningPerView).toFixed(2); 
 
   const handleDelete = async () => {
     if (!user || user.uid !== blog.authorId) {
@@ -194,7 +194,12 @@ export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps)
           <AdPlaceholder type="below-content" className="my-10" />
           
           <RelatedPosts currentBlogId={blog.id} tags={blog.tags} />
-          <CommentsSection blogId={blog.id} />
+          <CommentsSection 
+            blogId={blog.id} 
+            blogAuthorId={blog.authorId} 
+            blogTitle={blog.title}
+            blogSlug={blog.slug}
+          />
         </article>
       </main>
 
@@ -244,5 +249,3 @@ export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps)
     </div>
   );
 }
-
-    

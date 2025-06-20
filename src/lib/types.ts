@@ -106,3 +106,16 @@ export interface WithdrawalRequest {
     chosenPaymentMethod?: 'upi' | 'bank' | 'paypal'; // To clarify which method user chose if multiple were available/filled
   };
 }
+
+export interface Notification {
+  id: string;
+  type: 'new_comment'; // Can be expanded later for other notification types
+  blogId: string;
+  blogSlug: string;
+  blogTitle: string;
+  commenterName: string;
+  commentId: string;
+  createdAt: Timestamp;
+  isRead: boolean;
+  link: string; // e.g., /blog/[slug]#comment-[commentId]
+}

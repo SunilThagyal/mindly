@@ -20,15 +20,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 
 interface CommentsSectionProps {
   blogId: string;
+  blogAuthorId: string; // Added prop
+  blogTitle: string;    // Added prop
+  blogSlug: string;     // Added prop
 }
 
-export default function CommentsSection({ blogId }: CommentsSectionProps) {
+export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogSlug }: CommentsSectionProps) {
   const { user, userProfile, isAdmin } = useAuth();
   const { toast } = useToast();
   const [comments, setComments] = useState<CommentType[]>([]);
@@ -37,7 +39,7 @@ export default function CommentsSection({ blogId }: CommentsSectionProps) {
   const [editingText, setEditingText] = useState('');
   const [loadingComments, setLoadingComments] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null); // Store ID of comment being deleted
+  const [isDeleting, setIsDeleting] = useState<string | null>(null); 
 
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export default function CommentsSection({ blogId }: CommentsSectionProps) {
     }
     const q = query(
       collection(db, 'blogs', blogId, 'comments'),
-      orderBy('createdAt', 'asc') // Show oldest comments first, or 'desc' for newest
+      orderBy('createdAt', 'asc') 
     );
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const fetchedComments: CommentType[] = [];
@@ -73,7 +75,7 @@ export default function CommentsSection({ blogId }: CommentsSectionProps) {
     }
     setSubmitting(true);
     try {
-      await addDoc(collection(db, 'blogs', blogId, 'comments'), {
+      const commentRef = await addDoc(collection(db, 'blogs', blogId, 'comments'), {
         userId: user.uid,
         userName: userProfile.displayName || 'Anonymous',
         userPhotoURL: userProfile.photoURL || null,
@@ -82,6 +84,23 @@ export default function CommentsSection({ blogId }: CommentsSectionProps) {
       });
       setNewComment('');
       toast({ title: "Comment Posted!", description: "Your comment has been added." });
+
+      // Create notification for blog author if commenter is not the author
+      if (user.uid !== blogAuthorId) {
+        const notificationRef = collection(db, 'users', blogAuthorId, 'notifications');
+        await addDoc(notificationRef, {
+          type: 'new_comment',
+          blogId: blogId,
+          blogSlug: blogSlug,
+          blogTitle: blogTitle,
+          commenterName: userProfile.displayName || 'Anonymous',
+          commentId: commentRef.id,
+          createdAt: serverTimestamp(),
+          isRead: false,
+          link: `/blog/${blogSlug}#comment-${commentRef.id}`, // Basic link
+        });
+      }
+
     } catch (error) {
       console.error("Error posting comment: ", error);
       toast({ title: "Error", description: "Could not post comment.", variant: "destructive" });
