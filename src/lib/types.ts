@@ -61,8 +61,9 @@ export interface Comment {
   userPhotoURL: string | null;
   text: string;
   createdAt: Timestamp;
-  parentId?: string | null; // For replies
-  blogId?: string; // Denormalizing blogId for easier notification queries if needed
+  parentId?: string | null; 
+  blogId?: string; 
+  likes?: string[]; // Array of user UIDs who liked the comment
 }
 
 export interface AdSettings {
@@ -107,15 +108,17 @@ export interface WithdrawalRequest {
 
 export interface Notification {
   id: string;
-  type: 'new_comment' | 'new_reply';
+  type: 'new_comment' | 'new_reply' | 'new_like';
   blogId: string;
   blogSlug: string;
   blogTitle: string;
-  commenterName?: string | null; // For new_comment type
-  replierName?: string | null;   // For new_reply type
-  commentId: string; // ID of the new comment or reply
-  parentCommentId?: string | null; // ID of the parent comment if it's a reply
-  parentCommentAuthorId?: string | null; // Used to send notification to parent comment author
+  commenterName?: string | null; 
+  replierName?: string | null;   
+  likerName?: string | null; 
+  likedCommentTextSnippet?: string | null;
+  commentId: string; 
+  parentCommentId?: string | null; 
+  parentCommentAuthorId?: string | null; 
   createdAt: Timestamp;
   isRead: boolean;
   link: string;

@@ -4,11 +4,11 @@
 import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, deleteDoc, updateDoc, writeBatch, arrayUnion, arrayRemove, FieldValue } from 'firebase/firestore';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { UserCircle, Send, MessageCircle, Loader2, Trash2, Edit3, CornerDownRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { UserCircle, Send, MessageCircle, Loader2, Trash2, Edit3, CornerDownRight, ChevronDown, ChevronUp, Heart } from 'lucide-react';
 import type { Comment as CommentType, UserProfile as UserProfileType } from '@/lib/types'; 
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -44,12 +44,13 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
 
-  const [expandedReplies, setExpandedReplies] = useState<Record<string, boolean>>({}); // For reply expansion
+  const [expandedReplies, setExpandedReplies] = useState<Record<string, boolean>>({}); 
 
   const [loadingComments, setLoadingComments] = useState(true);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [submittingReply, setSubmittingReply] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [likingCommentId, setLikingCommentId] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -121,6 +122,7 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
         createdAt: serverTimestamp() as Timestamp,
         parentId: null,
         blogId: blogId,
+        likes: [],
       });
       setNewCommentText('');
       toast({ title: "Comment Posted!", description: "Your comment has been added." });
@@ -171,11 +173,12 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
             createdAt: serverTimestamp() as Timestamp,
             parentId: parentId,
             blogId: blogId,
+            likes: [],
         });
         setReplyText('');
         setReplyingToCommentId(null); 
         toast({ title: "Reply Posted!", description: "Your reply has been added." });
-        setExpandedReplies(prev => ({ ...prev, [parentId]: true })); // Auto-expand replies on new reply
+        setExpandedReplies(prev => ({ ...prev, [parentId]: true })); 
 
         if (user.uid !== parentComment.userId) {
             const notificationRef = collection(db, 'users', parentComment.userId, 'notifications');
@@ -248,9 +251,85 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
     }
   };
 
+  const handleLikeComment = async (commentId: string, commentAuthorId: string) => {
+    if (!user || !userProfile) {
+      toast({ title: "Login Required", description: "Please log in to like a comment.", variant: "destructive" });
+      return;
+    }
+    setLikingCommentId(commentId);
+
+    const commentRef = doc(db, 'blogs', blogId, 'comments', commentId);
+    const targetComment = allComments.find(c => c.id === commentId);
+    if (!targetComment) return;
+
+    const alreadyLiked = targetComment.likes?.includes(user.uid);
+    
+    // Optimistic UI update
+    setAllComments(prevComments => 
+        prevComments.map(c => {
+            if (c.id === commentId) {
+                const currentLikes = c.likes || [];
+                return {
+                    ...c,
+                    likes: alreadyLiked 
+                        ? currentLikes.filter(uid => uid !== user.uid)
+                        : [...currentLikes, user.uid]
+                };
+            }
+            return c;
+        })
+    );
+
+    try {
+      if (alreadyLiked) {
+        await updateDoc(commentRef, {
+          likes: arrayRemove(user.uid) as unknown as FieldValue // Firestore type fix
+        });
+      } else {
+        await updateDoc(commentRef, {
+          likes: arrayUnion(user.uid) as unknown as FieldValue // Firestore type fix
+        });
+
+        if (user.uid !== commentAuthorId) {
+          const notificationRef = collection(db, 'users', commentAuthorId, 'notifications');
+          const commentTextSnippet = targetComment.text.substring(0, 50) + (targetComment.text.length > 50 ? "..." : "");
+          await addDoc(notificationRef, {
+            type: 'new_like',
+            blogId: blogId,
+            blogSlug: blogSlug,
+            blogTitle: blogTitle,
+            likerName: userProfile.displayName || 'Anonymous',
+            commentId: commentId,
+            likedCommentTextSnippet: commentTextSnippet,
+            createdAt: serverTimestamp(),
+            isRead: false,
+            link: `/blog/${blogSlug}#comment-${commentId}`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error liking comment: ", error);
+      toast({ title: "Error", description: "Could not update like.", variant: "destructive" });
+      // Revert optimistic update on error
+       setAllComments(prevComments => 
+        prevComments.map(c => {
+            if (c.id === commentId) {
+                 return targetComment; // Revert to original comment state
+            }
+            return c;
+        })
+      );
+    } finally {
+      setLikingCommentId(null);
+    }
+  };
+
+
   const renderComment = (comment: CommentType, isReply: boolean = false) => {
     const commentReplies = isReply ? [] : getReplies(comment.id);
     const areRepliesExpanded = !!expandedReplies[comment.id];
+    const likeCount = comment.likes?.length || 0;
+    const isLikedByCurrentUser = user && comment.likes?.includes(user.uid);
 
     return (
       <div key={comment.id} id={`comment-${comment.id}`} className={`flex items-start space-x-3 ${isReply ? 'ml-8 sm:ml-12' : ''}`}>
@@ -287,6 +366,17 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
             <p className="text-sm text-card-foreground whitespace-pre-wrap leading-relaxed">{comment.text}</p>
           )}
           <div className="mt-1.5 flex gap-2 items-center">
+            <Button
+              onClick={() => handleLikeComment(comment.id, comment.userId)}
+              size="sm"
+              variant="ghost"
+              className={`text-xs p-1 h-auto ${isLikedByCurrentUser ? 'text-red-500 hover:text-red-600' : 'text-muted-foreground hover:text-primary'}`}
+              disabled={!user || likingCommentId === comment.id}
+            >
+              {likingCommentId === comment.id ? <Loader2 className="animate-spin h-3 w-3" /> : <Heart className={`mr-1 h-3 w-3 ${isLikedByCurrentUser ? 'fill-red-500' : ''}`} />}
+              {likeCount > 0 ? likeCount : ''}
+            </Button>
+
             {!isReply && (
                 <Button 
                     onClick={() => { setReplyingToCommentId(comment.id); setReplyText(''); setEditingCommentId(null);}} 
@@ -336,7 +426,6 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
             )}
           </div>
 
-          {/* Reply Form */}
           {replyingToCommentId === comment.id && !isReply && (
             <form onSubmit={(e) => { e.preventDefault(); handlePostReply(comment.id); }} className="mt-3 ml-0 flex items-start space-x-3">
                  <Avatar className="h-8 w-8">
@@ -366,7 +455,6 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
             </form>
           )}
 
-          {/* Toggle and Render Replies */}
           {!isReply && commentReplies.length > 0 && (
             <Button
               onClick={() => toggleRepliesVisibility(comment.id)}

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/context/auth-context';
-import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings, DollarSign, Bell, Loader2, MessageSquare, CornerDownRight } from 'lucide-react'; 
+import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings, DollarSign, Bell, Loader2, MessageSquare, CornerDownRight, Heart as HeartIcon } from 'lucide-react'; 
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,65 +27,12 @@ export default function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
 
-  const fetchNotificationsData = useCallback(async (isInitialFetch = false) => {
-    if (!user) {
-      setNotifications([]);
-      setUnreadCount(0);
-      setLoadingNotifications(false);
-      return;
-    }
-    if(isInitialFetch) setLoadingNotifications(true);
-
-    try {
-      const notificationsRef = collection(db, 'users', user.uid, 'notifications');
-      
-      const unreadQuery = query(notificationsRef, where('isRead', '==', false));
-      const unreadSnapshot = await getDocs(unreadQuery);
-      setUnreadCount(unreadSnapshot.size);
-
-      let fetchedNotifications: Notification[] = [];
-      const unreadDisplayQuery = query(notificationsRef, where('isRead', '==', false), orderBy('createdAt', 'desc'), limit(5));
-      const unreadDisplaySnapshot = await getDocs(unreadDisplayQuery);
-      unreadDisplaySnapshot.forEach(doc => fetchedNotifications.push({ id: doc.id, ...doc.data() } as Notification));
-      
-      if (fetchedNotifications.length < 5) {
-        const readDisplayQuery = query(
-            notificationsRef, 
-            where('isRead', '==', true), 
-            orderBy('createdAt', 'desc'), 
-            limit(5 - fetchedNotifications.length)
-        );
-        const readDisplaySnapshot = await getDocs(readDisplayQuery);
-        readDisplaySnapshot.forEach(doc => fetchedNotifications.push({ id: doc.id, ...doc.data() } as Notification));
-      }
-      
-      // Ensure correct sorting of the combined list before slicing
-      fetchedNotifications.sort((a, b) => {
-        if (a.isRead !== b.isRead) {
-          return a.isRead ? 1 : -1; // Unread first
-        }
-        return b.createdAt.seconds - a.createdAt.seconds; // Then by time descending
-      });
-      setNotifications(fetchedNotifications.slice(0, 5)); // Then take top 5
-
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-    } finally {
-      if(isInitialFetch) setLoadingNotifications(false);
-    }
-  }, [user]);
-
   useEffect(() => {
     if (user) {
-      // Initial fetch with loading indicator
-      // The listener below will handle subsequent updates, so no need to call fetchNotificationsData directly here
-      // unless you want an immediate non-realtime fetch on user change before listener attaches.
-      // For simplicity, we rely on the listener.
-
       const notificationsRef = collection(db, 'users', user.uid, 'notifications');
-      const q = query(notificationsRef, orderBy('createdAt', 'desc')); // Order all by time
+      const q = query(notificationsRef, orderBy('createdAt', 'desc')); 
 
-      setLoadingNotifications(true); // Set loading true before listener might provide initial data
+      setLoadingNotifications(true); 
       const unsubscribe = onSnapshot(q, (snapshot) => {
         let currentUnreadCount = 0;
         const allFetchedNotifications: Notification[] = [];
@@ -98,14 +45,13 @@ export default function Header() {
         });
         setUnreadCount(currentUnreadCount);
         
-        // Sort all fetched notifications: unread first, then by time
         allFetchedNotifications.sort((a, b) => {
             if (a.isRead !== b.isRead) {
                 return a.isRead ? 1 : -1; 
             }
-            return b.createdAt.seconds - a.createdAt.seconds;
+            return (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0);
         });
-        setNotifications(allFetchedNotifications.slice(0,5)); // Display top 5 from the sorted list
+        setNotifications(allFetchedNotifications.slice(0,5)); 
         setLoadingNotifications(false);
 
       }, (error) => {
@@ -117,7 +63,7 @@ export default function Header() {
     } else {
       setNotifications([]);
       setUnreadCount(0);
-      setLoadingNotifications(false); // Ensure loading is false if user logs out
+      setLoadingNotifications(false); 
     }
   }, [user]);
 
@@ -131,7 +77,6 @@ export default function Header() {
     });
     try {
       await batch.commit();
-      // Listener will update UI
     } catch (error) {
       console.error("Error marking notifications as read:", error);
     }
@@ -139,13 +84,10 @@ export default function Header() {
   
   const handleNotificationDropdownOpen = (open: boolean) => {
     if (open && user) {
-      // Fetching might not be needed due to listener, but good for consistency
-      // fetchNotificationsData().then(() => {
         const unreadDisplayed = notifications.filter(n => !n.isRead && notifications.some(dispNotif => dispNotif.id === n.id)).map(n => n.id);
         if (unreadDisplayed.length > 0) {
           handleMarkNotificationsAsRead(unreadDisplayed);
         }
-      // });
     }
   };
 
@@ -170,12 +112,20 @@ export default function Header() {
   
   const getNotificationIcon = (type: Notification['type']) => {
     if (type === 'new_reply') return <CornerDownRight className="mt-0.5 h-4 w-4 shrink-0" />;
+    if (type === 'new_like') return <HeartIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />;
     return <MessageSquare className="mt-0.5 h-4 w-4 shrink-0" />;
   };
   
   const getNotificationText = (notif: Notification) => {
     if (notif.type === 'new_reply') {
       return <><span className="font-semibold">{notif.replierName}</span> replied to a comment on:</>;
+    }
+    if (notif.type === 'new_like') {
+      let text = <><span className="font-semibold">{notif.likerName}</span> liked your comment</>;
+      if (notif.likedCommentTextSnippet) {
+        text = <><span className="font-semibold">{notif.likerName}</span> liked: <span className="italic">"{notif.likedCommentTextSnippet}"</span> on:</>;
+      }
+      return text;
     }
     return <><span className="font-semibold">{notif.commenterName}</span> commented on:</>;
   };
