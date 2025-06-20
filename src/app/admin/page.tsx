@@ -14,7 +14,7 @@ import PostManagementTab from '@/components/admin/post-management-tab';
 import EarningsSettingsForm from '@/components/admin/earnings-settings-form';
 import WithdrawalManagementTab from '@/components/admin/withdrawal-management-tab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { collection, query, where, getDocs,getCountFromServer } from 'firebase/firestore';
+import { collection, query, where, getCountFromServer } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 const ADMIN_TABS = ['dashboard', 'ads', 'earnings', 'users', 'posts', 'withdrawals'] as const;
@@ -47,10 +47,11 @@ export default function AdminPage() {
     const tabFromUrl = searchParams.get('tab');
     if (isValidTab(tabFromUrl)) {
       setActiveTab(tabFromUrl);
-    } else if (tabFromUrl) {
+    } else if (tabFromUrl && tabFromUrl !== activeTab) { // Prevent pushing if already on dashboard by default
       router.push('/admin?tab=dashboard', { scroll: false });
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, activeTab]);
+
 
   useEffect(() => {
     if (!loading) {
@@ -65,7 +66,12 @@ export default function AdminPage() {
   const handleTabChange = (value: string) => {
     if (isValidTab(value)) {
       setActiveTab(value);
-      router.push(`/admin?tab=${value}`, { scroll: false });
+      const currentAuthorId = searchParams.get('authorId');
+      let queryString = `?tab=${value}`;
+      if (value === 'posts' && currentAuthorId) {
+        queryString += `&authorId=${currentAuthorId}`;
+      }
+      router.push(`/admin${queryString}`, { scroll: false });
     }
   };
 
@@ -119,7 +125,7 @@ export default function AdminPage() {
       </header>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 mb-6">
+        <TabsList className="grid w-full grid-cols-2 rounded-md bg-muted p-1 sm:grid-cols-3 md:grid-cols-6 mb-6 h-auto">
           <TabsTrigger value="dashboard"><LayoutDashboard className="mr-1.5 h-4 w-4" />Dashboard</TabsTrigger>
           <TabsTrigger value="ads"><Annoyed className="mr-1.5 h-4 w-4" />Ads</TabsTrigger>
           <TabsTrigger value="earnings"><DollarSign className="mr-1.5 h-4 w-4" />Earnings</TabsTrigger>
@@ -213,3 +219,4 @@ export default function AdminPage() {
     </div>
   );
 }
+
