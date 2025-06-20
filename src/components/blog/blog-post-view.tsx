@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Blog, UserProfile } from '@/lib/types';
@@ -21,11 +22,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, collection, FieldValue } from 'firebase/firestore';
+import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AdPlaceholder from '@/components/layout/ad-placeholder';
 import RelatedPosts from './related-posts';
 import CommentsSection from './comments-section';
@@ -37,104 +38,66 @@ interface BlogPostViewProps {
   authorProfile?: UserProfile | null;
 }
 
-// Function to wrap media elements
 function wrapMediaElements(htmlContent: string): string {
-  if (typeof window === 'undefined' || !htmlContent) return htmlContent;
+  if (typeof window === 'undefined') return htmlContent; // SSR, no DOMParser
 
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlContent, 'text/html');
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    const mediaElements = doc.querySelectorAll('img.requires-media-wrap, video.requires-media-wrap');
 
-  // Process images
-  const images = doc.querySelectorAll('img.requires-media-wrap');
-  images.forEach(img => {
-    const mediaSrc = img.getAttribute('data-media-src');
-    const mediaWidth = img.getAttribute('data-media-width');
-    const mediaHeight = img.getAttribute('data-media-height');
-    const mediaType = img.getAttribute('data-media-type'); // Should be 'image'
-    const altText = img.getAttribute('alt') || 'Blog image';
+    mediaElements.forEach(mediaEl => {
+      const src = mediaEl.getAttribute('data-media-src');
+      const width = mediaEl.getAttribute('data-media-width');
+      const height = mediaEl.getAttribute('data-media-height');
+      const type = mediaEl.getAttribute('data-media-type') as 'image' | 'video';
+      const altText = mediaEl.getAttribute('alt') || (type === 'image' ? 'Blog content image' : 'Blog content video');
 
-    if (mediaSrc && mediaWidth && mediaHeight && mediaType === 'image') {
+      if (!src || !width || !height || !type) {
+        console.warn('Skipping media wrap due to missing data attributes:', mediaEl);
+        return;
+      }
+
+      const aspectRatio = `${width} / ${height}`;
       const container = doc.createElement('div');
       container.className = 'blog-media-container';
-      container.setAttribute('data-media-type', mediaType);
-      const aspectRatio = (Number(mediaWidth) > 0 && Number(mediaHeight) > 0)
-        ? `${mediaWidth}/${mediaHeight}`
-        : '16/9'; // Default aspect ratio
       container.style.aspectRatio = aspectRatio;
+      container.setAttribute('data-media-type', type);
 
-      const bgImg = doc.createElement('img');
-      bgImg.src = mediaSrc;
-      bgImg.className = 'blog-media-background-content';
-      bgImg.alt = "";
-      bgImg.setAttribute('aria-hidden', 'true');
-
-      const mainImg = doc.createElement('img');
-      mainImg.src = mediaSrc;
-      mainImg.className = 'blog-media-main-content';
-      mainImg.alt = altText;
-
-      container.appendChild(bgImg);
-      container.appendChild(mainImg);
-
-      // If the image is directly inside a <p>, replace the <p> with the container.
-      // Otherwise, replace the image itself.
-      if (img.parentElement && img.parentElement.tagName === 'P' && img.parentElement.childNodes.length === 1) {
-        img.parentElement.replaceWith(container);
-      } else {
-        img.replaceWith(container);
+      const backgroundMedia = doc.createElement(type);
+      backgroundMedia.className = 'blog-media-background-content';
+      backgroundMedia.setAttribute('src', src);
+      if (type === 'image') {
+        backgroundMedia.setAttribute('alt', ''); // Decorative
+        backgroundMedia.setAttribute('aria-hidden', 'true');
+      } else if (type === 'video') {
+        backgroundMedia.setAttribute('autoplay', '');
+        backgroundMedia.setAttribute('muted', '');
+        backgroundMedia.setAttribute('loop', '');
+        backgroundMedia.setAttribute('playsinline', '');
+        backgroundMedia.setAttribute('aria-hidden', 'true');
       }
-    } else {
-      img.classList.remove('requires-media-wrap'); // Remove class if data attributes are missing
-    }
-  });
 
-  // Process videos (similar logic)
-  const videos = doc.querySelectorAll('video.requires-media-wrap');
-  videos.forEach(video => {
-    const mediaSrc = video.getAttribute('data-media-src');
-    const mediaWidth = video.getAttribute('data-media-width');
-    const mediaHeight = video.getAttribute('data-media-height');
-    const mediaType = video.getAttribute('data-media-type'); // Should be 'video'
-
-    if (mediaSrc && mediaWidth && mediaHeight && mediaType === 'video') {
-      const container = doc.createElement('div');
-      container.className = 'blog-media-container';
-      container.setAttribute('data-media-type', mediaType);
-      const aspectRatio = (Number(mediaWidth) > 0 && Number(mediaHeight) > 0)
-        ? `${mediaWidth}/${mediaHeight}`
-        : '16/9';
-      container.style.aspectRatio = aspectRatio;
-
-      const bgVideo = doc.createElement('video');
-      bgVideo.src = mediaSrc;
-      bgVideo.className = 'blog-media-background-content';
-      bgVideo.autoplay = true;
-      bgVideo.muted = true;
-      bgVideo.loop = true;
-      bgVideo.playsInline = true;
-      bgVideo.setAttribute('aria-hidden', 'true');
-      
-      const mainVideo = doc.createElement('video');
-      mainVideo.src = mediaSrc;
-      mainVideo.className = 'blog-media-main-content';
-      mainVideo.controls = true;
-
-      container.appendChild(bgVideo);
-      container.appendChild(mainVideo);
-      
-      if (video.parentElement && video.parentElement.tagName === 'P' && video.parentElement.childNodes.length === 1) {
-        video.parentElement.replaceWith(container);
-      } else {
-        video.replaceWith(container);
+      const mainMedia = doc.createElement(type);
+      mainMedia.className = 'blog-media-main-content';
+      mainMedia.setAttribute('src', src);
+      if (type === 'image') {
+        mainMedia.setAttribute('alt', altText);
+      } else if (type === 'video') {
+        mainMedia.setAttribute('controls', '');
       }
-    } else {
-      video.classList.remove('requires-media-wrap');
-    }
-  });
-  
-  // Return the modified HTML
-  // Using body.innerHTML ensures we get the content of the parsed body
-  return doc.body.innerHTML;
+      
+      container.appendChild(backgroundMedia);
+      container.appendChild(mainMedia);
+
+      mediaEl.parentNode?.replaceChild(container, mediaEl);
+    });
+
+    return doc.body.innerHTML;
+  } catch (error) {
+    console.error("Error wrapping media elements:", error);
+    return htmlContent; // Return original content on error
+  }
 }
 
 
@@ -148,17 +111,15 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const [blog, setBlog] = useState<Blog>(initialBlog);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
-  
-  const processedContent = useMemo(() => {
-    if (typeof window !== 'undefined') { // Ensure DOMParser is available
-      return wrapMediaElements(blog.content);
-    }
-    return blog.content; // Fallback for SSR or if DOMParser is not available
-  }, [blog.content]);
-
+  const [processedContent, setProcessedContent] = useState<string | null>(null);
 
   useEffect(() => {
     setBlog(initialBlog);
+    if (initialBlog.content) {
+        setProcessedContent(wrapMediaElements(initialBlog.content));
+    } else {
+        setProcessedContent('');
+    }
   }, [initialBlog]);
 
   const formattedDate = blog.publishedAt
@@ -258,45 +219,52 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     }
   };
 
-  const renderContentWithAds = () => {
-    const contentToRender = processedContent; // Use the processed content
-    const contentParts = contentToRender.split(/(<\/p>)/gi); 
-    const renderedElements: (JSX.Element | string)[] = []; // Allow strings for HTML parts
+  const renderContentWithAds = useCallback(() => {
+    if (processedContent === null) {
+      return <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    }
+    if (!processedContent) return null;
+
+    if (!adsEnabled) {
+      return (
+        <div 
+          className="blog-content prose dark:prose-invert"
+          dangerouslySetInnerHTML={{ __html: processedContent }} 
+        />
+      );
+    }
+  
+    const contentParts = processedContent.split(/(<\/p>)/gi); 
+    const renderedElements: JSX.Element[] = [];
   
     const adInsertionPoints = {
-      point1: 6,
-      point2: 14,
-      point3: 22,
+      point1: 6,  // After ~3 paragraphs + their closing tags
+      point2: 14, // After ~7 paragraphs
+      point3: 22, // After ~11 paragraphs
     };
   
-    if (!adsEnabled || !contentToRender) {
-      return [<span key="full-content" dangerouslySetInnerHTML={{ __html: contentToRender || "" }} />];
-    }
-
-    let pCounter = 0;
     contentParts.forEach((part, index) => {
-      renderedElements.push(
-        <span key={`content-part-${index}-${Math.random()}`} dangerouslySetInnerHTML={{ __html: part }} />
-      );
-      
-      if (part.toLowerCase().includes('</p>')) {
-        pCounter++;
-        if (pCounter === adInsertionPoints.point1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
-          renderedElements.push(<AdPlaceholder key={`ad-incontent-1-${pCounter}-${Math.random()}`} type="in-content" className="my-8" />);
-        } else if (pCounter === adInsertionPoints.point2 && (adDensity === 'medium' || adDensity === 'high')) {
-          renderedElements.push(<AdPlaceholder key={`ad-incontent-2-${pCounter}-${Math.random()}`} type="in-content" className="my-8" />);
-        } else if (pCounter === adInsertionPoints.point3 && adDensity === 'high') {
-          renderedElements.push(<AdPlaceholder key={`ad-incontent-3-${pCounter}-${Math.random()}`} type="in-content" className="my-8" />);
-        }
+      if (typeof part === 'string' && part.trim() !== '') {
+        renderedElements.push(
+          <span 
+            key={`content-part-${index}-${Math.random().toString(36).substr(2, 9)}`} 
+            dangerouslySetInnerHTML={{ __html: part }} 
+          />
+        );
+      }
+  
+      const paragraphIndex = Math.floor(index / 2); // Each part + closing tag counts as one "paragraph unit" for ad insertion
+      if (paragraphIndex === adInsertionPoints.point1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
+        renderedElements.push(<AdPlaceholder key={`ad-incontent-1-${index}-${Math.random().toString(36).substr(2, 9)}`} type="in-content" className="my-8" />);
+      } else if (paragraphIndex === adInsertionPoints.point2 && (adDensity === 'medium' || adDensity === 'high')) {
+        renderedElements.push(<AdPlaceholder key={`ad-incontent-2-${index}-${Math.random().toString(36).substr(2, 9)}`} type="in-content" className="my-8" />);
+      } else if (paragraphIndex === adInsertionPoints.point3 && adDensity === 'high') {
+        renderedElements.push(<AdPlaceholder key={`ad-incontent-3-${index}-${Math.random().toString(36).substr(2, 9)}`} type="in-content" className="my-8" />);
       }
     });
-  
-    if (renderedElements.length === 0 && contentToRender && contentToRender.trim() !== '') {
-        return [<span key="full-content-fallback" dangerouslySetInnerHTML={{ __html: contentToRender }} />];
-    }
     
-    return renderedElements;
-  };
+    return <div className="blog-content prose dark:prose-invert">{renderedElements}</div>;
+  }, [adsEnabled, adDensity, processedContent]);
 
 
   return (
@@ -343,39 +311,39 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           </header>
 
           <div className="my-6 flex items-center gap-3 sm:gap-4">
-             <Button
-                onClick={handleLikePost}
-                disabled={isLiking}
-                variant="ghost"
-                className="group relative p-0 h-auto rounded-xl focus:outline-none focus:ring-2 ring-offset-background focus:ring-red-400"
-                aria-pressed={isLikedByCurrentUser}
-                title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
-              >
-                 <span className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 group-hover:scale-105",
-                    isLikedByCurrentUser
-                      ? "bg-red-500 border-red-500 text-white" 
-                      : "border-muted-foreground/30 text-muted-foreground",
-                    isLiking && "cursor-not-allowed"
-                )}>
-                  {isLiking ? (
-                     <Loader2 className="h-6 w-6 animate-spin text-current" />
-                  ) : (
-                    <>
-                      <Heart className={cn(
-                        "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-125",
-                         isLikedByCurrentUser ? "fill-white text-white" : "group-hover:fill-accent/20 group-hover:text-accent",
-                      )} />
-                      <span className={cn(
-                        "text-sm tabular-nums",
-                        isLikedByCurrentUser ? "text-white" : "group-hover:text-accent"
-                      )}>
-                        {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
-                      </span>
-                    </>
-                  )}
-                </span>
-              </Button>
+            <Button
+              onClick={handleLikePost}
+              disabled={isLiking}
+              variant="ghost"
+              className="group relative p-0 h-auto rounded-xl focus:outline-none focus:ring-2 ring-offset-background focus:ring-red-400"
+              aria-pressed={isLikedByCurrentUser}
+              title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
+            >
+              <span className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 group-hover:scale-105",
+                isLikedByCurrentUser
+                  ? "bg-red-500 border-red-500 text-white" 
+                  : "border-muted-foreground/30 text-muted-foreground",
+                isLiking && "cursor-not-allowed"
+              )}>
+                {isLiking ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-current" />
+                ) : (
+                  <>
+                    <Heart className={cn(
+                      "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-125",
+                      isLikedByCurrentUser ? "fill-white text-white" : "group-hover:fill-accent/20 group-hover:text-accent",
+                    )} />
+                    <span className={cn(
+                      "text-sm tabular-nums",
+                      isLikedByCurrentUser ? "text-white" : "group-hover:text-accent"
+                    )}>
+                      {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
+                    </span>
+                  </>
+                )}
+              </span>
+            </Button>
 
             {user && user.uid === blog.authorId && (
               <>
@@ -440,9 +408,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
             )}
           </div>
 
-          <div className="prose dark:prose-invert">
-             {renderContentWithAds()}
-          </div>
+          {renderContentWithAds()}
 
           {blog.tags && blog.tags.length > 0 && (
             <div className="mt-12 pt-6 border-t">
@@ -471,45 +437,45 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
       <aside className="w-full lg:w-1/4 lg:max-w-xs xl:max-w-sm hidden lg:block space-y-6">
         <div className="sticky top-20 space-y-6">
-            <h3 className="text-xl font-headline font-semibold text-foreground">Author</h3>
-            {authorProfile ? (
-                <div className="p-4 bg-card rounded-lg shadow">
-                    <div className="flex items-center gap-3 mb-3">
-                        <Avatar className="h-12 w-12">
-                            <AvatarImage src={authorProfile.photoURL || undefined} alt={authorProfile.displayName || 'author'} />
-                            <AvatarFallback>
-                                {authorProfile.displayName ? authorProfile.displayName.charAt(0).toUpperCase() : <UserCircle />}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p className="font-semibold text-card-foreground">{authorProfile.displayName}</p>
-                            <p className="text-xs text-muted-foreground">{authorProfile.email}</p>
-                        </div>
-                    </div>
-                    {authorProfile.bio && <p className="text-sm text-muted-foreground mb-3">{authorProfile.bio}</p>}
-                     <Button asChild variant="outline" size="sm" className="w-full">
-                        <Link href={`/profile/${blog.authorId}`}>View Profile</Link>
-                    </Button>
+          <h3 className="text-xl font-headline font-semibold text-foreground">Author</h3>
+          {authorProfile ? (
+            <div className="p-4 bg-card rounded-lg shadow">
+              <div className="flex items-center gap-3 mb-3">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={authorProfile.photoURL || undefined} alt={authorProfile.displayName || 'author'} />
+                  <AvatarFallback>
+                    {authorProfile.displayName ? authorProfile.displayName.charAt(0).toUpperCase() : <UserCircle />}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold text-card-foreground">{authorProfile.displayName}</p>
+                  <p className="text-xs text-muted-foreground">{authorProfile.email}</p>
                 </div>
-            ) : (
-                 <div className="p-4 bg-card rounded-lg shadow">
-                    <div className="flex items-center gap-3 mb-3">
-                        <Avatar className="h-12 w-12">
-                            <AvatarImage src={blog.authorPhotoURL || undefined} alt={blog.authorDisplayName || 'author'} />
-                            <AvatarFallback>
-                                {blog.authorDisplayName ? blog.authorDisplayName.charAt(0).toUpperCase() : <UserCircle />}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p className="font-semibold text-card-foreground">{blog.authorDisplayName || "Anonymous"}</p>
-                        </div>
-                    </div>
-                    <Button asChild variant="outline" size="sm" className="w-full">
-                        <Link href={`/profile/${blog.authorId}`}>View Profile</Link>
-                    </Button>
+              </div>
+              {authorProfile.bio && <p className="text-sm text-muted-foreground mb-3">{authorProfile.bio}</p>}
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link href={`/profile/${blog.authorId}`}>View Profile</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="p-4 bg-card rounded-lg shadow">
+              <div className="flex items-center gap-3 mb-3">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={blog.authorPhotoURL || undefined} alt={blog.authorDisplayName || 'author'} />
+                  <AvatarFallback>
+                    {blog.authorDisplayName ? blog.authorDisplayName.charAt(0).toUpperCase() : <UserCircle />}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold text-card-foreground">{blog.authorDisplayName || "Anonymous"}</p>
                 </div>
-            )}
-            <AdPlaceholder type="sidebar" />
+              </div>
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link href={`/profile/${blog.authorId}`}>View Profile</Link>
+              </Button>
+            </div>
+          )}
+          <AdPlaceholder type="sidebar" />
         </div>
       </aside>
     </div>
