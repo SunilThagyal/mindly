@@ -5,9 +5,9 @@ import type { Blog, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Loader2, Share2, Heart, ThumbsUp } from 'lucide-react';
+import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Loader2, Share2, Heart } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
-import { useAdSettings } from '@/context/ad-settings-context'; 
+import { useAdSettings } from '@/context/ad-settings-context';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
 import Link from 'next/link';
 import { Button } from '../ui/button';
@@ -40,7 +40,7 @@ interface BlogPostViewProps {
 
 export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogPostViewProps) {
   const { user, userProfile: currentUserProfile } = useAuth();
-  const { adDensity } = useAdSettings(); 
+  const { adDensity } = useAdSettings();
   const { baseEarningPerView } = useEarningsSettings();
   const router = useRouter();
   const { toast } = useToast();
@@ -49,7 +49,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
 
-  // Update local blog state if initialBlog prop changes (e.g., due to revalidation)
   useEffect(() => {
     setBlog(initialBlog);
   }, [initialBlog]);
@@ -58,7 +57,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Draft - Not Published';
 
-  const earnings = (blog.views * baseEarningPerView).toFixed(2); 
+  const earnings = (blog.views * baseEarningPerView).toFixed(2);
   const currentLikes = blog.likes || 0;
   const isLikedByCurrentUser = user ? blog.likedBy?.includes(user.uid) : false;
 
@@ -91,12 +90,11 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     const blogRef = doc(db, "blogs", blog.id);
     const alreadyLiked = blog.likedBy?.includes(user.uid);
 
-    // Optimistic UI update
     setBlog(prevBlog => ({
       ...prevBlog,
       likes: (prevBlog.likes || 0) + (alreadyLiked ? -1 : 1),
-      likedBy: alreadyLiked 
-        ? prevBlog.likedBy?.filter(uid => uid !== user.uid) 
+      likedBy: alreadyLiked
+        ? prevBlog.likedBy?.filter(uid => uid !== user.uid)
         : [...(prevBlog.likedBy || []), user.uid]
     }));
 
@@ -109,23 +107,22 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         const currentLikedBy = blogDoc.data().likedBy || [];
         let newLikesCount = blogDoc.data().likes || 0;
 
-        if (currentLikedBy.includes(user.uid)) { // User is unliking
+        if (currentLikedBy.includes(user.uid)) {
           transaction.update(blogRef, {
             likes: increment(-1),
             likedBy: arrayRemove(user.uid)
           });
           newLikesCount--;
-        } else { // User is liking
+        } else {
           transaction.update(blogRef, {
             likes: increment(1),
             likedBy: arrayUnion(user.uid)
           });
           newLikesCount++;
-          
-          // Send notification if not liking own post
+
           if (user.uid !== blog.authorId) {
             const notificationRef = collection(db, 'users', blog.authorId, 'notifications');
-            await addDoc(notificationRef, { 
+            await addDoc(notificationRef, {
               type: 'new_post_like',
               blogId: blog.id,
               blogSlug: blog.slug,
@@ -138,12 +135,10 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           }
         }
       });
-      // Firestore listener will eventually update the state, or rely on optimistic update
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status.", variant: "destructive" });
-      // Revert optimistic update
-      setBlog(initialBlog); 
+      setBlog(initialBlog);
     } finally {
       setIsLiking(false);
     }
@@ -151,43 +146,31 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
   const renderContentWithAds = () => {
     let contentWithAds: (string | JSX.Element)[] = [];
-    const contentParts = blog.content.split(/(<\/p>)/); 
-    
+    const contentParts = blog.content.split(/(<\/p>)/);
+
     const adSlotIndices = {
-      slot1: 6,  
-      slot2: 14, 
-      slot3: 22, 
+      slot1: 6,
+      slot2: 14,
+      slot3: 22,
     };
 
     contentParts.forEach((part, index) => {
       contentWithAds.push(part);
-
       if (index === adSlotIndices.slot1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
         contentWithAds.push(<AdPlaceholder key="ad-incontent-1" type="in-content" className="my-8" />);
       }
-
       if (index === adSlotIndices.slot2 && (adDensity === 'medium' || adDensity === 'high')) {
         contentWithAds.push(<AdPlaceholder key="ad-incontent-2" type="in-content" className="my-8" />);
       }
-
       if (index === adSlotIndices.slot3 && adDensity === 'high') {
         contentWithAds.push(<AdPlaceholder key="ad-incontent-3" type="in-content" className="my-8" />);
       }
     });
 
-    return contentWithAds.map((item, i) => 
+    return contentWithAds.map((item, i) =>
         typeof item === 'string' ? <span key={i} dangerouslySetInnerHTML={{ __html: item }}/> : item
     );
   };
-
-  let likeButtonText = "Like";
-  if (currentLikes > 0) {
-    likeButtonText = `${currentLikes} Like${currentLikes === 1 ? '' : 's'}`;
-  }
-  if (isLikedByCurrentUser) {
-    likeButtonText = currentLikes > 0 ? `${currentLikes} Liked` : "Liked";
-  }
-  
 
   return (
     <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto py-8 px-4 animate-fade-in">
@@ -201,7 +184,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                 alt={blog.title}
                 layout="fill"
                 objectFit="cover"
-                priority 
+                priority
                 data-ai-hint="blog hero"
               />
             </div>
@@ -229,16 +212,16 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               <span className="flex items-center font-semibold"><Coins className="h-4 w-4 mr-1 text-yellow-500" /> ${earnings}</span>
             </div>
           </header>
-          
+
           <div className="my-6 flex items-center gap-4">
             <Button
-              variant={isLikedByCurrentUser ? "destructive" : "outline"}
+              variant="ghost"
               size="default"
               onClick={handleLikePost}
               disabled={isLiking || !user}
               className={cn(
-                "transition-colors duration-200",
-                !isLikedByCurrentUser && "text-muted-foreground hover:text-destructive hover:border-destructive/70 dark:hover:text-red-500 dark:hover:border-red-500/70" 
+                "transition-colors duration-200 group",
+                isLikedByCurrentUser ? "text-primary hover:text-primary/90" : "text-muted-foreground hover:text-primary"
               )}
               aria-pressed={isLikedByCurrentUser}
               title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
@@ -248,12 +231,12 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               ) : (
                 <Heart
                   className={cn(
-                    "mr-2 h-4 w-4",
-                    isLikedByCurrentUser && "fill-current" // Icon will be filled if liked (uses button's text color)
+                    "mr-2 h-4 w-4 group-hover:fill-primary/20",
+                    isLikedByCurrentUser ? "fill-primary text-primary" : "text-muted-foreground group-hover:text-primary"
                   )}
                 />
               )}
-              {likeButtonText}
+              {currentLikes > 0 ? `${currentLikes}` : 'Like'}
             </Button>
             {user && user.uid === blog.authorId && (
               <div className="flex gap-2">
@@ -287,7 +270,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               </div>
             )}
           </div>
-          
+
           <div className="prose dark:prose-invert max-w-none">
              {renderContentWithAds()}
           </div>
@@ -304,13 +287,13 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           )}
 
           <SocialShareButtons blogTitle={blog.title} blogUrl={`/blog/${blog.slug}`} />
-          
+
           <AdPlaceholder type="below-content" className="my-10" />
-          
+
           <RelatedPosts currentBlogId={blog.id} tags={blog.tags} />
-          <CommentsSection 
-            blogId={blog.id} 
-            blogAuthorId={blog.authorId} 
+          <CommentsSection
+            blogId={blog.id}
+            blogAuthorId={blog.authorId}
             blogTitle={blog.title}
             blogSlug={blog.slug}
           />
@@ -318,7 +301,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       </main>
 
       <aside className="w-full lg:w-1/4 lg:max-w-xs xl:max-w-sm hidden lg:block space-y-6">
-        <div className="sticky top-20 space-y-6"> 
+        <div className="sticky top-20 space-y-6">
             <h3 className="text-xl font-headline font-semibold text-foreground">Author</h3>
             {authorProfile ? (
                 <div className="p-4 bg-card rounded-lg shadow">
@@ -363,4 +346,4 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     </div>
   );
 }
-
+    
