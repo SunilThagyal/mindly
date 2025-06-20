@@ -218,15 +218,16 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
           <div className="my-6 flex items-center gap-4">
             {/* Enhanced Like Button */}
-            <button
+            <Button
               onClick={handleLikePost}
-              disabled={isLiking || !user}
+              disabled={!user || isLiking}
+              variant={isLikedByCurrentUser ? "default" : "ghost"}
               className={cn(
-                "relative group flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-2 ring-offset-background",
+                "relative group px-4 py-2 rounded-xl font-semibold shadow-md hover:shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-2 ring-offset-background",
                 isLikedByCurrentUser
-                  ? "bg-gradient-to-br from-red-500 to-rose-600 text-white focus:ring-red-400"
-                  : "bg-gradient-to-br from-gray-600 to-gray-800 text-gray-300 hover:text-white focus:ring-gray-500",
-                isLiking ? "cursor-not-allowed opacity-70" : "hover:shadow-xl"
+                  ? "bg-red-500 hover:bg-red-600 text-white focus:ring-red-400"
+                  : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10 focus:ring-red-400",
+                isLiking ? "cursor-not-allowed opacity-70" : ""
               )}
               aria-pressed={isLikedByCurrentUser}
               title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
@@ -237,55 +238,57 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                 <>
                   <Heart
                     className={cn(
-                      "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-95", // scale-95 on active for icon feedback
+                      "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-125",
                       isLikedByCurrentUser
                         ? "fill-white text-white"
-                        : "text-gray-400 group-hover:text-red-400 group-hover:fill-red-400/30"
+                        : "group-hover:text-red-500"
                     )}
+                    fill={isLikedByCurrentUser ? "currentColor" : "none"}
                   />
-                  <span className="text-sm tabular-nums">
+                  <span className="ml-2 text-sm tabular-nums">
                     {currentLikes > 0
                       ? `${currentLikes}`
-                      : isLikedByCurrentUser
-                      ? "Liked"
-                      : "Like"}
+                      : ""} 
+                    {currentLikes === 0 && (isLikedByCurrentUser ? "Liked" : "Like")}
                   </span>
                 </>
               )}
-            </button>
+            </Button>
 
             {user && user.uid === blog.authorId && (
               <div className="flex items-center gap-3">
                 {/* Enhanced Edit Button */}
-                <Link
-                  href={`/blog/edit/${blog.id}`}
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-white bg-gradient-to-br from-sky-500 via-blue-500 to-indigo-600 hover:from-sky-400 hover:via-blue-400 hover:to-indigo-500 shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-2 ring-blue-400 ring-offset-background"
+                <Button
+                  asChild
+                  variant="default"
+                  className={cn(
+                    "px-4 py-2 rounded-xl font-semibold text-primary-foreground bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-2 ring-primary ring-offset-background"
+                  )}
                 >
-                  <Edit className="h-5 w-5" />
-                  <span className="text-sm">Edit</span>
-                </Link>
+                  <Link href={`/blog/edit/${blog.id}`}>
+                    <Edit className="h-5 w-5 mr-2" />
+                    <span className="text-sm">Edit</span>
+                  </Link>
+                </Button>
                 
                 {/* Enhanced Delete Button Trigger */}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <button
+                    <Button
+                      variant="destructive"
                       className={cn(
-                        "flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-white shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-2 ring-offset-background",
-                        isDeleting 
-                          ? "bg-gray-500 cursor-not-allowed opacity-70 focus:ring-gray-400"
-                          : "bg-gradient-to-br from-red-600 via-rose-600 to-pink-700 hover:from-red-500 hover:via-rose-500 hover:to-pink-600 focus:ring-red-400 hover:shadow-xl"
+                        "px-4 py-2 rounded-xl font-semibold text-destructive-foreground bg-destructive hover:bg-destructive/90 shadow-md hover:shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-2 ring-destructive ring-offset-background",
+                        isDeleting && "cursor-not-allowed opacity-70"
                       )}
                       disabled={isDeleting}
                     >
                       {isDeleting ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                       ) : (
-                        <>
-                          <Trash2 className="h-5 w-5" />
-                          <span className="text-sm">Delete</span>
-                        </>
+                        <Trash2 className="h-5 w-5 mr-2" />
                       )}
-                    </button>
+                      <span className="text-sm">Delete</span>
+                    </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
