@@ -13,7 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, AlertTriangle, Info, DollarSign } from 'lucide-react';
 
 const defaultSettings: EarningsSettings = {
-  baseEarningPerView: 0.01, // Default rate
+  baseEarningPerView: 0.01,
+  minimumWithdrawalAmount: 10,
 };
 
 export default function EarningsSettingsForm() {
@@ -31,6 +32,7 @@ export default function EarningsSettingsForm() {
         const data = docSnap.data() as Partial<EarningsSettings>;
         setSettings({
           baseEarningPerView: typeof data.baseEarningPerView === 'number' ? data.baseEarningPerView : defaultSettings.baseEarningPerView,
+          minimumWithdrawalAmount: typeof data.minimumWithdrawalAmount === 'number' ? data.minimumWithdrawalAmount : defaultSettings.minimumWithdrawalAmount,
         });
       } else {
         setSettings(defaultSettings);
@@ -60,6 +62,8 @@ export default function EarningsSettingsForm() {
     setIsSaving(true);
 
     const parsedRate = parseFloat(String(settings.baseEarningPerView));
+    const parsedMinWithdrawal = parseFloat(String(settings.minimumWithdrawalAmount));
+
     if (isNaN(parsedRate) || parsedRate < 0) {
       toast({
         title: 'Invalid Rate',
@@ -69,11 +73,22 @@ export default function EarningsSettingsForm() {
       setIsSaving(false);
       return;
     }
+     if (isNaN(parsedMinWithdrawal) || parsedMinWithdrawal < 0) {
+      toast({
+        title: 'Invalid Minimum Withdrawal',
+        description: 'Minimum Withdrawal Amount must be a non-negative number.',
+        variant: 'destructive',
+      });
+      setIsSaving(false);
+      return;
+    }
+
 
     try {
       const docSnap = await getDoc(settingsDocRef);
       const dataToSave: EarningsSettings = {
         baseEarningPerView: parsedRate,
+        minimumWithdrawalAmount: parsedMinWithdrawal,
       };
 
       if (docSnap.exists()) {
@@ -119,13 +134,13 @@ export default function EarningsSettingsForm() {
         <CardHeader>
           <CardTitle className="flex items-center"><DollarSign className="mr-2" /> Earnings Configuration</CardTitle>
           <CardDescription>
-            Set the base virtual currency earning rate per view for blog posts.
+            Set global earning rates and withdrawal parameters for the platform.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-start gap-2 p-3 border border-blue-500/30 rounded-lg bg-blue-500/5 text-blue-700 dark:text-blue-300 text-sm">
             <Info className="h-5 w-5 mt-0.5 shrink-0" />
-            <p>This rate determines how much virtual currency is earned per view on a blog post. Example: 0.01 means $0.01 virtual currency per view.</p>
+            <p>These settings define how virtual currency is earned and can be withdrawn.</p>
           </div>
           <div>
             <Label htmlFor="baseEarningPerView">Base Earning Per View ($)</Label>
@@ -138,6 +153,20 @@ export default function EarningsSettingsForm() {
               onChange={(e) => handleInputChange('baseEarningPerView', e.target.value)}
               placeholder="e.g., 0.01"
             />
+             <p className="text-xs text-muted-foreground mt-1">Amount earned per single view on a blog post.</p>
+          </div>
+           <div>
+            <Label htmlFor="minimumWithdrawalAmount">Minimum Withdrawal Amount ($)</Label>
+            <Input
+              id="minimumWithdrawalAmount"
+              type="number"
+              step="1"
+              min="0"
+              value={settings.minimumWithdrawalAmount}
+              onChange={(e) => handleInputChange('minimumWithdrawalAmount', e.target.value)}
+              placeholder="e.g., 10"
+            />
+            <p className="text-xs text-muted-foreground mt-1">The minimum virtual currency a user must have to request a withdrawal.</p>
           </div>
         </CardContent>
          <CardFooter>

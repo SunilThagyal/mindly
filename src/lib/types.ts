@@ -11,18 +11,22 @@ export interface UserProfile {
   isBlocked?: boolean;
   postingRestricted?: boolean;
   postingRestrictionReason?: string | null;
-  adsEnabledForUser?: boolean;
-  adIntensityForUser?: 'global' | 'light' | 'medium' | 'high';
+  adsEnabledForUser?: boolean; // Example, not fully implemented for per-user ad display
+  adIntensityForUser?: 'global' | 'light' | 'medium' | 'high'; // Example
 
-  // New fields for monetization and payment
-  isMonetizationApproved?: boolean;
-  paymentCountry?: string | null;
-  paymentContactDetails?: string | null; // e.g., phone number
-  paymentAddress?: string | null;
-  paymentUpiId?: string | null; // India specific
-  paymentAccountNumber?: string | null; // India specific
-  paymentBankName?: string | null; // India specific
-  paymentIfscCode?: string | null; // India specific
+  // Monetization and Payment Details
+  isMonetizationApproved?: boolean; // Admin sets this
+  paymentCountry?: 'India' | 'USA' | 'Other' | null;
+  paymentContactDetails?: string | null; // e.g., phone number for communication
+  paymentAddress?: string | null; // Full address for certain payout methods or records
+
+  // India Specific (can be one or the other, or PayPal)
+  paymentUpiId?: string | null;
+  paymentAccountNumber?: string | null;
+  paymentBankName?: string | null;
+  paymentIfscCode?: string | null;
+
+  // PayPal (primary for non-India, option for India)
   paymentPaypalEmail?: string | null;
 }
 
@@ -52,9 +56,6 @@ export interface BlogInput {
   coverImageUrl: string | null;
 }
 
-// This constant will be superseded by a dynamic setting from EarningsSettingsContext
-// export const VIRTUAL_CURRENCY_RATE_PER_VIEW = 0.01;
-
 export interface Comment {
   id: string;
   userId: string;
@@ -77,26 +78,29 @@ export interface AdSettings {
 
 export interface EarningsSettings {
   baseEarningPerView: number;
+  minimumWithdrawalAmount?: number; // New field
 }
 
 export interface WithdrawalRequest {
-  id?: string;
+  id?: string; // Firestore document ID
   userId: string;
-  userDisplayName: string | null;
-  userEmail: string | null;
+  userDisplayName: string | null; // Store for admin convenience
+  userEmail: string | null; // Store for admin convenience
   amount: number;
   status: 'pending' | 'approved' | 'rejected' | 'processing' | 'completed';
   requestedAt: Timestamp;
   processedAt?: Timestamp | null;
   adminNotes?: string | null;
-  paymentDetailsSnapshot: { // Store a snapshot of payment details at time of request
-    country?: string | null;
-    contact?: string | null;
-    address?: string | null;
-    upiId?: string | null;
-    accountNumber?: string | null;
-    bankName?: string | null;
-    ifscCode?: string | null;
-    paypalEmail?: string | null;
+  // Snapshot of payment details at the time of request
+  paymentDetailsSnapshot: {
+    country?: UserProfile['paymentCountry'];
+    contact?: UserProfile['paymentContactDetails'];
+    address?: UserProfile['paymentAddress'];
+    upiId?: UserProfile['paymentUpiId'];
+    accountNumber?: UserProfile['paymentAccountNumber'];
+    bankName?: UserProfile['paymentBankName'];
+    ifscCode?: UserProfile['paymentIfscCode'];
+    paypalEmail?: UserProfile['paymentPaypalEmail'];
+    chosenPaymentMethod?: 'upi' | 'bank' | 'paypal'; // To clarify which method user chose if multiple were available/filled
   };
 }

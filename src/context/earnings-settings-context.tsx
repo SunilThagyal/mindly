@@ -9,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 
 const defaultEarningsSettings: EarningsSettings = {
   baseEarningPerView: 0.01, // Default earning rate if not set in Firestore
+  minimumWithdrawalAmount: 10, // Default minimum withdrawal amount
 };
 
 const EarningsSettingsContext = createContext<EarningsSettings | undefined>(undefined);
@@ -26,6 +27,9 @@ export const EarningsSettingsProvider = ({ children }: { children: ReactNode }) 
           baseEarningPerView: typeof data.baseEarningPerView === 'number' 
             ? data.baseEarningPerView 
             : defaultEarningsSettings.baseEarningPerView,
+          minimumWithdrawalAmount: typeof data.minimumWithdrawalAmount === 'number'
+            ? data.minimumWithdrawalAmount
+            : defaultEarningsSettings.minimumWithdrawalAmount,
         });
       } else {
         setSettings(defaultEarningsSettings);
@@ -41,7 +45,7 @@ export const EarningsSettingsProvider = ({ children }: { children: ReactNode }) 
     return () => unsubscribe();
   }, []);
 
-  if (loadingSettings && settings.baseEarningPerView === defaultEarningsSettings.baseEarningPerView) { 
+  if (loadingSettings && settings.baseEarningPerView === defaultEarningsSettings.baseEarningPerView && settings.minimumWithdrawalAmount === defaultEarningsSettings.minimumWithdrawalAmount) { 
      return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

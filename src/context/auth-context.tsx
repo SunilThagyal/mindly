@@ -50,14 +50,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         
-        const defaultProfileValues: Partial<UserProfile> = {
+        const defaultProfileValues: Omit<UserProfile, 'uid' | 'email' | 'displayName' | 'photoURL'> = {
+            bio: '',
+            virtualEarnings: 0,
             isBlocked: false,
             postingRestricted: false,
             postingRestrictionReason: null,
             adsEnabledForUser: true, 
             adIntensityForUser: 'global',
-            virtualEarnings: 0,
-            isMonetizationApproved: false, // Default new monetization field
+            isMonetizationApproved: false,
             paymentCountry: null,
             paymentContactDetails: null,
             paymentAddress: null,
@@ -70,7 +71,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (userDocSnap.exists()) {
           const existingData = userDocSnap.data() as UserProfile;
-          setUserProfile({ ...defaultProfileValues, ...existingData });
+          setUserProfile({ 
+            ...defaultProfileValues, 
+            ...existingData,
+            uid: firebaseUser.uid, // ensure core fields are from firebaseUser
+            email: firebaseUser.email,
+            displayName: existingData.displayName || firebaseUser.displayName, // Prefer existing displayName
+            photoURL: existingData.photoURL || firebaseUser.photoURL, // Prefer existing photoURL
+          });
         } else {
           const newProfile: UserProfile = {
             ...defaultProfileValues, 

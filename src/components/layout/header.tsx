@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/context/auth-context';
-import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings } from 'lucide-react'; // Added Settings
+import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings, DollarSign } from 'lucide-react'; 
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function Header() {
-  const { user, userProfile, signOut, loading, isAdmin } = useAuth(); // Added isAdmin
+  const { user, userProfile, signOut, loading, isAdmin } = useAuth(); 
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
@@ -84,7 +84,15 @@ export default function Header() {
                     My Blogs
                   </Link>
                 </DropdownMenuItem>
-                {isAdmin && ( // Show Admin link if user is admin
+                {userProfile?.isMonetizationApproved && (
+                   <DropdownMenuItem asChild>
+                    <Link href="/monetization" className="flex items-center">
+                      <DollarSign className="mr-2 h-4 w-4" />
+                      Monetization
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {isAdmin && ( 
                   <DropdownMenuItem asChild>
                     <Link href="/admin" className="flex items-center">
                       <Settings className="mr-2 h-4 w-4" />
