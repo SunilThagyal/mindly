@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -79,68 +80,67 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
           });
           const data = await response.json();
           
-          // Remove placeholder before inserting actual media
-          const currentTextContent = quill.getText();
-          const placeholderActualIndex = currentTextContent.indexOf(placeholderText, range.index - placeholderText.length - 10); // Search around original range
+          const currentContent = quill.getContents();
+          let placeholderActualIndex = -1;
+          let cumulativeIndex = 0;
+          for (const op of currentContent.ops || []) {
+            if (typeof op.insert === 'string') {
+              const foundIndex = op.insert.indexOf(placeholderText);
+              if (foundIndex !== -1) {
+                placeholderActualIndex = cumulativeIndex + foundIndex;
+                break;
+              }
+              cumulativeIndex += op.insert.length;
+            } else {
+              cumulativeIndex += 1; 
+            }
+          }
           
           if (placeholderActualIndex !== -1) {
-            quill.deleteText(placeholderActualIndex, placeholderText.length, 'silent');
+            quill.deleteText(placeholderActualIndex, placeholderText.length, Quill.sources.SILENT);
           } else {
-             // Fallback: if placeholder text isn't found exactly, delete from original range.index
-             // This can happen if other edits occurred. It's less precise but better than leaving placeholder.
-            quill.deleteText(range.index, placeholderText.length, 'silent');
+             quill.deleteText(range.index, placeholderText.length, Quill.sources.SILENT);
           }
           
           const insertionIndex = placeholderActualIndex !== -1 ? placeholderActualIndex : range.index;
 
-          if (data.secure_url && data.width && data.height) {
-            const mediaElementTag = fileType === 'image' ? 'img' : 'video';
-            const altText = file.name || `User uploaded ${fileType}`;
-            const videoControls = fileType === 'video' ? 'controls' : '';
-
-            // Insert a simple media tag with data attributes. Client-side will wrap it.
-            const simpleMediaHtml = `
-              <${mediaElementTag} 
-                class="requires-media-wrap"
-                src="${data.secure_url}" 
-                data-media-src="${data.secure_url}"
-                data-media-width="${data.width}"
-                data-media-height="${data.height}"
-                data-media-type="${fileType}"
-                alt="${altText}" 
-                ${videoControls}
-              ></${mediaElementTag}>
-            `;
-            
-            // Insert the simple media tag, Quill will typically wrap it in a <p>
-            quill.clipboard.dangerouslyPasteHTML(insertionIndex, simpleMediaHtml, 'user');
-            
-            // Add a new paragraph after the inserted media for better UX
-            const newLength = quill.getLength();
-            quill.insertText(newLength, '\n', Quill.sources.USER); // Ensure new line
-            quill.setSelection(newLength + 1, 0, 'silent');
-
+          if (data.secure_url) {
+            if (fileType === 'image') {
+              quill.insertEmbed(insertionIndex, 'image', data.secure_url, Quill.sources.USER);
+            } else if (fileType === 'video') {
+              quill.clipboard.dangerouslyPasteHTML(insertionIndex, `<video src="${data.secure_url}" controls></video>`, Quill.sources.USER);
+            }
+            quill.setSelection(insertionIndex + 1, 0, Quill.sources.SILENT); 
+            quill.insertText(insertionIndex + 1, '\n', Quill.sources.USER); 
 
           } else {
             let errorMsg = `Cloudinary ${fileType} upload failed.`;
             if (data.error?.message) {
                 errorMsg += ` Error: ${data.error.message}.`;
-            } else if (!data.width || !data.height) {
-                errorMsg += ` Missing width/height in Cloudinary response.`;
-            } else {
-                errorMsg += ` Check Cloudinary response for details.`;
             }
             throw new Error(errorMsg);
           }
         } catch (error) {
           console.error(`Cloudinary ${fileType} upload error:`, error);
-          // Attempt to remove placeholder on error too
-          const textContentOnError = quill.getText();
-          const placeholderIndexOnError = textContentOnError.indexOf(placeholderText, range.index - placeholderText.length -10);
+          const currentContentOnError = quill.getContents();
+          let placeholderIndexOnError = -1;
+          let cumulativeIndexOnError = 0;
+          for (const op of currentContentOnError.ops || []) {
+            if (typeof op.insert === 'string') {
+              const foundIndex = op.insert.indexOf(placeholderText);
+              if (foundIndex !== -1) {
+                placeholderIndexOnError = cumulativeIndexOnError + foundIndex;
+                break;
+              }
+              cumulativeIndexOnError += op.insert.length;
+            } else {
+              cumulativeIndexOnError += 1;
+            }
+          }
           if (placeholderIndexOnError !== -1) {
-            quill.deleteText(placeholderIndexOnError, placeholderText.length, 'silent');
+            quill.deleteText(placeholderIndexOnError, placeholderText.length, Quill.sources.SILENT);
           } else {
-            quill.deleteText(range.index, placeholderText.length, 'silent');
+             quill.deleteText(range.index, placeholderText.length, Quill.sources.SILENT);
           }
           alert(`${fileType.charAt(0).toUpperCase() + fileType.slice(1)} upload failed: ` + (error as Error).message);
         }
@@ -206,7 +206,6 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
     const handleChange = (delta: DeltaStatic, oldDelta: DeltaStatic, source: Sources) => {
       if (source === 'user') {
         let html = quill.root.innerHTML;
-        // Prevent empty editor from being just <p><br></p> if user clears everything
         if (html === '<p><br></p>') {
           html = '';
         }
@@ -279,3 +278,4 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
 };
 
 export default RichTextEditor;
+

@@ -269,9 +269,76 @@
       @apply my-8 border-border;
     }
 
-    /* Fallback general styles for unwrapped images, videos, iframes directly in .prose */
-    /* These apply if the .blog-media-container is not used (e.g. old content or if JS wrapping fails) */
-    /* Applied to direct children of .prose or children of .prose > p (common for editor output) */
+    /* Styles for the .media-container (dynamically wrapped by JS) */
+    .media-container {
+      @apply relative mx-auto my-6 rounded-lg shadow-lg overflow-hidden flex justify-center items-center;
+      width: 400px; /* Desktop */
+      height: 400px; /* Desktop */
+      background-image: var(--bg-image);
+      background-size: cover;
+      background-position: center;
+    }
+    /* Blurred background pseudo-element for images */
+    .media-container:not(.video-container):not(.iframe-container)::before {
+      content: '';
+      @apply absolute inset-0 z-[1];
+      background-image: inherit; /* Inherits --bg-image from parent */
+      background-size: cover;
+      background-position: center;
+      filter: blur(20px);
+      transform: scale(1.1); /* Ensure blur covers edges */
+    }
+    .media-container .media-item {
+      @apply relative z-[2] max-w-full max-h-full object-contain rounded-md transition-transform duration-300 ease-in-out;
+      box-shadow: 0 4px 15px hsla(var(--foreground), 0.1);
+    }
+     .media-container .media-item:hover {
+        transform: scale(1.03); /* Slightly smaller hover scale for contained item */
+        box-shadow: 0 8px 25px hsla(var(--foreground), 0.15);
+    }
+
+    /* Video container specific background */
+    .media-container.video-container {
+      background-image: linear-gradient(135deg, hsl(var(--foreground) / 0.1), hsl(var(--foreground) / 0.2));
+    }
+     /* iframe container specific styles */
+    .media-container.iframe-container {
+        @apply w-full p-0; /* Reset padding for iframe aspect ratio */
+        padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+        height: 0; /* Required for padding-bottom to work for aspect ratio */
+        background-color: black;
+    }
+    .media-container.iframe-container .media-item { /* Style for the iframe itself */
+        @apply absolute top-0 left-0 w-full h-full border-0 rounded-md;
+    }
+    .media-container.iframe-container .media-item:hover { /* No hover scale for iframes */
+        transform: none;
+        box-shadow: 0 4px 15px hsla(var(--foreground), 0.1);
+    }
+
+
+    /* Responsive sizes for media-container */
+    @media (max-width: 768px) { /* Tablet */
+      .media-container {
+        width: 350px;
+        height: 350px;
+      }
+    }
+    @media (max-width: 480px) { /* Mobile */
+      .media-container {
+        width: 300px;
+        height: 300px;
+      }
+    }
+    @media (max-width: 360px) { /* Small mobile */
+      .media-container {
+        width: 280px;
+        height: 280px;
+      }
+    }
+
+
+    /* Fallback for unwrapped images/videos if JS fails (less likely with new approach) */
     > img, > video, > iframe,
     p > img, p > video, p > iframe { 
       @apply block w-full max-w-full h-auto rounded-md my-6 shadow-md border border-border;
@@ -279,41 +346,8 @@
     > img, p > img { @apply mx-auto; } 
     > video, p > video { @apply bg-black; } 
     > iframe, p > iframe { @apply aspect-video; }
-
-    > figure { 
-      @apply mx-auto w-full max-w-full my-6; /* Figure should also be width constrained */
-    }
-    > figure img, > figure video, > figure iframe { 
-      margin-top: 0;
-      margin-bottom: 0;
-      @apply block w-full max-w-full h-auto rounded-md shadow-md border border-border; /* Ensure media inside figure is responsive */
-    }
-    > figcaption { 
-      @apply text-sm text-center text-muted-foreground mt-2 italic;
-    }
-
-    /* Styles for the .blog-media-container (inserted by editor OR dynamically by JS) */
-    .blog-media-container {
-      @apply relative w-full my-6 mx-auto overflow-hidden rounded-lg shadow-lg border border-border bg-muted;
-      max-width: 300px; 
-      max-height: 500px; 
-      display: flex; 
-      align-items: center;
-      justify-content: center;
-    }
-    .blog-media-container .blog-media-background-content,
-    .blog-media-container .blog-media-main-content {
-      @apply absolute top-0 left-0 w-full h-full rounded-lg; /* Inherit border-radius */
-    }
-    .blog-media-container .blog-media-background-content {
-      @apply object-cover z-[1] opacity-70;
-      filter: blur(20px) saturate(1.2); 
-      transform: scale(1.2); 
-    }
-    .blog-media-container .blog-media-main-content {
-      @apply object-contain z-[2] max-w-full max-h-full; /* Ensure it stays within container */
-    }
   }
+
 
   .dark .prose {
     @apply text-foreground; 
@@ -322,17 +356,22 @@
      code { @apply bg-muted text-muted-foreground; }
      pre { @apply bg-muted text-muted-foreground; }
      
-     /* Fallback for unwrapped media in dark mode */
+    .media-container {
+        box-shadow: 0 10px 25px -5px hsla(var(--background), 0.1), 0 10px 10px -5px hsla(var(--background), 0.08);
+    }
+    .media-container .media-item {
+        box-shadow: 0 4px 15px hsla(var(--background), 0.2);
+    }
+    .media-container .media-item:hover {
+        box-shadow: 0 8px 25px hsla(var(--background), 0.25);
+    }
+    .media-container.video-container {
+      background-image: linear-gradient(135deg, hsl(var(--background) / 0.1), hsl(var(--background) / 0.2));
+    }
+    /* Fallback for unwrapped media in dark mode */
      > img, > video, > iframe,
      p > img, p > video, p > iframe {
         @apply border-border;
-     }
-     /* Styles for .blog-media-container in dark mode */
-     .blog-media-container {
-        @apply border-border bg-muted;
-     }
-     .blog-media-container .blog-media-background-content {
-        filter: blur(20px) saturate(1.2) brightness(0.8); /* Adjust brightness for dark mode */
      }
   }
 }
@@ -370,4 +409,3 @@
   /* However, if there's a flash of unwrapped content, you could hide it: */
   /* display: none !important; */ 
 }
-
