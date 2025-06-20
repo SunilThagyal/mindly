@@ -86,20 +86,20 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     }
     if (isLiking) return;
 
-    // Optimistic UI Update First
     const originallyLiked = blog.likedBy?.includes(user.uid);
     const newLikesCount = (blog.likes || 0) + (originallyLiked ? -1 : 1);
     const newLikedByArray = originallyLiked
       ? (blog.likedBy || []).filter(uid => uid !== user.uid)
       : [...(blog.likedBy || []), user.uid];
     
+    // Optimistic UI Update First
     setBlog(prevBlog => ({
       ...prevBlog,
       likes: newLikesCount,
       likedBy: newLikedByArray,
     }));
 
-    setIsLiking(true); // Set loading state for background operation
+    setIsLiking(true); 
 
     const blogRef = doc(db, "blogs", blog.id);
 
@@ -144,7 +144,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
-      // Revert UI on error by resetting to the initialBlog state (before optimistic update)
       setBlog(initialBlog); 
     } finally {
       setIsLiking(false);
@@ -229,38 +228,29 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                 aria-pressed={isLikedByCurrentUser}
                 title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
               >
-                <span
-                  className={cn(
+                {isLiking ? (
+                  <span className="flex items-center justify-center px-3 py-1.5 h-[34px] w-[70px] rounded-lg border border-muted-foreground/30"> {/* Match dimensions of span */}
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  </span>
+                ) : (
+                  <span className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors duration-150",
                     "shadow-md group-hover:shadow-lg transform group-hover:scale-105 group-active:scale-95",
-                    isLikedByCurrentUser && !isLiking
-                      ? "bg-red-500 border-red-500 text-white group-hover:bg-red-600 group-hover:border-red-600"
-                      : "bg-transparent border-muted-foreground/30 text-muted-foreground group-hover:bg-accent/10 group-hover:border-accent/50 group-hover:text-accent"
-                  )}
-                >
-                  {isLiking ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Heart
-                      className={cn(
-                        "h-5 w-5 transition-all duration-150 ease-in-out group-active:scale-125",
-                        isLikedByCurrentUser && !isLiking
-                          ? "fill-white text-white"
-                          : "fill-transparent",
-                        !isLikedByCurrentUser && !isLiking && "group-hover:fill-accent/20" // Light orange fill on hover for unliked
-                      )}
-                    />
-                  )}
-                  <span className="text-sm tabular-nums">
-                    {isLiking
-                      ? (currentLikes > 0 ? currentLikes : '') // Show count if processing from a liked state, or nothing if unliked and processing
-                      : (isLikedByCurrentUser
-                          ? (currentLikes > 0 ? currentLikes : 'Liked')
-                          : (currentLikes > 0 ? currentLikes : 'Like')
-                        )
-                    }
+                    isLikedByCurrentUser
+                      ? "bg-red-500 border-red-500 text-white group-hover:bg-accent/10 group-hover:border-accent/50 group-hover:text-accent"
+                      : "border-muted-foreground/30 text-muted-foreground group-hover:bg-accent/10 group-hover:border-accent/50 group-hover:text-accent"
+                  )}>
+                    <Heart className={cn(
+                      "h-5 w-5 transition-all duration-150 ease-in-out group-active:scale-125",
+                       isLikedByCurrentUser
+                        ? "fill-white text-white group-hover:fill-accent group-hover:text-accent"
+                        : "fill-transparent group-hover:fill-accent/20 group-hover:text-accent"
+                    )} />
+                    <span className="text-sm tabular-nums">
+                      {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
+                    </span>
                   </span>
-                </span>
+                )}
               </Button>
 
             {user && user.uid === blog.authorId && (
@@ -402,3 +392,4 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     
 
     
+
