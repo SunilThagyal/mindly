@@ -20,7 +20,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialogTrigger, // Ensured this is imported
 } from "@/components/ui/alert-dialog";
 import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, collection, FieldValue } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -142,8 +142,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
-      // Revert UI on error
-      setBlog(initialBlog);
+      // Revert UI on error by re-setting to initialBlog (or a fetched version if needed for absolute latest)
+      setBlog(initialBlog); 
     } finally {
       setIsLiking(false);
     }
@@ -227,15 +227,14 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                 aria-pressed={isLikedByCurrentUser}
                 title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
               >
-                <span
-                  className={cn(
+                <span className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-150",
                     "shadow-md group-hover:shadow-lg transform group-hover:scale-105 group-active:scale-95",
                     isLikedByCurrentUser
-                      ? "bg-red-500 border-red-500 text-white" // LIKED: No hover color changes for background/border
-                      : "border-muted-foreground/30 text-muted-foreground group-hover:text-accent group-hover:border-accent/50" // UNLIKED: Text, border to accent
-                  )}
-                >
+                      ? "bg-red-500 border-red-500 text-white" // LIKED: No hover color changes for background/border/text
+                      : "border-muted-foreground/30 text-muted-foreground", // UNLIKED: No hover color changes
+                    isLiking && "cursor-wait"
+                )}>
                   {isLiking ? (
                      <Loader2 className="h-6 w-6 animate-spin text-current" />
                   ) : (
@@ -244,11 +243,13 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                         "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-125",
                         isLikedByCurrentUser
                           ? "fill-white text-white" // LIKED
-                          : "group-hover:fill-accent/20 group-hover:text-accent" // UNLIKED: Fill and stroke to accent on hover
+                          : "" // UNLIKED: No hover color changes for icon
                       )} />
                       <span className={cn(
                         "text-sm tabular-nums",
-                         isLikedByCurrentUser ? "text-white" : "group-hover:text-accent"
+                         isLikedByCurrentUser 
+                            ? "text-white" 
+                            : "" // UNLIKED: No hover color changes for text
                       )}>
                         {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
                       </span>
@@ -264,7 +265,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                   variant="default"
                   className={cn(
                     "px-4 py-2 rounded-xl font-semibold text-primary-foreground",
-                    "bg-primary hover:bg-primary/90", // Theme primary
+                    "bg-primary hover:bg-primary/90", 
                     "shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 active:scale-95",
                     "focus:outline-none focus:ring-2 ring-offset-2 ring-primary ring-offset-background"
                   )}
@@ -281,7 +282,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                       variant="destructive"
                       className={cn(
                         "px-4 py-2 rounded-xl font-semibold text-destructive-foreground",
-                        "bg-destructive hover:bg-destructive/90", // Theme destructive
+                        "bg-destructive hover:bg-destructive/90", 
                         "shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 active:scale-95",
                         "focus:outline-none focus:ring-2 ring-offset-2 ring-destructive ring-offset-background",
                         isDeleting && "cursor-not-allowed opacity-70"
@@ -402,3 +403,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
 
 
+
+
+    
