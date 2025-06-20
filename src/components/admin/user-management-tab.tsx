@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
-import type { UserProfile, Blog } from '@/lib/types';
+import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore'; // Added query and where
+import type { UserProfile } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, AlertTriangle, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
