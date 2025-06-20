@@ -5,7 +5,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import Quill, { type QuillOptions, type DeltaStatic, type Sources } from 'quill';
 import 'quill/dist/quill.snow.css';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from '@/config/cloudinary'; // Import Cloudinary config
+import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from '@/config/cloudinary'; 
 
 interface RichTextEditorProps {
   value: string;
@@ -23,53 +23,64 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     setIsClient(true);
   }, []);
 
-  const imageHandler = () => {
+  const commonUploadHandler = async (fileType: 'image' | 'video', acceptType: string) => {
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET === 'blogchain_unsigned_preset' || CLOUDINARY_UPLOAD_PRESET === 'your_unsigned_upload_preset_name') {
-      alert("Cloudinary is not configured for image uploads. Please check your environment settings and ensure NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET is correctly set to your unsigned preset name.");
-      console.error("Cloudinary config missing: CLOUDINARY_CLOUD_NAME or CLOUDINARY_UPLOAD_PRESET not set or is placeholder.");
+      alert(`Cloudinary is not configured for ${fileType} uploads. Please check your environment settings and ensure NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET is correctly set to your unsigned preset name.`);
+      console.error(`Cloudinary config missing: CLOUDINARY_CLOUD_NAME or CLOUDINARY_UPLOAD_PRESET not set or is placeholder for ${fileType}s.`);
       return;
     }
 
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'image/*');
+    input.setAttribute('accept', acceptType);
     input.click();
 
     input.onchange = async () => {
       const file = input.files?.[0];
       const quill = quillInstanceRef.current;
       if (file && quill) {
-        const range = quill.getSelection(true);
-        quill.insertText(range.index, " [Uploading image...] ", { color: 'grey', italic: true });
+        const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 }; // Fallback if no selection
+        const placeholderText = ` [Uploading ${fileType}...] `;
+        quill.insertText(range.index, placeholderText, { color: 'grey', italic: true });
         
         const formData = new FormData();
         formData.append('file', file);
         formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+        formData.append('resource_type', fileType === 'video' ? 'video' : 'image');
+
 
         try {
-          const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+          const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${fileType}/upload`, {
             method: 'POST',
             body: formData,
           });
           const data = await response.json();
           
-          quill.deleteText(range.index, " [Uploading image...] ".length); // Remove placeholder text
+          quill.deleteText(range.index, placeholderText.length); 
 
           if (data.secure_url) {
-            quill.insertEmbed(range.index, 'image', data.secure_url);
-            quill.setSelection(range.index + 1, 0); // Move cursor after image
+            if (fileType === 'image') {
+              quill.insertEmbed(range.index, 'image', data.secure_url);
+            } else if (fileType === 'video') {
+              // Embed as HTML5 video tag
+              const videoEmbed = `<video controls width="100%" src="${data.secure_url}"></video>`;
+              quill.clipboard.dangerouslyPasteHTML(range.index, videoEmbed, 'user');
+            }
+            quill.setSelection(range.index + 1, 0); 
           } else {
-            throw new Error(data.error?.message || 'Cloudinary upload failed to return a secure_url.');
+            throw new Error(data.error?.message || `Cloudinary ${fileType} upload failed to return a secure_url.`);
           }
         } catch (error) {
-          console.error('Cloudinary upload error:', error);
-          quill.deleteText(range.index, " [Uploading image...] ".length); // Also remove on error
-          alert('Image upload failed: ' + (error as Error).message);
-           // Potentially restore cursor or provide more robust error handling in editor
+          console.error(`Cloudinary ${fileType} upload error:`, error);
+          quill.deleteText(range.index, placeholderText.length);
+          alert(`${fileType.charAt(0).toUpperCase() + fileType.slice(1)} upload failed: ` + (error as Error).message);
         }
       }
     };
   };
+  
+  const imageHandler = () => commonUploadHandler('image', 'image/*');
+  const videoHandler = () => commonUploadHandler('video', 'video/*');
 
 
   useEffect(() => {
@@ -78,10 +89,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     }
     
     const fontWhitelist = [
-      false, // Default editor font (usually a sans-serif)
-      'serif', 'monospace', // Generic fallbacks
-      'Montserrat', 'Merriweather', 'Lora', // App-specific fonts from globals.css/tailwind.config
-      'Arial', 'Verdana', 'Times New Roman', 'Georgia', 'Courier New' // Common web-safe fonts
+      false, 
+      'serif', 'monospace',
+      'Montserrat', 'Merriweather', 'Lora', 
+      'Arial', 'Verdana', 'Times New Roman', 'Georgia', 'Courier New' 
     ];
     const sizeWhitelist = ['small', false, 'large', 'huge'];
 
@@ -99,11 +110,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
             [{ 'indent': '-1'}, { 'indent': '+1' }],
             [{ 'align': [] }],
             ['blockquote', 'code-block'],
-            ['link', 'image', 'video'], // 'image' will now use our handler
+            ['link', 'image', 'video'], 
             ['clean']
           ],
           handlers: {
-            image: imageHandler, // Register custom image handler
+            image: imageHandler,
+            video: videoHandler, 
           }
         },
         clipboard: { matchVisual: false },
@@ -141,7 +153,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClient, placeholder]); // Removed onChange and value from dependencies as per previous logic to avoid re-init cycles
+  }, [isClient, placeholder]); 
 
 
   useEffect(() => {

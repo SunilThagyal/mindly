@@ -9,10 +9,9 @@ import { Label } from '@/components/ui/label';
 import RichTextEditor from './rich-text-editor'; 
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { db } from '@/lib/firebase'; // Firebase Storage no longer used for cover images
+import { db } from '@/lib/firebase'; 
 import { collection, addDoc, serverTimestamp, doc, updateDoc, getDoc, Timestamp } from 'firebase/firestore';
-// Removed: import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from '@/config/cloudinary'; // Import Cloudinary config
+import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from '@/config/cloudinary'; 
 import { suggestTags as suggestTagsAI } from '@/ai/flows/suggest-tags';
 import { generateBlogPost as generateBlogPostAI } from '@/ai/flows/generate-blog-post';
 import type { Blog } from '@/lib/types';
@@ -40,7 +39,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
   const [currentTag, setCurrentTag] = useState('');
   const [currentStatus, setCurrentStatus] = useState<'draft' | 'published'>('draft');
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
-  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null); // Can be existing URL or preview URL
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null); 
   
   const [aiBlogTopic, setAiBlogTopic] = useState('');
   const [isGeneratingBlog, setIsGeneratingBlog] = useState(false);
@@ -76,7 +75,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             setContent(blogData.content);
             setTags(blogData.tags || []);
             setCurrentStatus(blogData.status);
-            setCoverImageUrl(blogData.coverImageUrl || null); // Load existing cover image URL
+            setCoverImageUrl(blogData.coverImageUrl || null); 
           } else {
             toast({ title: 'Not Found', description: 'Blog post not found.', variant: 'destructive' });
             router.push('/');
@@ -111,12 +110,12 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit for Cloudinary, adjust if needed
+      if (file.size > 10 * 1024 * 1024) { 
         toast({ title: 'Image too large', description: 'Please upload an image smaller than 10MB.', variant: 'destructive'});
         return;
       }
       setCoverImageFile(file);
-      setCoverImageUrl(URL.createObjectURL(file)); // Set for preview
+      setCoverImageUrl(URL.createObjectURL(file)); 
     }
   };
 
@@ -163,11 +162,16 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         let contentGenerated = false;
         if (typeof result.htmlContent === 'string' && result.htmlContent.trim() !== '') {
           const sanitizedContent = sanitizeHtml(result.htmlContent, { 
-            allowedTags: sanitizeHtml.defaults.allowedTags.concat([ 'img', 'iframe', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'figure', 'figcaption' ]),
+            allowedTags: sanitizeHtml.defaults.allowedTags.concat([ 
+                'img', 'iframe', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'figure', 'figcaption', 
+                'video', 'source' // Added video and source tags
+            ]),
             allowedAttributes: {
               ...sanitizeHtml.defaults.allowedAttributes,
               img: [ 'src', 'alt', 'title', 'width', 'height', 'style', 'data-align' ],
               iframe: [ 'src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'title' ],
+              video: [ 'src', 'controls', 'width', 'height', 'poster', 'type' ], // Added video attributes
+              source: [ 'src', 'type' ], // Added source attributes
               '*': [ 'style', 'class' ], 
               span: ['style', 'class'], 
               p: ['style', 'class'],
@@ -182,7 +186,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             },
             allowedSchemes: [ 'http', 'https', 'ftp', 'mailto', 'tel', 'data' ],
             allowedClasses: {
-              '*': [ 'ql-*' ] // Allow Quill classes
+              '*': [ 'ql-*' ] 
             },
              selfClosing: [ 'img', 'br', 'hr', 'area', 'base', 'basefont', 'input', 'link', 'meta' ],
              exclusiveFilter: function(frame) {
@@ -224,7 +228,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     const newSaveStatus = attemptPublish ? 'published' : 'draft';
     setCurrentStatus(newSaveStatus); 
 
-    let finalUploadedCoverImageUrl: string | null = coverImageUrl; // Use existing if editing and no new file
+    let finalUploadedCoverImageUrl: string | null = coverImageUrl; 
 
     if (coverImageFile) {
       if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET === 'blogchain_unsigned_preset' || CLOUDINARY_UPLOAD_PRESET === 'your_unsigned_upload_preset_name') {

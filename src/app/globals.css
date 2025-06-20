@@ -241,13 +241,12 @@
     ol { @apply list-decimal pl-5 my-5 font-body leading-body; }
     li { @apply my-1; }
     
-    /* Custom blockquote styling if prose plugin is not sufficient or for override */
     blockquote {
       @apply font-accent italic text-muted-foreground border-l-4 border-primary pl-6 pr-4 py-3 my-6 text-lg;
       quotes: '"\\201C""\\201D""\\2018""\\2019"';
     }
     blockquote p {
-      @apply my-0; /* Reset paragraph margin inside blockquote if needed */
+      @apply my-0; 
     }
     blockquote p:first-of-type::before {
       content: open-quote;
@@ -269,27 +268,33 @@
     hr {
       @apply my-8 border-border;
     }
-    img { /* Default image styling within prose */
-      @apply rounded-md my-6 shadow-md;
+    img { 
+      @apply rounded-md my-6 shadow-md mx-auto; /* Added mx-auto for centering */
     }
-    iframe { /* Styling for embedded videos/iframes */
+    iframe { 
       @apply w-full aspect-video rounded-md my-6 shadow-md border border-border;
     }
-    figure { /* Styling for figures */
+    video { /* Added video styling */
+      @apply w-full max-w-full h-auto rounded-md my-6 shadow-md border border-border bg-black; /* bg-black for letterboxing */
+    }
+    figure { 
       @apply my-6;
     }
-    figcaption { /* Styling for figcaptions */
+    figcaption { 
       @apply text-sm text-center text-muted-foreground mt-2 italic;
     }
   }
 
   .dark .prose {
-    @apply text-foreground; /* Adjusted for dark mode from tailwind.config */
+    @apply text-foreground; 
      a { @apply text-primary; }
      blockquote { @apply border-primary text-muted-foreground; }
      code { @apply bg-muted text-muted-foreground; }
      pre { @apply bg-muted text-muted-foreground; }
-     iframe { /* Dark mode iframe border if different */
+     iframe { 
+        @apply border-border;
+     }
+     video { /* Dark mode video border */
         @apply border-border;
      }
   }
@@ -305,24 +310,19 @@
   }
   .ad-placeholder {
     @apply w-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 border border-dashed border-gray-400 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-sm;
-    /* Default height, can be overridden by specific ad slot classes */
   }
 
-  /* Responsive ad placeholders: Mobile-first approach */
   .ad-placeholder-leaderboard-header { 
-    @apply h-[50px] max-w-[320px] mx-auto my-4; /* Mobile styles as base */
+    @apply h-[50px] max-w-[320px] mx-auto my-4; 
   }
   @screen sm {
     .ad-placeholder-leaderboard-header { 
-      @apply h-[90px] max-w-[728px]; /* Desktop overrides (mx-auto and my-4 inherited) */
+      @apply h-[90px] max-w-[728px]; 
     }
   }
 
-  .ad-placeholder-incontent { @apply h-[250px] my-6 mx-auto max-w-[336px] sm:max-w-none; } /* 300x250 or 336x280 */
-  .ad-placeholder-sidebar { @apply h-[600px] w-full; } /* 300x600 */
+  .ad-placeholder-incontent { @apply h-[250px] my-6 mx-auto max-w-[336px] sm:max-w-none; } 
+  .ad-placeholder-sidebar { @apply h-[600px] w-full; } 
   .ad-placeholder-below-content { @apply h-[90px] sm:h-[250px] my-6; }
   
 }
-
-
-    
