@@ -164,14 +164,15 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
           const sanitizedContent = sanitizeHtml(result.htmlContent, { 
             allowedTags: sanitizeHtml.defaults.allowedTags.concat([ 
                 'img', 'iframe', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'figure', 'figcaption', 
-                'video', 'source' // Added video and source tags
+                'video', 'source', 'div'
             ]),
             allowedAttributes: {
               ...sanitizeHtml.defaults.allowedAttributes,
-              img: [ 'src', 'alt', 'title', 'width', 'height', 'style', 'data-align' ],
+              div: ['class', 'style', 'data-media-type'],
+              img: [ 'src', 'alt', 'title', 'width', 'height', 'style', 'data-align', 'class' ],
               iframe: [ 'src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'title' ],
-              video: [ 'src', 'controls', 'width', 'height', 'poster', 'type' ], // Added video attributes
-              source: [ 'src', 'type' ], // Added source attributes
+              video: [ 'src', 'controls', 'width', 'height', 'poster', 'type', 'autoplay', 'muted', 'loop', 'playsinline', 'class', 'aria-hidden' ],
+              source: [ 'src', 'type' ],
               '*': [ 'style', 'class' ], 
               span: ['style', 'class'], 
               p: ['style', 'class'],
@@ -184,9 +185,14 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
               s: ['style', 'class'],
               a: ['href', 'name', 'target', 'style', 'class', 'rel'],
             },
+            allowedStyles: {
+              '*': {
+                'aspect-ratio': [/^(\d+(\.\d+)?)\s*\/\s*(\d+(\.\d+)?)$/] // Allow aspect-ratio for div
+              }
+            },
             allowedSchemes: [ 'http', 'https', 'ftp', 'mailto', 'tel', 'data' ],
             allowedClasses: {
-              '*': [ 'ql-*' ] 
+              '*': [ 'ql-*', 'blog-media-container', 'blog-media-background-content', 'blog-media-main-content' ] 
             },
              selfClosing: [ 'img', 'br', 'hr', 'area', 'base', 'basefont', 'input', 'link', 'meta' ],
              exclusiveFilter: function(frame) {

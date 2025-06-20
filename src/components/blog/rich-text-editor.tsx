@@ -36,7 +36,7 @@ Please check your environment variables:
 - NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME (Current: ${CLOUDINARY_CLOUD_NAME || 'Not Set'})
 - NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET (Current: ${CLOUDINARY_UPLOAD_PRESET || 'Not Set'})
 Ensure the preset is an 'unsigned' preset created in your Cloudinary dashboard. 
-Image/Video uploads via the editor will not work until this is resolved.`);
+${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor will not work until this is resolved.`);
       console.error(`Cloudinary config incomplete for ${fileType} uploads. Name: ${CLOUDINARY_CLOUD_NAME}, Preset: ${CLOUDINARY_UPLOAD_PRESET}`);
       return;
     }
@@ -51,14 +51,12 @@ Image/Video uploads via the editor will not work until this is resolved.`);
       const file = input.files?.[0];
       const quill = quillInstanceRef.current;
       if (file && quill) {
-        // File Type Validation
         const allowedTypes = fileType === 'image' ? ALLOWED_IMAGE_TYPES : ALLOWED_VIDEO_TYPES;
         if (!allowedTypes.includes(file.type)) {
           alert(`Invalid file type for ${fileType}. Allowed types: ${allowedTypes.join(', ')}`);
           return;
         }
 
-        // File Size Validation
         const maxSize = fileType === 'image' ? MAX_IMAGE_SIZE_BYTES : MAX_VIDEO_SIZE_BYTES;
         if (file.size > maxSize) {
           alert(`${fileType.charAt(0).toUpperCase() + fileType.slice(1)} file too large. Max size: ${maxSize / (1024 * 1024)}MB.`);
@@ -72,7 +70,7 @@ Image/Video uploads via the editor will not work until this is resolved.`);
         const formData = new FormData();
         formData.append('file', file);
         formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-        formData.append('folder', 'blogs'); // Specify the folder
+        formData.append('folder', 'blogs'); 
         formData.append('resource_type', fileType === 'video' ? 'video' : 'image');
 
         try {
@@ -86,22 +84,46 @@ Image/Video uploads via the editor will not work until this is resolved.`);
           if (currentPlaceholderIndex !== -1) {
             quill.deleteText(currentPlaceholderIndex, placeholderText.length);
           } else {
-             // Fallback if placeholder text changed or not found, delete from original range
-             // This path should ideally not be hit if editor content not changed externally
             quill.deleteText(range.index, placeholderText.length);
           }
 
+          if (data.secure_url && data.width && data.height) {
+            const aspectRatio = `${data.width} / ${data.height}`;
+            const mediaElementTag = fileType === 'image' ? 'img' : 'video';
+            
+            const mainMediaAttributes = fileType === 'image' 
+              ? `alt="${file.name || 'User uploaded content'}"` // Use file name as default alt
+              : 'controls';
+            const backgroundMediaAttributes = fileType === 'image'
+              ? 'alt="" aria-hidden="true"'
+              : 'autoplay muted loop playsinline aria-hidden="true"';
 
-          if (data.secure_url) {
-            if (fileType === 'image') {
-              quill.insertEmbed(range.index, 'image', data.secure_url);
-            } else if (fileType === 'video') {
-              const videoEmbed = `<video controls width="100%" src="${data.secure_url}"><p>Your browser does not support the video tag.</p></video>`;
-              quill.clipboard.dangerouslyPasteHTML(range.index, videoEmbed, 'user');
-            }
+            const htmlToInsert = `
+              <div class="blog-media-container" data-media-type="${fileType}" style="aspect-ratio: ${aspectRatio};">
+                <${mediaElementTag}
+                  src="${data.secure_url}"
+                  class="blog-media-background-content"
+                  ${backgroundMediaAttributes}
+                ></${mediaElementTag}>
+                <${mediaElementTag}
+                  src="${data.secure_url}"
+                  class="blog-media-main-content"
+                  ${mainMediaAttributes}
+                ></${mediaElementTag}>
+              </div>
+            `;
+            quill.clipboard.dangerouslyPasteHTML(range.index, htmlToInsert, 'user');
             quill.setSelection(range.index + 1, 0); 
           } else {
-            throw new Error(data.error?.message || `Cloudinary ${fileType} upload failed. Check response for details.`);
+            let errorMsg = `Cloudinary ${fileType} upload failed.`;
+            if (data.error?.message) {
+                errorMsg += ` Error: ${data.error.message}.`;
+            } else if (!data.width || !data.height) {
+                errorMsg += ` Missing width/height in Cloudinary response.`;
+            } else {
+                errorMsg += ` Check Cloudinary response for details.`;
+            }
+            throw new Error(errorMsg);
           }
         } catch (error) {
           console.error(`Cloudinary ${fileType} upload error:`, error);
@@ -126,9 +148,9 @@ Image/Video uploads via the editor will not work until this is resolved.`);
     
     const fontWhitelist = [
       false, 
-      'serif', 'monospace',
-      'Montserrat', 'Merriweather', 'Lora', 
-      'Arial', 'Verdana', 'Times New Roman', 'Georgia', 'Courier New' 
+      'serif', 'monospace', // Generic fallbacks
+      'Montserrat', 'Merriweather', 'Lora', // Theme fonts
+      'Arial', 'Verdana', 'Times New Roman', 'Georgia', 'Courier New' // Common web-safe fonts
     ];
     const sizeWhitelist = ['small', false, 'large', 'huge'];
 
@@ -208,12 +230,12 @@ Image/Video uploads via the editor will not work until this is resolved.`);
 
     if (normalizedIncomingHtml !== normalizedCurrentEditorHtml) {
       try {
-        const currentSelection = quill.getSelection(); // Store selection
+        const currentSelection = quill.getSelection(); 
         quill.setContents([], 'silent'); 
         if (normalizedIncomingHtml) { 
             quill.clipboard.dangerouslyPasteHTML(0, normalizedIncomingHtml, 'silent');
         }
-        if (currentSelection) { // Restore selection if possible
+        if (currentSelection) { 
             quill.setSelection(currentSelection, 'silent');
         }
       } catch (e) {
@@ -240,4 +262,3 @@ Image/Video uploads via the editor will not work until this is resolved.`);
 };
 
 export default RichTextEditor;
-
