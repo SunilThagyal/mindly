@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { Blog, UserProfile } from '@/lib/types';
@@ -144,7 +145,12 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
-      setBlog(initialBlog); 
+      // Revert UI on error
+      setBlog(prevBlog => ({ 
+        ...prevBlog, 
+        likes: originallyLiked ? (blog.likes || 0) +1 : (blog.likes || 0) -1, // reverse the optimistic count
+        likedBy: originallyLiked ? [...(prevBlog.likedBy || []), user.uid] : (prevBlog.likedBy || []).filter(uid => uid !== user.uid) // reverse the optimistic array
+      }));
     } finally {
       setIsLiking(false);
     }
@@ -219,38 +225,38 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
             </div>
           </header>
 
-          <div className="my-6 flex items-center gap-4">
+          <div className="my-6 flex items-center gap-3">
              <Button
                 onClick={handleLikePost}
                 disabled={!user || isLiking}
                 variant="ghost"
-                className="group relative p-0 h-auto rounded-xl font-semibold focus:outline-none focus:ring-2 ring-offset-background focus:ring-red-400"
+                className="group relative p-0 h-auto rounded-xl font-semibold focus:outline-none focus:ring-2 ring-offset-background ring-red-400"
                 aria-pressed={isLikedByCurrentUser}
                 title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
               >
-                {isLiking ? (
-                  <span className="flex items-center justify-center px-3 py-1.5 h-[34px] w-[70px] rounded-lg border border-muted-foreground/30"> {/* Match dimensions of span */}
-                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  </span>
-                ) : (
-                  <span className={cn(
+                <span
+                  className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors duration-150",
                     "shadow-md group-hover:shadow-lg transform group-hover:scale-105 group-active:scale-95",
                     isLikedByCurrentUser
-                      ? "bg-red-500 border-red-500 text-white group-hover:bg-accent/10 group-hover:border-accent/50 group-hover:text-accent"
+                      ? "bg-red-500 border-red-500 text-white group-hover:bg-red-600 group-hover:border-red-700"
                       : "border-muted-foreground/30 text-muted-foreground group-hover:bg-accent/10 group-hover:border-accent/50 group-hover:text-accent"
-                  )}>
+                  )}
+                >
+                  {isLiking ? (
+                     <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
                     <Heart className={cn(
                       "h-5 w-5 transition-all duration-150 ease-in-out group-active:scale-125",
                        isLikedByCurrentUser
-                        ? "fill-white text-white group-hover:fill-accent group-hover:text-accent"
-                        : "fill-transparent group-hover:fill-accent/20 group-hover:text-accent"
+                        ? "fill-white text-white" // Liked: white fill, white stroke (effectively just fill)
+                        : "fill-transparent group-hover:fill-accent/20" // Unliked: no fill, on hover light orange fill
                     )} />
-                    <span className="text-sm tabular-nums">
-                      {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
-                    </span>
+                  )}
+                  <span className="text-sm tabular-nums">
+                    {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
                   </span>
-                )}
+                </span>
               </Button>
 
             {user && user.uid === blog.authorId && (
@@ -392,4 +398,5 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     
 
     
+
 
