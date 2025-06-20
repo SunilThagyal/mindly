@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation'; // Added useSearchParams
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldAlert, Settings, Loader2, LayoutDashboard, Users, FileText, Annoyed } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,14 +16,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl && ['dashboard', 'ads', 'users', 'posts'].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        router.push('/auth/login?redirect=/admin');
+        router.push(`/auth/login?redirect=/admin${activeTab !== 'dashboard' ? `?tab=${activeTab}` : ''}`);
       }
     }
-  }, [user, isAdmin, loading, router]);
+  }, [user, isAdmin, loading, router, activeTab]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    router.push(`/admin?tab=${value}`, { scroll: false }); // Update URL without full page reload
+  };
 
   if (loading) {
     return (
@@ -43,7 +57,7 @@ export default function AdminPage() {
                 Please log in to access the admin panel.
             </p>
             <Button asChild size="lg">
-                <Link href="/auth/login?redirect=/admin">Go to Login</Link>
+                <Link href={`/auth/login?redirect=/admin${activeTab !== 'dashboard' ? `?tab=${activeTab}` : ''}`}>Go to Login</Link>
             </Button>
         </div>
     );
@@ -74,7 +88,7 @@ export default function AdminPage() {
         <p className="text-muted-foreground">Welcome, Admin! Manage your application settings and content here.</p>
       </header>
 
-      <Tabs defaultValue="dashboard" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-6">
           <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4 sm:mr-1" />Dashboard</TabsTrigger>
           <TabsTrigger value="ads"><Annoyed className="mr-2 h-4 w-4 sm:mr-1" />Ads Management</TabsTrigger>

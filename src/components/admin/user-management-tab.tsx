@@ -1,14 +1,18 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore'; // Added query and where
+import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, AlertTriangle, Users } from 'lucide-react';
+import { Loader2, AlertTriangle, Users, Search, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import UserTable from './user-table';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 
 async function getAllUserProfiles(): Promise<UserProfile[]> {
   const usersCol = collection(db, 'users');
@@ -18,7 +22,6 @@ async function getAllUserProfiles(): Promise<UserProfile[]> {
 
 async function getUserPostCount(userId: string): Promise<number> {
     const blogsCol = collection(db, 'blogs');
-    // This query is simplified. For performance on large datasets, consider aggregated counts.
     const q = query(blogsCol, where('authorId', '==', userId));
     const snapshot = await getDocs(q);
     return snapshot.size;
@@ -26,20 +29,23 @@ async function getUserPostCount(userId: string): Promise<number> {
 
 
 export default function UserManagementTab() {
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [userPostCounts, setUserPostCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterBlocked, setFilterBlocked] = useState(false);
+  const [filterRestricted, setFilterRestricted] = useState(false);
 
   const fetchUsersData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const fetchedUsers = await getAllUserProfiles();
-      setUsers(fetchedUsers);
+      setAllUsers(fetchedUsers);
 
-      // Fetch post counts for each user
       const counts: Record<string, number> = {};
       for (const user of fetchedUsers) {
         counts[user.uid] = await getUserPostCount(user.uid);
@@ -64,13 +70,24 @@ export default function UserManagementTab() {
       const userDocRef = doc(db, 'users', userId);
       await updateDoc(userDocRef, updates);
       toast({ title: 'User Updated', description: 'User details have been successfully updated.' });
-      // Re-fetch users to reflect changes, or update local state
-      fetchUsersData();
+      // Re-fetch users to reflect changes, or update local state for faster UI update
+      setAllUsers(prevUsers => prevUsers.map(u => u.uid === userId ? {...u, ...updates} : u));
     } catch (err: any) {
       console.error("Error updating user:", err);
       toast({ title: 'Update Error', description: err.message || 'Failed to update user.', variant: 'destructive' });
     }
   };
+  
+  const filteredUsers = useMemo(() => {
+    return allUsers.filter(user => {
+      const matchesSearch = searchTerm.trim() === '' ||
+        user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesBlocked = !filterBlocked || user.isBlocked === true;
+      const matchesRestricted = !filterRestricted || user.postingRestricted === true;
+      return matchesSearch && matchesBlocked && matchesRestricted;
+    });
+  }, [allUsers, searchTerm, filterBlocked, filterRestricted]);
 
   if (loading) {
     return (
@@ -105,16 +122,56 @@ export default function UserManagementTab() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center"><Users className="mr-2" /> User Management</CardTitle>
-        <CardDescription>View, manage, and moderate application users.</CardDescription>
+        <CardDescription>View, manage, and moderate application users. Found {filteredUsers.length} of {allUsers.length} users.</CardDescription>
       </CardHeader>
       <CardContent>
-        {users.length === 0 ? (
-          <p className="text-muted-foreground text-center py-5">No users found.</p>
+        <div className="mb-6 p-4 border rounded-lg bg-muted/30 space-y-4">
+          <h3 className="text-lg font-semibold">Filters</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">
+            <div className="space-y-1">
+              <Label htmlFor="userSearch">Search User (Name/Email)</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="userSearch"
+                  type="text"
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+                {searchTerm && (
+                    <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setSearchTerm('')}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+              <Checkbox
+                id="filterBlocked"
+                checked={filterBlocked}
+                onCheckedChange={(checked) => setFilterBlocked(checked as boolean)}
+              />
+              <Label htmlFor="filterBlocked" className="cursor-pointer">Show Blocked Only</Label>
+            </div>
+            <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+              <Checkbox
+                id="filterRestricted"
+                checked={filterRestricted}
+                onCheckedChange={(checked) => setFilterRestricted(checked as boolean)}
+              />
+              <Label htmlFor="filterRestricted" className="cursor-pointer">Show Posting Restricted Only</Label>
+            </div>
+          </div>
+        </div>
+
+        {filteredUsers.length === 0 ? (
+          <p className="text-muted-foreground text-center py-5">No users match the current filters.</p>
         ) : (
-          <UserTable users={users} onUpdateUser={handleUpdateUser} postCounts={userPostCounts} />
+          <UserTable users={filteredUsers} onUpdateUser={handleUpdateUser} postCounts={userPostCounts} />
         )}
       </CardContent>
     </Card>
   );
 }
-
