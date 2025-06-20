@@ -26,7 +26,7 @@ import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTrans
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect } from 'react';
 import AdPlaceholder from '@/components/layout/ad-placeholder';
 import RelatedPosts from './related-posts';
 import CommentsSection from './comments-section';
@@ -98,8 +98,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         : [...(prevBlog.likedBy || []), user.uid],
     }));
     
-    if (isLiking) return; 
-    setIsLiking(true); 
+    if (isLiking) return;
+    setIsLiking(true);
 
     const blogRef = doc(db, "blogs", blog.id);
 
@@ -151,44 +151,37 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   };
 
   const renderContentWithAds = () => {
-    const contentParts = blog.content.split(/(<\/p>)/gi); // Split by </p> tag, case-insensitive, keep delimiter
+    const contentParts = blog.content.split(/(<\/p>)/gi); 
     const renderedElements: JSX.Element[] = [];
   
-    // Define at which part indices ads should be considered for insertion.
-    // Each <p>content</p> block typically results in two parts: "<p>content" and "</p>".
-    // So, to insert after the Nth paragraph, target index around N*2.
     const adInsertionPoints = {
-      point1: 6,  // Approx after 3rd paragraph
-      point2: 14, // Approx after 7th paragraph
-      point3: 22, // Approx after 11th paragraph
+      point1: 6,
+      point2: 14,
+      point3: 22,
     };
   
+    if (!adsEnabled) {
+      // If ads are disabled, render the whole content without modification.
+      return [<span key="full-content" dangerouslySetInnerHTML={{ __html: blog.content }} />];
+    }
+
     contentParts.forEach((part, index) => {
-      // Render every part of the content to ensure nothing is lost.
-      // It's crucial that `part` is a string. If blog.content is empty, contentParts might be `['']`.
       if (typeof part === 'string') {
         renderedElements.push(
-          <span key={`content-part-${index}`} dangerouslySetInnerHTML={{ __html: part }} />
+          <span key={`content-part-${index}-${Math.random()}`} dangerouslySetInnerHTML={{ __html: part }} />
         );
       }
   
-      // Conditionally insert ads based on adDensity and whether ads are globally enabled
-      if (adsEnabled) {
-        if (index === adInsertionPoints.point1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
-          renderedElements.push(<AdPlaceholder key={`ad-incontent-1-${index}`} type="in-content" className="my-8" />);
-        } else if (index === adInsertionPoints.point2 && (adDensity === 'medium' || adDensity === 'high')) {
-          renderedElements.push(<AdPlaceholder key={`ad-incontent-2-${index}`} type="in-content" className="my-8" />);
-        } else if (index === adInsertionPoints.point3 && adDensity === 'high') {
-          renderedElements.push(<AdPlaceholder key={`ad-incontent-3-${index}`} type="in-content" className="my-8" />);
-        }
+      if (index === adInsertionPoints.point1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
+        renderedElements.push(<AdPlaceholder key={`ad-incontent-1-${index}-${Math.random()}`} type="in-content" className="my-8" />);
+      } else if (index === adInsertionPoints.point2 && (adDensity === 'medium' || adDensity === 'high')) {
+        renderedElements.push(<AdPlaceholder key={`ad-incontent-2-${index}-${Math.random()}`} type="in-content" className="my-8" />);
+      } else if (index === adInsertionPoints.point3 && adDensity === 'high') {
+        renderedElements.push(<AdPlaceholder key={`ad-incontent-3-${index}-${Math.random()}`} type="in-content" className="my-8" />);
       }
     });
   
-    // If no content or parts, return null or a placeholder if desired
     if (renderedElements.length === 0 && blog.content && blog.content.trim() !== '') {
-        // This case implies blog.content exists but resulted in no renderedElements,
-        // which is unlikely with the current logic unless content is just whitespace.
-        // Fallback to rendering the whole content if splitting somehow fails.
         return [<span key="full-content-fallback" dangerouslySetInnerHTML={{ __html: blog.content }} />];
     }
     
@@ -337,7 +330,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
             )}
           </div>
 
-          <div className="prose dark:prose-invert max-w-none">
+          <div className="prose dark:prose-invert">
              {renderContentWithAds()}
           </div>
 
