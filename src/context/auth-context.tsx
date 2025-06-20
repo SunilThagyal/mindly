@@ -42,35 +42,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('Auth Context: ADMIN_ENV_UID from process.env at context level:', ADMIN_ENV_UID);
+    console.log('[Auth Context] Initializing. ADMIN_ENV_UID from process.env:', ADMIN_ENV_UID);
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        console.log('Auth Context: Current firebaseUser.uid:', firebaseUser.uid);
+        console.log('[Auth Context] User state changed. Current firebaseUser.uid:', firebaseUser.uid);
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
+        
+        const defaultProfileValues: Partial<UserProfile> = {
+            isBlocked: false,
+            postingRestricted: false,
+            postingRestrictionReason: null,
+            adsEnabledForUser: true, // Default to true or could inherit global
+            adIntensityForUser: 'global', // Default to global setting
+            virtualEarnings: 0,
+        };
+
         if (userDocSnap.exists()) {
-          setUserProfile(userDocSnap.data() as UserProfile);
+          const existingData = userDocSnap.data() as UserProfile;
+          setUserProfile({ ...defaultProfileValues, ...existingData });
         } else {
+          // Ensure new profiles include all fields with defaults
           const newProfile: UserProfile = {
+            ...defaultProfileValues, // Apply defaults first
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             displayName: firebaseUser.displayName,
             photoURL: firebaseUser.photoURL,
-            virtualEarnings: 0,
+            // virtualEarnings already in defaultProfileValues
           };
           await setDoc(userDocRef, newProfile);
           setUserProfile(newProfile);
+          console.log('[Auth Context] New user profile created in Firestore with defaults.');
         }
-        // Check if the logged-in user's UID matches the ADMIN_USER_UID from .env
+        
         const isAdminCheck = !!ADMIN_ENV_UID && firebaseUser.uid === ADMIN_ENV_UID;
         setIsAdmin(isAdminCheck);
-        console.log('Auth Context: isAdmin determined as:', isAdminCheck, `(ADMIN_ENV_UID: ${ADMIN_ENV_UID}, User UID: ${firebaseUser.uid})`);
+        console.log('[Auth Context] isAdmin determined as:', isAdminCheck, `(ADMIN_ENV_UID: ${ADMIN_ENV_UID}, User UID: ${firebaseUser.uid})`);
       } else {
         setUser(null);
         setUserProfile(null);
         setIsAdmin(false);
-        console.log('Auth Context: No user logged in, isAdmin set to false.');
+        console.log('[Auth Context] No user logged in, isAdmin set to false.');
       }
       setLoading(false);
     });

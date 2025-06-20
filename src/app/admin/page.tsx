@@ -9,6 +9,8 @@ import { ShieldAlert, Settings, Loader2, LayoutDashboard, Users, FileText, Annoy
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import AdSettingsForm from '@/components/admin/ad-settings-form';
+import UserManagementTab from '@/components/admin/user-management-tab';
+import PostManagementTab from '@/components/admin/post-management-tab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AdminPage() {
@@ -87,7 +89,7 @@ export default function AdminPage() {
               <CardDescription>Overview and general analytics.</CardDescription>
             </CardHeader>
             <CardContent className="min-h-[200px] flex items-center justify-center">
-              <p className="text-muted-foreground">Analytics and overview will be displayed here.</p>
+              <p className="text-muted-foreground">Analytics and overview will be displayed here. (Coming Soon)</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -97,27 +99,11 @@ export default function AdminPage() {
         </TabsContent>
 
         <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>View and manage application users.</CardDescription>
-            </CardHeader>
-            <CardContent className="min-h-[200px] flex items-center justify-center">
-              <p className="text-muted-foreground">User management interface will be displayed here.</p>
-            </CardContent>
-          </Card>
+          <UserManagementTab />
         </TabsContent>
 
         <TabsContent value="posts">
-          <Card>
-            <CardHeader>
-              <CardTitle>Post Management</CardTitle>
-              <CardDescription>Manage all blog posts.</CardDescription>
-            </CardHeader>
-            <CardContent className="min-h-[200px] flex items-center justify-center">
-              <p className="text-muted-foreground">Post management interface will be displayed here.</p>
-            </CardContent>
-          </Card>
+          <PostManagementTab />
         </TabsContent>
       </Tabs>
 

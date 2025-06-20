@@ -8,6 +8,12 @@ export interface UserProfile {
   photoURL?: string | null;
   bio?: string;
   virtualEarnings?: number;
+  isBlocked?: boolean; // New field
+  postingRestricted?: boolean; // New field
+  postingRestrictionReason?: string | null; // New field
+  // Future per-user ad settings (placeholders for now)
+  adsEnabledForUser?: boolean; 
+  adIntensityForUser?: 'global' | 'light' | 'medium' | 'high'; 
 }
 
 export interface Blog {
@@ -57,3 +63,4 @@ export interface AdSettings {
   adsenseBelowContentSlotId?: string | null;
   adsenseMobileStickyFooterSlotId?: string | null;
 }
+
