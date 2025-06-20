@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/context/auth-context';
-import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings, DollarSign, Bell, Loader2, MessageSquare } from 'lucide-react'; 
+import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings, DollarSign, Bell, Loader2, MessageSquare, CornerDownRight } from 'lucide-react'; 
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,8 +59,14 @@ export default function Header() {
         readDisplaySnapshot.forEach(doc => fetchedNotifications.push({ id: doc.id, ...doc.data() } as Notification));
       }
       
-      fetchedNotifications.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-      setNotifications(fetchedNotifications.slice(0, 5));
+      // Ensure correct sorting of the combined list before slicing
+      fetchedNotifications.sort((a, b) => {
+        if (a.isRead !== b.isRead) {
+          return a.isRead ? 1 : -1; // Unread first
+        }
+        return b.createdAt.seconds - a.createdAt.seconds; // Then by time descending
+      });
+      setNotifications(fetchedNotifications.slice(0, 5)); // Then take top 5
 
     } catch (error) {
       console.error("Error fetching notifications:", error);
@@ -71,41 +77,49 @@ export default function Header() {
 
   useEffect(() => {
     if (user) {
-      fetchNotificationsData(true); // Initial fetch with loading indicator
-      
-      // Real-time listener for unread count and recent notifications
-      const notificationsRef = collection(db, 'users', user.uid, 'notifications');
-      const q = query(notificationsRef, orderBy('createdAt', 'desc'));
+      // Initial fetch with loading indicator
+      // The listener below will handle subsequent updates, so no need to call fetchNotificationsData directly here
+      // unless you want an immediate non-realtime fetch on user change before listener attaches.
+      // For simplicity, we rely on the listener.
 
+      const notificationsRef = collection(db, 'users', user.uid, 'notifications');
+      const q = query(notificationsRef, orderBy('createdAt', 'desc')); // Order all by time
+
+      setLoadingNotifications(true); // Set loading true before listener might provide initial data
       const unsubscribe = onSnapshot(q, (snapshot) => {
         let currentUnreadCount = 0;
-        const currentNotifications: Notification[] = [];
+        const allFetchedNotifications: Notification[] = [];
         snapshot.forEach(docSnap => {
           const notif = { id: docSnap.id, ...docSnap.data() } as Notification;
           if (!notif.isRead) {
             currentUnreadCount++;
           }
-          if (currentNotifications.length < 5) { // Keep track of latest 5 for display
-            currentNotifications.push(notif);
-          }
+          allFetchedNotifications.push(notif);
         });
         setUnreadCount(currentUnreadCount);
-        // Prioritize unread, then fill with read for display
-        const displayNotifications = currentNotifications
-            .sort((a,b) => (a.isRead === b.isRead) ? 0 : a.isRead ? 1 : -1) // unread first
-            .slice(0,5);
-        setNotifications(displayNotifications);
+        
+        // Sort all fetched notifications: unread first, then by time
+        allFetchedNotifications.sort((a, b) => {
+            if (a.isRead !== b.isRead) {
+                return a.isRead ? 1 : -1; 
+            }
+            return b.createdAt.seconds - a.createdAt.seconds;
+        });
+        setNotifications(allFetchedNotifications.slice(0,5)); // Display top 5 from the sorted list
+        setLoadingNotifications(false);
 
       }, (error) => {
         console.error("Error with notification listener:", error);
+        setLoadingNotifications(false);
       });
 
       return () => unsubscribe();
     } else {
       setNotifications([]);
       setUnreadCount(0);
+      setLoadingNotifications(false); // Ensure loading is false if user logs out
     }
-  }, [user, fetchNotificationsData]);
+  }, [user]);
 
 
   const handleMarkNotificationsAsRead = async (notificationIds: string[]) => {
@@ -117,9 +131,7 @@ export default function Header() {
     });
     try {
       await batch.commit();
-      // Optimistic UI update (already handled by listener, but good for immediate feedback if listener is slow)
-      setNotifications(prev => prev.map(n => notificationIds.includes(n.id) ? { ...n, isRead: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - notificationIds.filter(id => notifications.find(n => n.id === id && !n.isRead)).length));
+      // Listener will update UI
     } catch (error) {
       console.error("Error marking notifications as read:", error);
     }
@@ -127,12 +139,13 @@ export default function Header() {
   
   const handleNotificationDropdownOpen = (open: boolean) => {
     if (open && user) {
-      fetchNotificationsData().then(() => { // Fetch latest before marking
-        const unreadDisplayed = notifications.filter(n => !n.isRead).map(n => n.id);
+      // Fetching might not be needed due to listener, but good for consistency
+      // fetchNotificationsData().then(() => {
+        const unreadDisplayed = notifications.filter(n => !n.isRead && notifications.some(dispNotif => dispNotif.id === n.id)).map(n => n.id);
         if (unreadDisplayed.length > 0) {
           handleMarkNotificationsAsRead(unreadDisplayed);
         }
-      });
+      // });
     }
   };
 
@@ -141,17 +154,32 @@ export default function Header() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  const formatCompactDistanceToNow = (date: Date) => {
+  const formatCompactDistanceToNow = (timestamp?: Timestamp) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate();
     return formatDistanceToNow(date, { addSuffix: true, includeSeconds: false })
       .replace('about ', '')
-      .replace('less than a minute ago', '<1m ago')
-      .replace(' minutes ago', 'm ago')
-      .replace(' minute ago', 'm ago')
-      .replace(' hours ago', 'h ago')
-      .replace(' hour ago', 'h ago')
-      .replace(' days ago', 'd ago')
-      .replace(' day ago', 'd ago');
+      .replace('less than a minute ago', '<1m')
+      .replace(' minutes ago', 'm')
+      .replace(' minute ago', 'm')
+      .replace(' hours ago', 'h')
+      .replace(' hour ago', 'h')
+      .replace(' days ago', 'd')
+      .replace(' day ago', 'd');
   };
+  
+  const getNotificationIcon = (type: Notification['type']) => {
+    if (type === 'new_reply') return <CornerDownRight className="mt-0.5 h-4 w-4 shrink-0" />;
+    return <MessageSquare className="mt-0.5 h-4 w-4 shrink-0" />;
+  };
+  
+  const getNotificationText = (notif: Notification) => {
+    if (notif.type === 'new_reply') {
+      return <><span className="font-semibold">{notif.replierName}</span> replied to a comment on:</>;
+    }
+    return <><span className="font-semibold">{notif.commenterName}</span> commented on:</>;
+  };
+
 
   return (
     <header className="bg-background/80 backdrop-blur-md border-b sticky top-0 z-50">
@@ -204,9 +232,9 @@ export default function Header() {
                 {notifications.map(notif => (
                   <DropdownMenuItem key={notif.id} asChild className="p-0 focus:bg-transparent cursor-pointer">
                     <Link
-                      href={notif.link || `/blog/${notif.blogSlug}#comment-${notif.commentId}`}
+                      href={notif.link || `/blog/${notif.blogSlug}#comment-${notif.parentCommentId || notif.commentId}`}
                       className={`flex items-start gap-2.5 py-2 px-3 w-full rounded-md transition-colors ${
-                        !notif.isRead ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-accent'
+                        !notif.isRead ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted'
                       }`}
                       onClick={() => {
                           if (!notif.isRead) {
@@ -214,15 +242,12 @@ export default function Header() {
                           }
                       }}
                     >
-                      <MessageSquare
-                        className={`mt-0.5 h-4 w-4 shrink-0 ${
-                          !notif.isRead ? 'text-primary' : 'text-muted-foreground'
-                        }`}
-                      />
+                      <div className={`${!notif.isRead ? 'text-primary' : 'text-muted-foreground'}`}>
+                        {getNotificationIcon(notif.type)}
+                      </div>
                       <div className="flex-1 overflow-hidden">
                         <p className={`text-xs ${!notif.isRead ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                          <span className="font-semibold">{notif.commenterName}</span>
-                          <span className="ml-1">commented on:</span>
+                           {getNotificationText(notif)}
                         </p>
                         <p
                           className={`text-xs truncate ${
@@ -234,12 +259,11 @@ export default function Header() {
                         </p>
                       </div>
                       <p className="ml-2 text-xs text-muted-foreground self-start whitespace-nowrap">
-                        {formatCompactDistanceToNow(notif.createdAt.toDate())}
+                        {formatCompactDistanceToNow(notif.createdAt)}
                       </p>
                     </Link>
                   </DropdownMenuItem>
                 ))}
-                {/* Consider adding a "View All Notifications" link here later */}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -320,5 +344,4 @@ export default function Header() {
     </header>
   );
 }
-
     

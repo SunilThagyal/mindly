@@ -1,15 +1,15 @@
 
 "use client";
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { UserCircle, Send, MessageCircle, Loader2, Trash2, Edit3 } from 'lucide-react';
-import type { Comment as CommentType } from '@/lib/types'; // Renamed to avoid conflict
+import { UserCircle, Send, MessageCircle, Loader2, Trash2, Edit3, CornerDownRight } from 'lucide-react';
+import type { Comment as CommentType, UserProfile as UserProfileType } from '@/lib/types'; // Renamed to avoid conflict
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -20,27 +20,34 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger, // Added missing import
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 
 interface CommentsSectionProps {
   blogId: string;
-  blogAuthorId: string; // Added prop
-  blogTitle: string;    // Added prop
-  blogSlug: string;     // Added prop
+  blogAuthorId: string;
+  blogTitle: string;
+  blogSlug: string;
 }
 
 export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogSlug }: CommentsSectionProps) {
   const { user, userProfile, isAdmin } = useAuth();
   const { toast } = useToast();
-  const [comments, setComments] = useState<CommentType[]>([]);
-  const [newComment, setNewComment] = useState('');
+  const [allComments, setAllComments] = useState<CommentType[]>([]);
+  
+  const [newCommentText, setNewCommentText] = useState('');
+  
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
+  
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+
   const [loadingComments, setLoadingComments] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null); 
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [submittingReply, setSubmittingReply] = useState<string | null>(null); // Store parentId being replied to
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -55,9 +62,9 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const fetchedComments: CommentType[] = [];
       querySnapshot.forEach((doc) => {
-        fetchedComments.push({ id: doc.id, ...doc.data() } as CommentType);
+        fetchedComments.push({ id: doc.id, ...doc.data(), blogId } as CommentType);
       });
-      setComments(fetchedComments);
+      setAllComments(fetchedComments);
       setLoadingComments(false);
     }, (error) => {
       console.error("Error fetching comments: ", error);
@@ -68,25 +75,35 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
     return () => unsubscribe();
   }, [blogId, toast]);
 
+  const topLevelComments = useMemo(() => {
+    return allComments.filter(comment => !comment.parentId).sort((a,b) => a.createdAt.seconds - b.createdAt.seconds);
+  }, [allComments]);
+
+  const getReplies = (parentId: string) => {
+    return allComments.filter(comment => comment.parentId === parentId).sort((a,b) => a.createdAt.seconds - b.createdAt.seconds);
+  };
+
+
   const handlePostComment = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !userProfile || !newComment.trim()) {
+    if (!user || !userProfile || !newCommentText.trim()) {
         if (!user) toast({ title: "Login Required", description: "Please log in to post a comment.", variant: "destructive"});
         return;
     }
-    setSubmitting(true);
+    setSubmittingComment(true);
     try {
       const commentRef = await addDoc(collection(db, 'blogs', blogId, 'comments'), {
         userId: user.uid,
         userName: userProfile.displayName || 'Anonymous',
         userPhotoURL: userProfile.photoURL || null,
-        text: newComment.trim(),
+        text: newCommentText.trim(),
         createdAt: serverTimestamp() as Timestamp,
+        parentId: null,
+        blogId: blogId,
       });
-      setNewComment('');
+      setNewCommentText('');
       toast({ title: "Comment Posted!", description: "Your comment has been added." });
 
-      // Create notification for blog author if commenter is not the author
       if (user.uid !== blogAuthorId) {
         const notificationRef = collection(db, 'users', blogAuthorId, 'notifications');
         await addDoc(notificationRef, {
@@ -98,7 +115,7 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
           commentId: commentRef.id,
           createdAt: serverTimestamp(),
           isRead: false,
-          link: `/blog/${blogSlug}#comment-${commentRef.id}`, // Basic link
+          link: `/blog/${blogSlug}#comment-${commentRef.id}`,
         });
       }
 
@@ -106,18 +123,74 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
       console.error("Error posting comment: ", error);
       toast({ title: "Error", description: "Could not post comment.", variant: "destructive" });
     } finally {
-      setSubmitting(false);
+      setSubmittingComment(false);
     }
   };
+
+  const handlePostReply = async (parentId: string) => {
+    if (!user || !userProfile || !replyText.trim() || !parentId) {
+        if(!user) toast({ title: "Login Required", description: "Please log in to reply.", variant: "destructive"});
+        return;
+    }
+    setSubmittingReply(parentId);
+    
+    const parentComment = allComments.find(c => c.id === parentId);
+    if (!parentComment) {
+        toast({ title: "Error", description: "Parent comment not found.", variant: "destructive" });
+        setSubmittingReply(null);
+        return;
+    }
+
+    try {
+        const replyRef = await addDoc(collection(db, 'blogs', blogId, 'comments'), {
+            userId: user.uid,
+            userName: userProfile.displayName || 'Anonymous',
+            userPhotoURL: userProfile.photoURL || null,
+            text: replyText.trim(),
+            createdAt: serverTimestamp() as Timestamp,
+            parentId: parentId,
+            blogId: blogId,
+        });
+        setReplyText('');
+        setReplyingToCommentId(null); // Close reply form
+        toast({ title: "Reply Posted!", description: "Your reply has been added." });
+
+        // Notify author of parent comment, if they are not the one replying
+        if (user.uid !== parentComment.userId) {
+            const notificationRef = collection(db, 'users', parentComment.userId, 'notifications');
+            await addDoc(notificationRef, {
+                type: 'new_reply',
+                blogId: blogId,
+                blogSlug: blogSlug,
+                blogTitle: blogTitle,
+                replierName: userProfile.displayName || 'Anonymous',
+                commentId: replyRef.id, // ID of the reply
+                parentCommentId: parentId,
+                parentCommentAuthorId: parentComment.userId,
+                createdAt: serverTimestamp(),
+                isRead: false,
+                link: `/blog/${blogSlug}#comment-${replyRef.id}`, // Link to the reply
+            });
+        }
+
+    } catch (error) {
+        console.error("Error posting reply: ", error);
+        toast({ title: "Error", description: "Could not post reply.", variant: "destructive" });
+    } finally {
+        setSubmittingReply(null);
+    }
+  };
+
 
   const handleEditComment = (comment: CommentType) => {
     setEditingCommentId(comment.id);
     setEditingText(comment.text);
+    setReplyingToCommentId(null); // Close any open reply forms
   };
 
   const handleSaveEdit = async () => {
     if (!editingCommentId || !editingText.trim()) return;
-    setSubmitting(true);
+    setSubmittingComment(true); // Reuse submittingComment for general edit save
     try {
       const commentRef = doc(db, 'blogs', blogId, 'comments', editingCommentId);
       await updateDoc(commentRef, { text: editingText.trim() });
@@ -128,15 +201,25 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
       console.error("Error updating comment: ", error);
       toast({ title: "Error", description: "Could not update comment.", variant: "destructive" });
     } finally {
-      setSubmitting(false);
+      setSubmittingComment(false);
     }
   };
 
   const handleDeleteComment = async (commentId: string) => {
     setIsDeleting(commentId);
     try {
-      await deleteDoc(doc(db, 'blogs', blogId, 'comments', commentId));
-      toast({ title: "Comment Deleted", description: "The comment has been removed." });
+      // Also delete replies to this comment if it's a top-level comment
+      const repliesToDelete = allComments.filter(c => c.parentId === commentId);
+      const batch = db.batch(); // Use Firestore batch for multiple deletes
+      
+      repliesToDelete.forEach(reply => {
+        batch.delete(doc(db, 'blogs', blogId, 'comments', reply.id));
+      });
+      batch.delete(doc(db, 'blogs', blogId, 'comments', commentId));
+      
+      await batch.commit();
+
+      toast({ title: "Comment Deleted", description: "The comment and its replies have been removed." });
     } catch (error) {
       console.error("Error deleting comment: ", error);
       toast({ title: "Error", description: "Could not delete comment.", variant: "destructive" });
@@ -145,10 +228,139 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
     }
   };
 
+  const renderComment = (comment: CommentType, isReply: boolean = false) => {
+    const commentReplies = isReply ? [] : getReplies(comment.id); // Don't get replies for a reply
+
+    return (
+      <div key={comment.id} id={`comment-${comment.id}`} className={`flex items-start space-x-3 ${isReply ? 'ml-8 sm:ml-12' : ''}`}>
+        <Avatar className="h-9 w-9">
+          <AvatarImage src={comment.userPhotoURL || undefined} alt={comment.userName}/>
+          <AvatarFallback>
+            {comment.userName ? comment.userName.charAt(0).toUpperCase() : <UserCircle />}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-0.5">
+            <p className="font-semibold text-xs text-card-foreground">{comment.userName}</p>
+            <p className="text-xs text-muted-foreground">
+              {comment.createdAt ? new Date(comment.createdAt.seconds * 1000).toLocaleString() : 'Just now'}
+            </p>
+          </div>
+          {editingCommentId === comment.id ? (
+            <div className="mt-1">
+              <Textarea
+                value={editingText}
+                onChange={(e) => setEditingText(e.target.value)}
+                rows={2}
+                className="mb-2 text-sm"
+                disabled={submittingComment}
+              />
+              <div className="flex gap-2">
+                <Button onClick={handleSaveEdit} size="sm" disabled={submittingComment || !editingText.trim()} variant="outline">
+                  {submittingComment ? <Loader2 className="animate-spin" /> : 'Save'}
+                </Button>
+                <Button onClick={() => setEditingCommentId(null)} size="sm" variant="ghost">Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-card-foreground whitespace-pre-wrap leading-relaxed">{comment.text}</p>
+          )}
+          <div className="mt-1.5 flex gap-2 items-center">
+            {!isReply && (
+                <Button 
+                    onClick={() => { setReplyingToCommentId(comment.id); setReplyText(''); setEditingCommentId(null);}} 
+                    size="sm" 
+                    variant="ghost" 
+                    className="text-xs p-1 h-auto text-muted-foreground hover:text-primary"
+                    disabled={submittingReply === comment.id}
+                >
+                    <CornerDownRight className="mr-1 h-3 w-3" /> Reply
+                </Button>
+            )}
+            {(user?.uid === comment.userId || isAdmin) && editingCommentId !== comment.id && (
+                <>
+                {user?.uid === comment.userId && (
+                    <Button onClick={() => handleEditComment(comment)} size="sm" variant="ghost" className="text-xs p-1 h-auto text-muted-foreground hover:text-primary">
+                        <Edit3 className="mr-1 h-3 w-3" /> Edit
+                    </Button>
+                )}
+                <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="text-xs p-1 h-auto text-destructive hover:text-destructive hover:bg-destructive/10"
+                    disabled={isDeleting === comment.id}
+                    >
+                    {isDeleting === comment.id ? <Loader2 className="animate-spin h-3 w-3" /> : <Trash2 className="mr-1 h-3 w-3" />} Delete
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Comment?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Are you sure you want to delete this comment? {isReply ? '' : 'All replies to this comment will also be deleted.'} This action cannot be undone.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting === comment.id}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleDeleteComment(comment.id)} className="bg-destructive hover:bg-destructive/90" disabled={isDeleting === comment.id}>
+                        {isDeleting === comment.id ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
+                        Yes, delete
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+                </AlertDialog>
+                </>
+            )}
+          </div>
+
+          {/* Reply Form */}
+          {replyingToCommentId === comment.id && !isReply && (
+            <form onSubmit={(e) => { e.preventDefault(); handlePostReply(comment.id); }} className="mt-3 ml-0 flex items-start space-x-3">
+                 <Avatar className="h-8 w-8">
+                    <AvatarImage src={userProfile?.photoURL || undefined} alt={userProfile?.displayName || 'User'}/>
+                    <AvatarFallback>
+                        {userProfile?.displayName ? userProfile.displayName.charAt(0).toUpperCase() : <UserCircle />}
+                    </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                    <Textarea
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder={`Replying to ${comment.userName}...`}
+                        rows={2}
+                        className="mb-2 text-sm"
+                        disabled={submittingReply === comment.id}
+                        autoFocus
+                    />
+                    <div className="flex gap-2">
+                        <Button type="submit" size="sm" disabled={submittingReply === comment.id || !replyText.trim()} className="bg-accent hover:bg-accent/80 text-accent-foreground">
+                            {submittingReply === comment.id ? <Loader2 className="animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
+                            Post Reply
+                        </Button>
+                        <Button type="button" onClick={() => setReplyingToCommentId(null)} size="sm" variant="ghost">Cancel</Button>
+                    </div>
+                </div>
+            </form>
+          )}
+
+          {/* Render Replies */}
+          {commentReplies.length > 0 && (
+            <div className="mt-4 space-y-4 pt-3 border-l-2 border-muted pl-3">
+              {commentReplies.map(reply => renderComment(reply, true))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+
   return (
     <section className="mt-12 pt-8 border-t">
       <h2 className="text-2xl font-headline font-semibold mb-6 text-foreground flex items-center">
-        <MessageCircle className="mr-3 h-7 w-7 text-primary" /> Comments ({comments.length})
+        <MessageCircle className="mr-3 h-7 w-7 text-primary" /> Discussion ({topLevelComments.length}{allComments.length > topLevelComments.length ? ` + ${allComments.length - topLevelComments.length} replies` : ''})
       </h2>
       
       {user && (
@@ -163,16 +375,16 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
             </Avatar>
             <div className="flex-1">
               <Textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
+                value={newCommentText}
+                onChange={(e) => setNewCommentText(e.target.value)}
                 placeholder="Write your insightful comment here..."
                 rows={3}
                 className="mb-3 text-base"
-                disabled={submitting}
+                disabled={submittingComment}
                 aria-label="New comment"
               />
-              <Button type="submit" disabled={submitting || !newComment.trim()} className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                {submitting ? <Loader2 className="animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              <Button type="submit" disabled={submittingComment || !newCommentText.trim()} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                {submittingComment ? <Loader2 className="animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                 Post Comment
               </Button>
             </div>
@@ -194,84 +406,16 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
       )}
       
       <div className="space-y-6">
-        {comments.length === 0 && !loadingComments && (
+        {allComments.length === 0 && !loadingComments && (
             <div className="text-center py-8 text-muted-foreground bg-card rounded-lg shadow-sm">
                 <MessageCircle className="mx-auto h-12 w-12 mb-3 opacity-50" />
                 <p>No comments yet. Be the first to share your thoughts!</p>
             </div>
         )}
-        {comments.map(comment => (
-          <div key={comment.id} className="flex items-start space-x-3 p-4 bg-card rounded-lg shadow-sm transition-all hover:shadow-md">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={comment.userPhotoURL || undefined} alt={comment.userName}/>
-              <AvatarFallback>
-                {comment.userName ? comment.userName.charAt(0).toUpperCase() : <UserCircle />}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-semibold text-sm text-card-foreground">{comment.userName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {comment.createdAt ? new Date(comment.createdAt.seconds * 1000).toLocaleString() : 'Just now'}
-                </p>
-              </div>
-              {editingCommentId === comment.id ? (
-                <div>
-                  <Textarea
-                    value={editingText}
-                    onChange={(e) => setEditingText(e.target.value)}
-                    rows={3}
-                    className="mb-2 text-sm"
-                    disabled={submitting}
-                  />
-                  <div className="flex gap-2">
-                    <Button onClick={handleSaveEdit} size="sm" disabled={submitting || !editingText.trim()} variant="outline">
-                      {submitting ? <Loader2 className="animate-spin" /> : 'Save'}
-                    </Button>
-                    <Button onClick={() => setEditingCommentId(null)} size="sm" variant="ghost">Cancel</Button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-card-foreground whitespace-pre-wrap leading-relaxed">{comment.text}</p>
-              )}
-              {(user?.uid === comment.userId || isAdmin) && editingCommentId !== comment.id && (
-                <div className="mt-2 flex gap-2">
-                   {user?.uid === comment.userId && (
-                    <Button onClick={() => handleEditComment(comment)} size="sm" variant="ghost" className="text-xs p-1 h-auto">
-                        <Edit3 className="mr-1 h-3 w-3" /> Edit
-                    </Button>
-                   )}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        className="text-xs p-1 h-auto text-destructive hover:text-destructive hover:bg-destructive/10"
-                        disabled={isDeleting === comment.id}
-                      >
-                        {isDeleting === comment.id ? <Loader2 className="animate-spin h-3 w-3" /> : <Trash2 className="mr-1 h-3 w-3" />} Delete
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Comment?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this comment? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting === comment.id}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDeleteComment(comment.id)} className="bg-destructive hover:bg-destructive/90" disabled={isDeleting === comment.id}>
-                          {isDeleting === comment.id ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
-                          Yes, delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              )}
+        {topLevelComments.map(comment => (
+            <div key={comment.id} className="p-4 bg-card rounded-lg shadow-sm transition-all hover:shadow-md">
+                {renderComment(comment)}
             </div>
-          </div>
         ))}
       </div>
     </section>
