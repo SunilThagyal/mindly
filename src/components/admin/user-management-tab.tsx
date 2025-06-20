@@ -19,7 +19,7 @@ async function getAllUserProfiles(): Promise<UserProfile[]> {
 async function getUserPostCount(userId: string): Promise<number> {
     const blogsCol = collection(db, 'blogs');
     // This query is simplified. For performance on large datasets, consider aggregated counts.
-    const q = query(collection(blogsCol), where('authorId', '==', userId));
+    const q = query(blogsCol, where('authorId', '==', userId));
     const snapshot = await getDocs(q);
     return snapshot.size;
 }
@@ -117,3 +117,4 @@ export default function UserManagementTab() {
     </Card>
   );
 }
+
