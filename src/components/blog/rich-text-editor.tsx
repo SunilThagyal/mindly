@@ -3,7 +3,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import Quill, { type QuillOptions, type DeltaStatic, type Sources } from 'quill';
-import 'quill/dist/quill.snow.css'; 
+import 'quill/dist/quill.snow.css';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface RichTextEditorProps {
@@ -16,8 +16,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
   const quillRef = useRef<HTMLDivElement>(null);
   const quillInstanceRef = useRef<Quill | null>(null);
   const [isClient, setIsClient] = useState(false);
-  
-  const internalUpdateRef = useRef(false); 
+
+  const internalUpdateRef = useRef(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -29,14 +29,18 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
       console.log("[RTE-InitEffect] Guard: Not client-side, quillRef not available, or Quill already initialized. Aborting.");
       return;
     }
-    
+
+    // Updated fontWhitelist to remove the generic 'sans-serif'
+    // 'false' will represent the default font, which is typically sans-serif.
+    // Specific sans-serif fonts like Montserrat, Arial, etc., are still available.
     const fontWhitelist = [
-      false, 
-      'sans-serif', 'serif', 'monospace', // Generic families
+      false, // Default font (editor's base style)
+      'serif',      // Generic Serif
+      'monospace',  // Generic Monospace
       'Arial', 'Verdana', 'Times New Roman', 'Georgia', // Common system fonts
       'Montserrat', 'Merriweather', 'Lora', // App specific fonts
       'Inter', 'Poppins', // Previous app fonts, kept for compatibility if content exists
-      'Courier New', 
+      'Courier New',
     ];
     const sizeWhitelist = ['small', false, 'large', 'huge']; // Standard sizes
 
@@ -53,7 +57,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
           [{ 'script': 'sub'}, { 'script': 'super' }],
           [{ 'indent': '-1'}, { 'indent': '+1' }],
           [{ 'align': [] }],
-          ['blockquote', 'code-block'],
+          ['blockquote', 'code-block'], // code-block option is here
           ['link', 'image', 'video'],
           ['clean']
         ],
@@ -67,7 +71,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
 
     const initialHtml = typeof value === 'string' ? value : '';
     console.log("[RTE-InitEffect] Initial `value` prop during Quill init:", JSON.stringify(initialHtml.substring(0,100) + "..."));
-    
+
     if (initialHtml && quill.getLength() <= 1 && initialHtml !== "<p><br></p>") {
       console.log("[RTE-InitEffect] Attempting to set initial content from `value` prop using dangerouslyPasteHTML.");
       try {
@@ -85,7 +89,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
       if (source === 'user') {
         console.log("[RTE-Event] User edit detected.");
         let html = quill.root.innerHTML;
-        if (html === '<p><br></p>') { 
+        if (html === '<p><br></p>') {
           html = '';
         }
         console.log("[RTE-Event] Marking internalUpdateRef=true and calling onChange. HTML:", JSON.stringify(html.substring(0,100) + "..."));
@@ -104,7 +108,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
       }
     };
   // Added `value` to deps here to ensure initial content gets set if value is ready on first client render.
-  }, [isClient, onChange, placeholder, value]); 
+  }, [isClient, onChange, placeholder, value]);
 
 
   useEffect(() => {
@@ -115,20 +119,20 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
       console.log("[RTE-ValueSyncEffect] Guard: Not client or Quill not ready.");
       return;
     }
-    
+
     if (internalUpdateRef.current) {
       console.log("[RTE-ValueSyncEffect] Guard: Internal update, resetting flag and returning.");
-      internalUpdateRef.current = false; 
+      internalUpdateRef.current = false;
       return;
     }
 
     const incomingHtml = typeof value === 'string' ? value : '';
     let currentEditorHtml = quill.root.innerHTML;
-    
+
     // Normalize empty states for comparison
     const normalizedIncomingHtml = (incomingHtml === "<p><br></p>") ? "" : incomingHtml;
     const normalizedCurrentEditorHtml = (currentEditorHtml === "<p><br></p>") ? "" : currentEditorHtml;
-    
+
     console.log("[RTE-ValueSyncEffect] Comparing content. Normalized Incoming HTML:", JSON.stringify(normalizedIncomingHtml.substring(0,100) + "..."), "Normalized Editor Current HTML:", JSON.stringify(normalizedCurrentEditorHtml.substring(0,100) + "..."));
 
     if (normalizedIncomingHtml !== normalizedCurrentEditorHtml) {
@@ -155,8 +159,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     console.log("[RTE-Render] Not client-side yet, rendering Skeleton.");
     return (
       <div className="space-y-2 quill-editor-override">
-        <Skeleton className="h-10 w-full rounded-t-lg border-x border-t border-input" /> 
-        <Skeleton className="h-60 w-full rounded-b-lg border border-input" /> 
+        <Skeleton className="h-10 w-full rounded-t-lg border-x border-t border-input" />
+        <Skeleton className="h-60 w-full rounded-b-lg border border-input" />
       </div>
     );
   }
