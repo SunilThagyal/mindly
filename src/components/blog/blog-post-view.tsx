@@ -5,7 +5,7 @@ import type { Blog, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Loader2, Share2, Heart } from 'lucide-react';
+import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart } from 'lucide-react'; // Removed Loader2
 import { useAuth } from '@/context/auth-context';
 import { useAdSettings } from '@/context/ad-settings-context';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
@@ -85,11 +85,10 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       return;
     }
     if (isLiking) return;
-    setIsLiking(true);
-
-    const blogRef = doc(db, "blogs", blog.id);
+    
     const alreadyLiked = blog.likedBy?.includes(user.uid);
 
+    // Optimistic UI update
     setBlog(prevBlog => ({
       ...prevBlog,
       likes: (prevBlog.likes || 0) + (alreadyLiked ? -1 : 1),
@@ -97,6 +96,10 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         ? prevBlog.likedBy?.filter(uid => uid !== user.uid)
         : [...(prevBlog.likedBy || []), user.uid]
     }));
+    
+    setIsLiking(true); // Disable button during Firestore operation
+
+    const blogRef = doc(db, "blogs", blog.id);
 
     try {
       await runTransaction(db, async (transaction) => {
@@ -104,41 +107,47 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         if (!blogDoc.exists()) {
           throw "Document does not exist!";
         }
-        const currentLikedBy = blogDoc.data().likedBy || [];
+        
+        const currentFirestoreLikedBy = blogDoc.data().likedBy || [];
         let newLikesCount = blogDoc.data().likes || 0;
+        let operationType: 'like' | 'unlike';
 
-        if (currentLikedBy.includes(user.uid)) {
+        if (currentFirestoreLikedBy.includes(user.uid)) { // User is unliking
           transaction.update(blogRef, {
             likes: increment(-1),
             likedBy: arrayRemove(user.uid)
           });
           newLikesCount--;
-        } else {
+          operationType = 'unlike';
+        } else { // User is liking
           transaction.update(blogRef, {
             likes: increment(1),
             likedBy: arrayUnion(user.uid)
           });
           newLikesCount++;
-
-          if (user.uid !== blog.authorId) {
-            const notificationRef = collection(db, 'users', blog.authorId, 'notifications');
-            await addDoc(notificationRef, {
-              type: 'new_post_like',
-              blogId: blog.id,
-              blogSlug: blog.slug,
-              blogTitle: blog.title,
-              likerName: currentUserProfile.displayName || 'Anonymous',
-              createdAt: serverTimestamp(),
-              isRead: false,
-              link: `/blog/${blog.slug}`,
-            });
-          }
+          operationType = 'like';
+        }
+        
+        // Send notification only if liking and not the author
+        if (operationType === 'like' && user.uid !== blog.authorId) {
+          const notificationRef = collection(db, 'users', blog.authorId, 'notifications');
+          await addDoc(notificationRef, { // Using addDoc directly as it's outside the transaction scope for this example
+            type: 'new_post_like',
+            blogId: blog.id,
+            blogSlug: blog.slug,
+            blogTitle: blog.title,
+            likerName: currentUserProfile.displayName || 'Anonymous',
+            createdAt: serverTimestamp(),
+            isRead: false,
+            link: `/blog/${blog.slug}`,
+          });
         }
       });
     } catch (error) {
       console.error("Error liking post:", error);
-      toast({ title: "Error", description: "Could not update like status.", variant: "destructive" });
-      setBlog(initialBlog);
+      toast({ title: "Error", description: "Could not update like status. Your view might be out of sync.", variant: "destructive" });
+      // Revert optimistic update on error
+      setBlog(initialBlog); 
     } finally {
       setIsLiking(false);
     }
@@ -220,23 +229,21 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               onClick={handleLikePost}
               disabled={isLiking || !user}
               className={cn(
-                "transition-colors duration-200 group",
-                isLikedByCurrentUser ? "text-primary hover:text-primary/90" : "text-muted-foreground hover:text-primary"
+                "group transition-colors duration-200",
+                isLikedByCurrentUser ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"
               )}
               aria-pressed={isLikedByCurrentUser}
               title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
             >
-              {isLiking ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Heart
-                  className={cn(
-                    "mr-2 h-4 w-4 group-hover:fill-primary/20",
-                    isLikedByCurrentUser ? "fill-primary text-primary" : "text-muted-foreground group-hover:text-primary"
-                  )}
-                />
-              )}
-              {currentLikes > 0 ? `${currentLikes}` : 'Like'}
+              <Heart
+                className={cn(
+                  "mr-2 h-5 w-5 transition-transform duration-150 ease-in-out group-active:scale-125",
+                  isLikedByCurrentUser ? "fill-red-500 text-red-500" : "text-muted-foreground group-hover:text-red-500"
+                )}
+              />
+              <span className={cn(isLikedByCurrentUser ? "text-red-500" : "text-muted-foreground group-hover:text-red-500")}>
+                {currentLikes > 0 ? `${currentLikes}` : 'Like'}
+              </span>
             </Button>
             {user && user.uid === blog.authorId && (
               <div className="flex gap-2">
@@ -248,7 +255,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" size="sm" className="flex items-center" disabled={isDeleting}>
-                      {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />} Delete
+                      {isDeleting ? <svg className="animate-spin mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : <Trash2 className="mr-2 h-4 w-4" />} Delete
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -261,7 +268,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     <AlertDialogFooter>
                       <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                       <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
-                        {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {isDeleting ? <svg className="animate-spin mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : null}
                         Yes, delete it
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -346,4 +353,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     </div>
   );
 }
+    
+
     
