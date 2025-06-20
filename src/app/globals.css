@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -294,10 +295,9 @@
     /* Styles for the .blog-media-container (inserted by editor OR dynamically by JS) */
     .blog-media-container {
       @apply relative w-full my-6 mx-auto overflow-hidden rounded-lg shadow-lg border border-border bg-muted;
-      /* aspect-ratio is set inline via JS based on media dimensions */
-      max-width: 300px; /* New: Fixed max-width for the container */
-      max-height: 500px; /* New: Fixed max-height for the container */
-      display: flex;
+      max-width: 300px; 
+      max-height: 500px; 
+      display: flex; 
       align-items: center;
       justify-content: center;
     }
@@ -307,8 +307,8 @@
     }
     .blog-media-container .blog-media-background-content {
       @apply object-cover z-[1] opacity-70;
-      filter: blur(20px) saturate(1.2); /* Added saturate for more pop */
-      transform: scale(1.2); /* Slightly increased scale */
+      filter: blur(20px) saturate(1.2); 
+      transform: scale(1.2); 
     }
     .blog-media-container .blog-media-main-content {
       @apply object-contain z-[2] max-w-full max-h-full; /* Ensure it stays within container */
@@ -370,3 +370,4 @@
   /* However, if there's a flash of unwrapped content, you could hide it: */
   /* display: none !important; */ 
 }
+

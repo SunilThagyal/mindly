@@ -52,30 +52,44 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
 
   const processRawHtmlForMedia = useCallback((rawHtml: string): string => {
-    if (typeof window === 'undefined') return rawHtml; // SSR guard
+    if (typeof window === 'undefined' || !rawHtml) return rawHtml;
 
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = rawHtml;
 
-    // Select all img and video tags that are NOT already inside a blog-media-container structure
     const mediaElements = Array.from(
       tempDiv.querySelectorAll<HTMLImageElement | HTMLVideoElement>('img, video')
-    ).filter(el => !el.closest('.blog-media-container'));
+    );
 
     mediaElements.forEach(mediaEl => {
-      const src = mediaEl.getAttribute('src');
-      if (!src) return; // Skip if no src
+      if (mediaEl.closest('.blog-media-container')) {
+        return; // Skip if already wrapped
+      }
 
-      const mediaType = mediaEl.tagName.toLowerCase() as 'image' | 'video';
+      const src = mediaEl.getAttribute('src') || mediaEl.getAttribute('data-media-src');
+      if (!src) {
+        console.warn("Media element found without src or data-media-src:", mediaEl);
+        return;
+      }
       
-      // Prioritize data-attributes set by our editor, otherwise try to get natural dimensions
-      let mediaWidth = parseInt(mediaEl.getAttribute('data-media-width') || mediaEl.getAttribute('width') || '');
-      let mediaHeight = parseInt(mediaEl.getAttribute('data-media-height') || mediaEl.getAttribute('height') || '');
+      const mediaType = (mediaEl.getAttribute('data-media-type') as 'image' | 'video') || mediaEl.tagName.toLowerCase() as 'image' | 'video';
+      
+      let mediaWidth = parseInt(mediaEl.getAttribute('data-media-width') || '');
+      let mediaHeight = parseInt(mediaEl.getAttribute('data-media-height') || '');
 
-      if (isNaN(mediaWidth) && mediaEl instanceof HTMLImageElement) mediaWidth = mediaEl.naturalWidth;
-      if (isNaN(mediaHeight) && mediaEl instanceof HTMLImageElement) mediaHeight = mediaEl.naturalHeight;
-      // For video, naturalWidth/Height might not be available until metadata loads,
-      // so data-attributes are more reliable if set by the editor.
+      if (isNaN(mediaWidth) || mediaWidth <= 0) {
+        mediaWidth = (mediaEl instanceof HTMLImageElement) ? mediaEl.naturalWidth : (mediaEl as HTMLVideoElement).videoWidth;
+      }
+      if (isNaN(mediaHeight) || mediaHeight <= 0) {
+        mediaHeight = (mediaEl instanceof HTMLImageElement) ? mediaEl.naturalHeight : (mediaEl as HTMLVideoElement).videoHeight;
+      }
+
+      // Default aspect ratio if dimensions are still unknown
+      if (isNaN(mediaWidth) || mediaWidth <= 0 || isNaN(mediaHeight) || mediaHeight <= 0) {
+        console.warn(`Media dimensions for "${src}" are unknown or invalid (w:${mediaWidth}, h:${mediaHeight}). Defaulting to 16/9 aspect ratio for container.`);
+        mediaWidth = 16; 
+        mediaHeight = 9;
+      }
 
       const container = document.createElement('div');
       container.className = 'blog-media-container';
@@ -83,15 +97,16 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
       if (mediaWidth > 0 && mediaHeight > 0) {
         container.style.aspectRatio = `${mediaWidth} / ${mediaHeight}`;
+      } else {
+         console.warn(`Could not set aspect-ratio for media "${src}" due to invalid dimensions after check.`);
       }
-      // Max width/height are handled by CSS on .blog-media-container
-
+      
       // Background media
       const bgMedia = document.createElement(mediaType) as HTMLImageElement | HTMLVideoElement;
       bgMedia.className = 'blog-media-background-content';
       bgMedia.src = src;
       if (mediaType === 'image') {
-        (bgMedia as HTMLImageElement).alt = ""; // Decorative
+        (bgMedia as HTMLImageElement).alt = ""; 
         bgMedia.setAttribute('aria-hidden', 'true');
       } else if (mediaType === 'video') {
         const videoBg = bgMedia as HTMLVideoElement;
@@ -112,11 +127,18 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         (mainMedia as HTMLImageElement).alt = mediaEl.alt || `User uploaded ${mediaType}`;
       } else if (mediaType === 'video') {
         (mainMedia as HTMLVideoElement).controls = true;
+        if (mediaEl.hasAttribute('poster')) (mainMedia as HTMLVideoElement).poster = mediaEl.getAttribute('poster')!;
+        if (mediaEl.hasAttribute('preload')) (mainMedia as HTMLVideoElement).preload = mediaEl.getAttribute('preload')!;
+        else (mainMedia as HTMLVideoElement).preload = 'metadata'; // Sensible default
       }
       container.appendChild(mainMedia);
       
-      // Replace the original media element with the new container
-      mediaEl.parentNode?.replaceChild(container, mediaEl);
+      if (mediaEl.parentNode) {
+        mediaEl.parentNode.replaceChild(container, mediaEl);
+      } else {
+        // This case should ideally not happen if mediaEl is from tempDiv.innerHTML
+        console.warn("Media element parentNode is null, cannot replace:", mediaEl);
+      }
     });
 
     return tempDiv.innerHTML;
@@ -125,7 +147,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
   useEffect(() => {
     setBlog(initialBlog);
-    // Process content for media wrapping when initialBlog changes
     if (initialBlog?.content) {
       const processedHtml = processRawHtmlForMedia(initialBlog.content);
       setRenderableContent(processedHtml);
@@ -493,5 +514,3 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     </div>
   );
 }
-
-    
