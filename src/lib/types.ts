@@ -22,6 +22,7 @@ export interface UserProfile {
 
   // India Specific (can be one or the other, or PayPal)
   paymentUpiId?: string | null;
+  paymentBankAccountHolderName?: string | null; // New field
   paymentAccountNumber?: string | null;
   paymentBankName?: string | null;
   paymentIfscCode?: string | null;
@@ -97,6 +98,7 @@ export interface WithdrawalRequest {
     contact?: UserProfile['paymentContactDetails'];
     address?: UserProfile['paymentAddress'];
     upiId?: UserProfile['paymentUpiId'];
+    bankAccountHolderName?: UserProfile['paymentBankAccountHolderName']; // New field
     accountNumber?: UserProfile['paymentAccountNumber'];
     bankName?: UserProfile['paymentBankName'];
     ifscCode?: UserProfile['paymentIfscCode'];
@@ -104,3 +106,4 @@ export interface WithdrawalRequest {
     chosenPaymentMethod?: 'upi' | 'bank' | 'paypal'; // To clarify which method user chose if multiple were available/filled
   };
 }
+

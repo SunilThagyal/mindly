@@ -227,6 +227,7 @@ export default function WithdrawalManagementTab() {
                                     
                                     {req.paymentDetailsSnapshot.paypalEmail && <div><dt className="font-medium text-muted-foreground">PayPal Email:</dt> <dd>{req.paymentDetailsSnapshot.paypalEmail}</dd></div>}
                                     {req.paymentDetailsSnapshot.upiId && <div><dt className="font-medium text-muted-foreground">UPI ID:</dt> <dd>{req.paymentDetailsSnapshot.upiId}</dd></div>}
+                                    {req.paymentDetailsSnapshot.bankAccountHolderName && <div><dt className="font-medium text-muted-foreground">Account Holder:</dt> <dd>{req.paymentDetailsSnapshot.bankAccountHolderName}</dd></div>}
                                     {req.paymentDetailsSnapshot.accountNumber && <div><dt className="font-medium text-muted-foreground">Account Number:</dt> <dd>{req.paymentDetailsSnapshot.accountNumber}</dd></div>}
                                     {req.paymentDetailsSnapshot.bankName && <div><dt className="font-medium text-muted-foreground">Bank Name:</dt> <dd>{req.paymentDetailsSnapshot.bankName}</dd></div>}
                                     {req.paymentDetailsSnapshot.ifscCode && <div><dt className="font-medium text-muted-foreground">IFSC Code:</dt> <dd>{req.paymentDetailsSnapshot.ifscCode}</dd></div>}
@@ -249,3 +250,4 @@ export default function WithdrawalManagementTab() {
     </Card>
   );
 }
+

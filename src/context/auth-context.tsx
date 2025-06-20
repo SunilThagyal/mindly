@@ -11,6 +11,8 @@ import { Loader2 } from 'lucide-react';
 
 // Admin UID will be read from environment variable, passed via next.config.js
 const ADMIN_ENV_UID = process.env.ADMIN_USER_UID;
+console.log('[Auth Context - Top Level] Raw ADMIN_USER_UID from env:', process.env.ADMIN_USER_UID);
+
 
 if (!ADMIN_ENV_UID || ADMIN_ENV_UID === "YOUR_ACTUAL_ADMIN_FIREBASE_UID_HERE") {
   console.warn(
@@ -42,11 +44,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('[Auth Context] Initializing. ADMIN_ENV_UID from process.env:', ADMIN_ENV_UID);
+    console.log('[Auth Context - useEffect] Initializing. ADMIN_ENV_UID from process.env:', ADMIN_ENV_UID);
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        console.log('[Auth Context] User state changed. Current firebaseUser.uid:', firebaseUser.uid);
+        console.log('[Auth Context - useEffect] User state changed. Current firebaseUser.uid:', firebaseUser.uid);
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         
@@ -63,6 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             paymentContactDetails: null,
             paymentAddress: null,
             paymentUpiId: null,
+            paymentBankAccountHolderName: null, // Added default
             paymentAccountNumber: null,
             paymentBankName: null,
             paymentIfscCode: null,
@@ -89,17 +92,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           };
           await setDoc(userDocRef, newProfile);
           setUserProfile(newProfile);
-          console.log('[Auth Context] New user profile created in Firestore with defaults.');
+          console.log('[Auth Context - useEffect] New user profile created in Firestore with defaults.');
         }
         
         const isAdminCheck = !!ADMIN_ENV_UID && firebaseUser.uid === ADMIN_ENV_UID;
         setIsAdmin(isAdminCheck);
-        console.log('[Auth Context] isAdmin determined as:', isAdminCheck, `(ADMIN_ENV_UID: ${ADMIN_ENV_UID}, User UID: ${firebaseUser.uid})`);
+        console.log('[Auth Context - useEffect] isAdmin determined as:', isAdminCheck, `(ADMIN_ENV_UID: ${ADMIN_ENV_UID}, User UID: ${firebaseUser.uid})`);
       } else {
         setUser(null);
         setUserProfile(null);
         setIsAdmin(false);
-        console.log('[Auth Context] No user logged in, isAdmin set to false.');
+        console.log('[Auth Context - useEffect] No user logged in, isAdmin set to false.');
       }
       setLoading(false);
     });
@@ -144,3 +147,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
