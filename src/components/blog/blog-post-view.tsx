@@ -88,7 +88,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     
     setIsLiking(true); 
     
-    // Optimistic UI update
     const originallyLiked = blog.likedBy?.includes(user.uid);
     setBlog(prevBlog => ({
       ...prevBlog,
@@ -111,7 +110,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         const currentFirestoreLikedBy = blogDoc.data().likedBy || [];
         let operationType: 'like' | 'unlike';
 
-        // Check against Firestore state, not optimistic UI state
         if (currentFirestoreLikedBy.includes(user.uid)) { 
           transaction.update(blogRef, {
             likes: increment(-1),
@@ -143,7 +141,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
-      // Revert optimistic update on error by fetching original state
       setBlog(initialBlog); 
     } finally {
       setIsLiking(false);
@@ -220,51 +217,75 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           </header>
 
           <div className="my-6 flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="default"
+            {/* Enhanced Like Button */}
+            <button
               onClick={handleLikePost}
               disabled={isLiking || !user}
-              className="group p-1.5 h-auto" // Adjusted padding and height for the button
+              className={cn(
+                "relative group flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-2 ring-offset-background",
+                isLikedByCurrentUser
+                  ? "bg-gradient-to-br from-red-500 to-rose-600 text-white focus:ring-red-400"
+                  : "bg-gradient-to-br from-gray-600 to-gray-800 text-gray-300 hover:text-white focus:ring-gray-500",
+                isLiking ? "cursor-not-allowed opacity-70" : "hover:shadow-xl"
+              )}
               aria-pressed={isLikedByCurrentUser}
               title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
             >
               {isLiking ? (
-                <Loader2 className="h-5 w-5 animate-spin text-red-500" />
+                <Loader2 className="h-6 w-6 animate-spin" />
               ) : (
-                <span className={cn(
-                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition-colors",
-                  isLikedByCurrentUser
-                    ? "border-red-500 text-red-500"
-                    : "border-muted-foreground/30 text-muted-foreground group-hover:border-red-400 group-hover:text-red-500"
-                )}>
+                <>
                   <Heart
                     className={cn(
-                      "h-5 w-5 transition-all duration-150 ease-in-out group-active:scale-125",
+                      "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-95", // scale-95 on active for icon feedback
                       isLikedByCurrentUser
-                        ? "fill-red-500 text-red-500" 
-                        : "text-muted-foreground group-hover:text-red-500 group-hover:fill-red-500/20"
+                        ? "fill-white text-white"
+                        : "text-gray-400 group-hover:text-red-400 group-hover:fill-red-400/30"
                     )}
                   />
-                  <span className="text-sm font-medium">
-                    {currentLikes > 0 ? `${currentLikes}` : (isLikedByCurrentUser ? 'Liked' : 'Like')}
+                  <span className="text-sm tabular-nums">
+                    {currentLikes > 0
+                      ? `${currentLikes}`
+                      : isLikedByCurrentUser
+                      ? "Liked"
+                      : "Like"}
                   </span>
-                </span>
+                </>
               )}
-            </Button>
+            </button>
 
             {user && user.uid === blog.authorId && (
-              <div className="flex gap-2">
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/blog/edit/${blog.id}`} className="flex items-center">
-                    <Edit className="mr-2 h-4 w-4" /> Edit
-                  </Link>
-                </Button>
+              <div className="flex items-center gap-3">
+                {/* Enhanced Edit Button */}
+                <Link
+                  href={`/blog/edit/${blog.id}`}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-white bg-gradient-to-br from-sky-500 via-blue-500 to-indigo-600 hover:from-sky-400 hover:via-blue-400 hover:to-indigo-500 shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-2 ring-blue-400 ring-offset-background"
+                >
+                  <Edit className="h-5 w-5" />
+                  <span className="text-sm">Edit</span>
+                </Link>
+                
+                {/* Enhanced Delete Button Trigger */}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" className="flex items-center" disabled={isDeleting}>
-                      {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />} Delete
-                    </Button>
+                    <button
+                      className={cn(
+                        "flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-white shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-2 ring-offset-background",
+                        isDeleting 
+                          ? "bg-gray-500 cursor-not-allowed opacity-70 focus:ring-gray-400"
+                          : "bg-gradient-to-br from-red-600 via-rose-600 to-pink-700 hover:from-red-500 hover:via-rose-500 hover:to-pink-600 focus:ring-red-400 hover:shadow-xl"
+                      )}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <>
+                          <Trash2 className="h-5 w-5" />
+                          <span className="text-sm">Delete</span>
+                        </>
+                      )}
+                    </button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
@@ -275,7 +296,11 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                      <AlertDialogAction 
+                        onClick={handleDelete} 
+                        disabled={isDeleting}
+                        className="bg-destructive hover:bg-destructive/90"
+                      >
                         {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Yes, delete it
                       </AlertDialogAction>
@@ -361,8 +386,4 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     </div>
   );
 }
-    
-
-    
-
     
