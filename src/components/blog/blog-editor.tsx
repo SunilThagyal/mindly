@@ -162,7 +162,33 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         setTitle(result.title);
         let contentGenerated = false;
         if (typeof result.htmlContent === 'string' && result.htmlContent.trim() !== '') {
-          const sanitizedContent = sanitizeHtml(result.htmlContent, { /* ... extensive sanitize options ... */ });
+          const sanitizedContent = sanitizeHtml(result.htmlContent, { 
+            allowedTags: sanitizeHtml.defaults.allowedTags.concat([ 'img', 'iframe', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'figure', 'figcaption' ]),
+            allowedAttributes: {
+              ...sanitizeHtml.defaults.allowedAttributes,
+              img: [ 'src', 'alt', 'title', 'width', 'height', 'style', 'data-align' ],
+              iframe: [ 'src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'title' ],
+              '*': [ 'style', 'class' ], 
+              span: ['style', 'class'], 
+              p: ['style', 'class'],
+              ol: ['style', 'class'],
+              ul: ['style', 'class'],
+              li: ['style', 'class'],
+              strong: ['style', 'class'],
+              em: ['style', 'class'],
+              u: ['style', 'class'],
+              s: ['style', 'class'],
+              a: ['href', 'name', 'target', 'style', 'class', 'rel'],
+            },
+            allowedSchemes: [ 'http', 'https', 'ftp', 'mailto', 'tel', 'data' ],
+            allowedClasses: {
+              '*': [ 'ql-*' ] // Allow Quill classes
+            },
+             selfClosing: [ 'img', 'br', 'hr', 'area', 'base', 'basefont', 'input', 'link', 'meta' ],
+             exclusiveFilter: function(frame) {
+                return frame.tag === 'script' || frame.tag === 'style' && !frame.text.includes('/* Quill editor styles */');
+            }
+          });
           setContent(sanitizedContent); 
           contentGenerated = true;
         } else {
@@ -201,8 +227,8 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     let finalUploadedCoverImageUrl: string | null = coverImageUrl; // Use existing if editing and no new file
 
     if (coverImageFile) {
-      if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET === 'your_unsigned_upload_preset_name') {
-        toast({ title: 'Cloudinary Not Configured', description: 'Cannot upload cover image. Please check environment variables.', variant: 'destructive' });
+      if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET === 'blogchain_unsigned_preset' || CLOUDINARY_UPLOAD_PRESET === 'your_unsigned_upload_preset_name') {
+        toast({ title: 'Cloudinary Not Configured', description: 'Cannot upload cover image. Please check environment variables and ensure NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET is correctly set to your unsigned preset name.', variant: 'destructive' });
         setIsSubmitting(false);
         return;
       }
@@ -225,8 +251,8 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         setIsSubmitting(false);
         return;
       }
-    } else if (!finalUploadedCoverImageUrl && title.trim() && !blogId) { // No user-uploaded/existing image AND there is a title AND it's a new blog
-        finalUploadedCoverImageUrl = `https://api.a0.dev/assets/image?text=${encodeURIComponent(title.trim().substring(0, 100))}`; // Max 100 chars for URL
+    } else if (!finalUploadedCoverImageUrl && title.trim()) { 
+        finalUploadedCoverImageUrl = `https://api.a0.dev/assets/image?text=${encodeURIComponent(title.trim().substring(0, 100))}`; 
     }
     
     const blogDataPayload = {

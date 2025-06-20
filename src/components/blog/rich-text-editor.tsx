@@ -24,8 +24,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
   }, []);
 
   const imageHandler = () => {
-    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET === 'your_unsigned_upload_preset_name') {
-      alert("Cloudinary is not configured for image uploads. Please check your environment settings and ensure an unsigned upload preset is specified.");
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET === 'blogchain_unsigned_preset' || CLOUDINARY_UPLOAD_PRESET === 'your_unsigned_upload_preset_name') {
+      alert("Cloudinary is not configured for image uploads. Please check your environment settings and ensure NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET is correctly set to your unsigned preset name.");
       console.error("Cloudinary config missing: CLOUDINARY_CLOUD_NAME or CLOUDINARY_UPLOAD_PRESET not set or is placeholder.");
       return;
     }
@@ -78,11 +78,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     }
     
     const fontWhitelist = [
-      false, // Default editor font
-      'serif', 'monospace',
-      'Arial', 'Verdana', 'Times New Roman', 'Georgia',
-      'Montserrat', 'Merriweather', 'Lora', // App-specific fonts
-      'Courier New',
+      false, // Default editor font (usually a sans-serif)
+      'serif', 'monospace', // Generic fallbacks
+      'Montserrat', 'Merriweather', 'Lora', // App-specific fonts from globals.css/tailwind.config
+      'Arial', 'Verdana', 'Times New Roman', 'Georgia', 'Courier New' // Common web-safe fonts
     ];
     const sizeWhitelist = ['small', false, 'large', 'huge'];
 
