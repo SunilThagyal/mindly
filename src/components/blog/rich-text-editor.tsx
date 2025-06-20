@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -80,64 +79,47 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
           });
           const data = await response.json();
           
-          // Find and delete placeholder
-          const currentContent = quill.getContents();
-          let placeholderIndex = -1;
-          let placeholderLength = 0;
-
-          currentContent.ops.forEach((op: any) => {
-            if (typeof op.insert === 'string') {
-                const idx = op.insert.indexOf(placeholderText);
-                if (idx !== -1 && placeholderIndex === -1) { // Found the first instance
-                    placeholderIndex = quill.getText().indexOf(op.insert) + idx;
-                    placeholderLength = placeholderText.length;
-                }
-            }
-          });
-          if (placeholderIndex !== -1) {
-            quill.deleteText(placeholderIndex, placeholderLength, 'silent');
-          } else { // Fallback if placeholder not found in ops (e.g., subsequent edits)
-            const textContent = quill.getText();
-            const directIndex = textContent.indexOf(placeholderText);
-            if (directIndex !== -1) {
-                quill.deleteText(directIndex, placeholderText.length, 'silent');
-            } else {
-                 // If still not found, adjust range based on original insertion
-                quill.deleteText(range.index, placeholderText.length, 'silent');
-            }
+          // Remove placeholder before inserting actual media
+          const currentTextContent = quill.getText();
+          const placeholderActualIndex = currentTextContent.indexOf(placeholderText, range.index - placeholderText.length - 10); // Search around original range
+          
+          if (placeholderActualIndex !== -1) {
+            quill.deleteText(placeholderActualIndex, placeholderText.length, 'silent');
+          } else {
+             // Fallback: if placeholder text isn't found exactly, delete from original range.index
+             // This can happen if other edits occurred. It's less precise but better than leaving placeholder.
+            quill.deleteText(range.index, placeholderText.length, 'silent');
           }
-          const insertionIndex = placeholderIndex !== -1 ? placeholderIndex : range.index;
-
+          
+          const insertionIndex = placeholderActualIndex !== -1 ? placeholderActualIndex : range.index;
 
           if (data.secure_url && data.width && data.height) {
-            const aspectRatio = `${data.width}/${data.height}`;
             const mediaElementTag = fileType === 'image' ? 'img' : 'video';
+            const altText = file.name || `User uploaded ${fileType}`;
+            const videoControls = fileType === 'video' ? 'controls' : '';
+
+            // Insert a simple media tag with data attributes. Client-side will wrap it.
+            const simpleMediaHtml = `
+              <${mediaElementTag} 
+                class="requires-media-wrap"
+                src="${data.secure_url}" 
+                data-media-src="${data.secure_url}"
+                data-media-width="${data.width}"
+                data-media-height="${data.height}"
+                data-media-type="${fileType}"
+                alt="${altText}" 
+                ${videoControls}
+              ></${mediaElementTag}>
+            `;
             
-            const mainMediaAttributes = fileType === 'image' 
-              ? `alt="${file.name || 'User uploaded content'}"`
-              : 'controls preload="metadata"'; // Added preload for video
-            const backgroundMediaAttributes = fileType === 'image'
-              ? 'alt="" aria-hidden="true"'
-              : 'autoplay muted loop playsinline aria-hidden="true" preload="metadata"'; // Added preload for video
+            // Insert the simple media tag, Quill will typically wrap it in a <p>
+            quill.clipboard.dangerouslyPasteHTML(insertionIndex, simpleMediaHtml, 'user');
+            
+            // Add a new paragraph after the inserted media for better UX
+            const newLength = quill.getLength();
+            quill.insertText(newLength, '\n', Quill.sources.USER); // Ensure new line
+            quill.setSelection(newLength + 1, 0, 'silent');
 
-            const htmlToInsert = `
-              <div class="blog-media-container" data-media-type="${fileType}" style="aspect-ratio: ${aspectRatio};">
-                <${mediaElementTag}
-                  src="${data.secure_url}"
-                  class="blog-media-background-content"
-                  ${backgroundMediaAttributes}
-                ></${mediaElementTag}>
-                <${mediaElementTag}
-                  src="${data.secure_url}"
-                  class="blog-media-main-content"
-                  ${mainMediaAttributes}
-                ></${mediaElementTag}>
-              </div>
-              <p><br></p> 
-            `; // Added <p><br></p> to ensure cursor moves to a new line
-
-            quill.clipboard.dangerouslyPasteHTML(insertionIndex, htmlToInsert, 'user');
-            quill.setSelection(insertionIndex + htmlToInsert.length, 0, 'silent'); // Move cursor after inserted HTML
 
           } else {
             let errorMsg = `Cloudinary ${fileType} upload failed.`;
@@ -152,11 +134,13 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
           }
         } catch (error) {
           console.error(`Cloudinary ${fileType} upload error:`, error);
-           // Attempt to remove placeholder on error too
+          // Attempt to remove placeholder on error too
           const textContentOnError = quill.getText();
-          const placeholderIndexOnError = textContentOnError.indexOf(placeholderText);
+          const placeholderIndexOnError = textContentOnError.indexOf(placeholderText, range.index - placeholderText.length -10);
           if (placeholderIndexOnError !== -1) {
             quill.deleteText(placeholderIndexOnError, placeholderText.length, 'silent');
+          } else {
+            quill.deleteText(range.index, placeholderText.length, 'silent');
           }
           alert(`${fileType.charAt(0).toUpperCase() + fileType.slice(1)} upload failed: ` + (error as Error).message);
         }
@@ -264,12 +248,11 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
             quill.clipboard.dangerouslyPasteHTML(0, normalizedIncomingHtml, 'silent');
         }
         if (currentSelection) { 
-            // Attempt to restore selection, only if it's plausible (e.g., not beyond new content length)
             const newLength = quill.getLength();
             if (currentSelection.index <= newLength) {
                  quill.setSelection(currentSelection.index, currentSelection.length, 'silent');
             } else {
-                 quill.setSelection(newLength, 0, 'silent'); // Move to end
+                 quill.setSelection(newLength, 0, 'silent'); 
             }
         }
       } catch (e) {
@@ -296,4 +279,3 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
 };
 
 export default RichTextEditor;
-

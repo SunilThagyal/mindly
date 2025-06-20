@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -270,13 +269,15 @@
     }
 
     /* Fallback general styles for unwrapped images, videos, iframes directly in .prose */
-    /* These apply if the .blog-media-container is not used (e.g. old content) */
-    > img, > video, > iframe { 
+    /* These apply if the .blog-media-container is not used (e.g. old content or if JS wrapping fails) */
+    /* Applied to direct children of .prose or children of .prose > p (common for editor output) */
+    > img, > video, > iframe,
+    p > img, p > video, p > iframe { 
       @apply block w-full max-w-full h-auto rounded-md my-6 shadow-md border border-border;
     }
-    > img { @apply mx-auto; } 
-    > video { @apply bg-black; } 
-    > iframe { @apply aspect-video; }
+    > img, p > img { @apply mx-auto; } 
+    > video, p > video { @apply bg-black; } 
+    > iframe, p > iframe { @apply aspect-video; }
 
     > figure { 
       @apply mx-auto max-w-full my-6; 
@@ -289,10 +290,15 @@
       @apply text-sm text-center text-muted-foreground mt-2 italic;
     }
 
-    /* Styles for the new .blog-media-container (inserted by editor) */
+    /* Styles for the .blog-media-container (inserted by editor OR dynamically by JS) */
     .blog-media-container {
       @apply relative w-full my-6 mx-auto overflow-hidden rounded-lg shadow-lg border border-border bg-muted;
       /* aspect-ratio is set inline via JS based on media dimensions */
+      /* Add a default max-height to prevent overly tall containers if aspect-ratio isn't set or is extreme */
+      max-height: 80vh; /* Example: 80% of viewport height */
+      display: flex; /* Helps with centering if needed */
+      align-items: center;
+      justify-content: center;
     }
     .blog-media-container .blog-media-background-content,
     .blog-media-container .blog-media-main-content {
@@ -300,11 +306,11 @@
     }
     .blog-media-container .blog-media-background-content {
       @apply object-cover z-[1] opacity-70;
-      filter: blur(20px); 
-      transform: scale(1.15); 
+      filter: blur(20px) saturate(1.2); /* Added saturate for more pop */
+      transform: scale(1.2); /* Slightly increased scale */
     }
     .blog-media-container .blog-media-main-content {
-      @apply object-contain z-[2]; 
+      @apply object-contain z-[2] max-w-full max-h-full; /* Ensure it stays within container */
     }
   }
 
@@ -316,12 +322,16 @@
      pre { @apply bg-muted text-muted-foreground; }
      
      /* Fallback for unwrapped media in dark mode */
-     > img, > video, > iframe {
+     > img, > video, > iframe,
+     p > img, p > video, p > iframe {
         @apply border-border;
      }
      /* Styles for .blog-media-container in dark mode */
      .blog-media-container {
         @apply border-border bg-muted;
+     }
+     .blog-media-container .blog-media-background-content {
+        filter: blur(20px) saturate(1.2) brightness(0.8); /* Adjust brightness for dark mode */
      }
   }
 }
@@ -353,3 +363,9 @@
   
 }
 
+/* Ensure this class is available for client-side JS wrapping logic */
+.requires-media-wrap {
+  /* This class itself might not need styles if it's immediately replaced by JS */
+  /* However, if there's a flash of unwrapped content, you could hide it: */
+  /* display: none !important; */ 
+}

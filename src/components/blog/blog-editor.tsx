@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, ChangeEvent } from 'react';
@@ -126,7 +125,6 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     }
     setIsAISuggesting(true);
     try {
-      // Extract text from HTML for better AI processing
       let plainTextContent = content;
       if (typeof DOMParser !== 'undefined') {
           const parser = new DOMParser();
@@ -178,10 +176,10 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             ]),
             allowedAttributes: {
               ...sanitizeHtml.defaults.allowedAttributes,
-              div: ['class', 'style', 'data-media-type'], // Added data-media-type
-              img: [ 'src', 'alt', 'title', 'width', 'height', 'style', 'data-align', 'class', 'aria-hidden' ], // Added class, aria-hidden
+              div: ['class', 'style', 'data-media-type'], 
+              img: [ 'src', 'alt', 'title', 'width', 'height', 'style', 'data-align', 'class', 'aria-hidden', 'data-media-src', 'data-media-width', 'data-media-height', 'data-media-type' ], 
               iframe: [ 'src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'title' ],
-              video: [ 'src', 'controls', 'width', 'height', 'poster', 'type', 'autoplay', 'muted', 'loop', 'playsinline', 'class', 'aria-hidden', 'preload' ], // Added class, aria-hidden, preload
+              video: [ 'src', 'controls', 'width', 'height', 'poster', 'type', 'autoplay', 'muted', 'loop', 'playsinline', 'class', 'aria-hidden', 'preload', 'data-media-src', 'data-media-width', 'data-media-height', 'data-media-type' ], 
               source: [ 'src', 'type' ],
               '*': [ 'style', 'class' ], 
               span: ['style', 'class'], 
@@ -201,16 +199,16 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
                 'text-align': [/^left$/, /^right$/, /^center$/, /^justify$/],
                 'color': [/^#(?:[0-9a-fA-F]{3}){1,2}$/, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/, /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(?:0|1|0?\.\d+)\s*\)$/, /^hsl\(\s*\d+\s*,\s*\d+%?\s*,\s*\d+%?\s*\)$/, /^hsla\(\s*\d+\s*,\s*\d+%?\s*,\s*\d+%?\s*,\s*(?:0|1|0?\.\d+)\s*\)$/],
                 'background-color': [/^#(?:[0-9a-fA-F]{3}){1,2}$/, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/, /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(?:0|1|0?\.\d+)\s*\)$/, /^hsl\(\s*\d+\s*,\s*\d+%?\s*,\s*\d+%?\s*\)$/, /^hsla\(\s*\d+\s*,\s*\d+%?\s*,\s*\d+%?\s*,\s*(?:0|1|0?\.\d+)\s*\)$/],
-                'font-family': [/.*/], // Allow any font family specified by Quill
+                'font-family': [/.*/], 
               },
-              div: { // Specifically for .blog-media-container style
+              div: { 
                 'aspect-ratio': [/^(\d+(\.\d+)?)\s*\/\s*(\d+(\.\d+)?)$/, /^\d+(\.\d+)?$/]
               }
             },
             allowedSchemes: [ 'http', 'https', 'ftp', 'mailto', 'tel', 'data' ],
             allowedClasses: {
               '*': [ 
-                'ql-*', 'blog-media-container', 'blog-media-background-content', 'blog-media-main-content' 
+                'ql-*', 'blog-media-container', 'blog-media-background-content', 'blog-media-main-content', 'requires-media-wrap'
               ] 
             },
              selfClosing: [ 'img', 'br', 'hr', 'area', 'base', 'basefont', 'input', 'link', 'meta' ],
@@ -245,11 +243,11 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     }
     
     let plainTextContentForValidation = content;
-    if (typeof DOMParser !== 'undefined') { // Ensure DOMParser exists (it does in browsers)
+    if (typeof DOMParser !== 'undefined') { 
         const parser = new DOMParser();
         const doc = parser.parseFromString(content, 'text/html');
         plainTextContentForValidation = doc.body.textContent || "";
-    } else { // Basic fallback for environments without DOMParser
+    } else { 
         plainTextContentForValidation = content.replace(/<[^>]+>/g, ' ').trim();
     }
 
@@ -515,4 +513,3 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     </>
   );
 }
-

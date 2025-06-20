@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Blog, UserProfile } from '@/lib/types';
@@ -26,7 +25,7 @@ import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTrans
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import AdPlaceholder from '@/components/layout/ad-placeholder';
 import RelatedPosts from './related-posts';
 import CommentsSection from './comments-section';
@@ -38,6 +37,107 @@ interface BlogPostViewProps {
   authorProfile?: UserProfile | null;
 }
 
+// Function to wrap media elements
+function wrapMediaElements(htmlContent: string): string {
+  if (typeof window === 'undefined' || !htmlContent) return htmlContent;
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlContent, 'text/html');
+
+  // Process images
+  const images = doc.querySelectorAll('img.requires-media-wrap');
+  images.forEach(img => {
+    const mediaSrc = img.getAttribute('data-media-src');
+    const mediaWidth = img.getAttribute('data-media-width');
+    const mediaHeight = img.getAttribute('data-media-height');
+    const mediaType = img.getAttribute('data-media-type'); // Should be 'image'
+    const altText = img.getAttribute('alt') || 'Blog image';
+
+    if (mediaSrc && mediaWidth && mediaHeight && mediaType === 'image') {
+      const container = doc.createElement('div');
+      container.className = 'blog-media-container';
+      container.setAttribute('data-media-type', mediaType);
+      const aspectRatio = (Number(mediaWidth) > 0 && Number(mediaHeight) > 0)
+        ? `${mediaWidth}/${mediaHeight}`
+        : '16/9'; // Default aspect ratio
+      container.style.aspectRatio = aspectRatio;
+
+      const bgImg = doc.createElement('img');
+      bgImg.src = mediaSrc;
+      bgImg.className = 'blog-media-background-content';
+      bgImg.alt = "";
+      bgImg.setAttribute('aria-hidden', 'true');
+
+      const mainImg = doc.createElement('img');
+      mainImg.src = mediaSrc;
+      mainImg.className = 'blog-media-main-content';
+      mainImg.alt = altText;
+
+      container.appendChild(bgImg);
+      container.appendChild(mainImg);
+
+      // If the image is directly inside a <p>, replace the <p> with the container.
+      // Otherwise, replace the image itself.
+      if (img.parentElement && img.parentElement.tagName === 'P' && img.parentElement.childNodes.length === 1) {
+        img.parentElement.replaceWith(container);
+      } else {
+        img.replaceWith(container);
+      }
+    } else {
+      img.classList.remove('requires-media-wrap'); // Remove class if data attributes are missing
+    }
+  });
+
+  // Process videos (similar logic)
+  const videos = doc.querySelectorAll('video.requires-media-wrap');
+  videos.forEach(video => {
+    const mediaSrc = video.getAttribute('data-media-src');
+    const mediaWidth = video.getAttribute('data-media-width');
+    const mediaHeight = video.getAttribute('data-media-height');
+    const mediaType = video.getAttribute('data-media-type'); // Should be 'video'
+
+    if (mediaSrc && mediaWidth && mediaHeight && mediaType === 'video') {
+      const container = doc.createElement('div');
+      container.className = 'blog-media-container';
+      container.setAttribute('data-media-type', mediaType);
+      const aspectRatio = (Number(mediaWidth) > 0 && Number(mediaHeight) > 0)
+        ? `${mediaWidth}/${mediaHeight}`
+        : '16/9';
+      container.style.aspectRatio = aspectRatio;
+
+      const bgVideo = doc.createElement('video');
+      bgVideo.src = mediaSrc;
+      bgVideo.className = 'blog-media-background-content';
+      bgVideo.autoplay = true;
+      bgVideo.muted = true;
+      bgVideo.loop = true;
+      bgVideo.playsInline = true;
+      bgVideo.setAttribute('aria-hidden', 'true');
+      
+      const mainVideo = doc.createElement('video');
+      mainVideo.src = mediaSrc;
+      mainVideo.className = 'blog-media-main-content';
+      mainVideo.controls = true;
+
+      container.appendChild(bgVideo);
+      container.appendChild(mainVideo);
+      
+      if (video.parentElement && video.parentElement.tagName === 'P' && video.parentElement.childNodes.length === 1) {
+        video.parentElement.replaceWith(container);
+      } else {
+        video.replaceWith(container);
+      }
+    } else {
+      video.classList.remove('requires-media-wrap');
+    }
+  });
+  
+  // Return the modified HTML
+  // Using body.innerHTML ensures we get the content of the parsed body
+  return doc.body.innerHTML;
+}
+
+
 export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogPostViewProps) {
   const { user, userProfile: currentUserProfile } = useAuth();
   const { adsEnabled, adDensity } = useAdSettings();
@@ -48,6 +148,14 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const [blog, setBlog] = useState<Blog>(initialBlog);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  
+  const processedContent = useMemo(() => {
+    if (typeof window !== 'undefined') { // Ensure DOMParser is available
+      return wrapMediaElements(blog.content);
+    }
+    return blog.content; // Fallback for SSR or if DOMParser is not available
+  }, [blog.content]);
+
 
   useEffect(() => {
     setBlog(initialBlog);
@@ -151,8 +259,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   };
 
   const renderContentWithAds = () => {
-    const contentParts = blog.content.split(/(<\/p>)/gi); 
-    const renderedElements: JSX.Element[] = [];
+    const contentToRender = processedContent; // Use the processed content
+    const contentParts = contentToRender.split(/(<\/p>)/gi); 
+    const renderedElements: (JSX.Element | string)[] = []; // Allow strings for HTML parts
   
     const adInsertionPoints = {
       point1: 6,
@@ -160,29 +269,30 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       point3: 22,
     };
   
-    if (!adsEnabled) {
-      // If ads are disabled, render the whole content without modification.
-      return [<span key="full-content" dangerouslySetInnerHTML={{ __html: blog.content }} />];
+    if (!adsEnabled || !contentToRender) {
+      return [<span key="full-content" dangerouslySetInnerHTML={{ __html: contentToRender || "" }} />];
     }
 
+    let pCounter = 0;
     contentParts.forEach((part, index) => {
-      if (typeof part === 'string') {
-        renderedElements.push(
-          <span key={`content-part-${index}-${Math.random()}`} dangerouslySetInnerHTML={{ __html: part }} />
-        );
-      }
-  
-      if (index === adInsertionPoints.point1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
-        renderedElements.push(<AdPlaceholder key={`ad-incontent-1-${index}-${Math.random()}`} type="in-content" className="my-8" />);
-      } else if (index === adInsertionPoints.point2 && (adDensity === 'medium' || adDensity === 'high')) {
-        renderedElements.push(<AdPlaceholder key={`ad-incontent-2-${index}-${Math.random()}`} type="in-content" className="my-8" />);
-      } else if (index === adInsertionPoints.point3 && adDensity === 'high') {
-        renderedElements.push(<AdPlaceholder key={`ad-incontent-3-${index}-${Math.random()}`} type="in-content" className="my-8" />);
+      renderedElements.push(
+        <span key={`content-part-${index}-${Math.random()}`} dangerouslySetInnerHTML={{ __html: part }} />
+      );
+      
+      if (part.toLowerCase().includes('</p>')) {
+        pCounter++;
+        if (pCounter === adInsertionPoints.point1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
+          renderedElements.push(<AdPlaceholder key={`ad-incontent-1-${pCounter}-${Math.random()}`} type="in-content" className="my-8" />);
+        } else if (pCounter === adInsertionPoints.point2 && (adDensity === 'medium' || adDensity === 'high')) {
+          renderedElements.push(<AdPlaceholder key={`ad-incontent-2-${pCounter}-${Math.random()}`} type="in-content" className="my-8" />);
+        } else if (pCounter === adInsertionPoints.point3 && adDensity === 'high') {
+          renderedElements.push(<AdPlaceholder key={`ad-incontent-3-${pCounter}-${Math.random()}`} type="in-content" className="my-8" />);
+        }
       }
     });
   
-    if (renderedElements.length === 0 && blog.content && blog.content.trim() !== '') {
-        return [<span key="full-content-fallback" dangerouslySetInnerHTML={{ __html: blog.content }} />];
+    if (renderedElements.length === 0 && contentToRender && contentToRender.trim() !== '') {
+        return [<span key="full-content-fallback" dangerouslySetInnerHTML={{ __html: contentToRender }} />];
     }
     
     return renderedElements;
