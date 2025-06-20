@@ -5,10 +5,11 @@ import { useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShieldAlert, Settings, Loader2 } from 'lucide-react';
+import { ShieldAlert, Settings, Loader2, LayoutDashboard, Users, FileText, Annoyed } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import AdSettingsForm from '@/components/admin/ad-settings-form'; // Import the new component
+import AdSettingsForm from '@/components/admin/ad-settings-form';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -18,8 +19,6 @@ export default function AdminPage() {
     if (!loading) {
       if (!user) {
         router.push('/auth/login?redirect=/admin');
-      } else if (!isAdmin) {
-        // Keep non-admins on this page but show access denied (handled below)
       }
     }
   }, [user, isAdmin, loading, router]);
@@ -34,7 +33,6 @@ export default function AdminPage() {
   }
 
   if (!user) {
-    // This case should ideally be handled by the redirect, but as a fallback:
     return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center px-4">
             <ShieldAlert className="w-20 h-20 text-destructive mb-6" />
@@ -64,34 +62,76 @@ export default function AdminPage() {
     );
   }
 
-  // Admin view
   return (
     <div className="container mx-auto px-4 py-12 animate-fade-in">
-      <Card className="max-w-2xl mx-auto shadow-xl">
-        <CardHeader>
-          <CardTitle className="text-3xl font-headline flex items-center">
-            <Settings className="mr-3 h-8 w-8 text-primary" />
+      <header className="mb-8">
+        <h1 className="text-4xl font-headline font-bold text-foreground flex items-center">
+            <Settings className="mr-3 h-10 w-10 text-primary" />
             Admin Panel
-          </CardTitle>
-          <CardDescription>
-            Welcome, Admin! Manage your application settings here.
-          </CardDescription>
+        </h1>
+        <p className="text-muted-foreground">Welcome, Admin! Manage your application settings and content here.</p>
+      </header>
+
+      <Tabs defaultValue="dashboard" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-6">
+          <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4 sm:mr-1" />Dashboard</TabsTrigger>
+          <TabsTrigger value="ads"><Annoyed className="mr-2 h-4 w-4 sm:mr-1" />Ads Management</TabsTrigger>
+          <TabsTrigger value="users"><Users className="mr-2 h-4 w-4 sm:mr-1" />User Management</TabsTrigger>
+          <TabsTrigger value="posts"><FileText className="mr-2 h-4 w-4 sm:mr-1" />Post Management</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dashboard">
+          <Card>
+            <CardHeader>
+              <CardTitle>Dashboard</CardTitle>
+              <CardDescription>Overview and general analytics.</CardDescription>
+            </CardHeader>
+            <CardContent className="min-h-[200px] flex items-center justify-center">
+              <p className="text-muted-foreground">Analytics and overview will be displayed here.</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ads">
+          <AdSettingsForm />
+        </TabsContent>
+
+        <TabsContent value="users">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>View and manage application users.</CardDescription>
+            </CardHeader>
+            <CardContent className="min-h-[200px] flex items-center justify-center">
+              <p className="text-muted-foreground">User management interface will be displayed here.</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="posts">
+          <Card>
+            <CardHeader>
+              <CardTitle>Post Management</CardTitle>
+              <CardDescription>Manage all blog posts.</CardDescription>
+            </CardHeader>
+            <CardContent className="min-h-[200px] flex items-center justify-center">
+              <p className="text-muted-foreground">Post management interface will be displayed here.</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+       <Card className="mt-12 bg-background/50 border-muted">
+        <CardHeader>
+            <CardTitle className="text-xl font-semibold">Admin User Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <AdSettingsForm /> 
-          <div className="p-4 border rounded-lg bg-background/50">
-            <h3 className="text-xl font-semibold mb-2 text-foreground">Admin User UID</h3>
+        <CardContent>
             <p className="text-sm text-muted-foreground">
-              The current Admin User UID is configured in your <code className="px-1 py-0.5 bg-muted rounded text-xs">.env</code> file as <code className="px-1 py-0.5 bg-muted rounded text-xs">ADMIN_USER_UID</code>.
+              The current Admin User UID is configured via the <code className="px-1 py-0.5 bg-muted rounded text-xs">ADMIN_USER_UID</code> environment variable.
             </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Make sure this matches the Firebase UID of your designated admin user.
+             <p className="text-xs text-muted-foreground mt-2">
+              Ensure this matches the Firebase UID of your designated admin user. The value is read by Next.js during build/startup.
             </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              To see this value, check your <code className="px-1 py-0.5 bg-muted rounded text-xs">.env</code> file and ensure your Next.js server was restarted after any changes.
-            </p>
-          </div>
-          {/* Future admin panel features would go here */}
         </CardContent>
       </Card>
     </div>

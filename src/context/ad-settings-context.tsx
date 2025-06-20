@@ -14,6 +14,12 @@ interface AdSettingsContextType extends AdSettings {
 const defaultAdSettings: AdSettings = {
   adsEnabled: true, // Default to ads being enabled
   adDensity: 'high',  // Default to high density
+  adsenseClientId: null,
+  adsenseHeaderSlotId: null,
+  adsenseInContentSlotId: null,
+  adsenseSidebarSlotId: null,
+  adsenseBelowContentSlotId: null,
+  adsenseMobileStickyFooterSlotId: null,
 };
 
 const AdSettingsContext = createContext<AdSettingsContextType | undefined>(undefined);
@@ -27,29 +33,31 @@ export const AdSettingsProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onSnapshot(settingsDocRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as Partial<AdSettings>;
-        // Merge with defaults to ensure all properties are present
         setSettings({
             adsEnabled: typeof data.adsEnabled === 'boolean' ? data.adsEnabled : defaultAdSettings.adsEnabled,
             adDensity: data.adDensity || defaultAdSettings.adDensity,
+            adsenseClientId: data.adsenseClientId !== undefined ? data.adsenseClientId : defaultAdSettings.adsenseClientId,
+            adsenseHeaderSlotId: data.adsenseHeaderSlotId !== undefined ? data.adsenseHeaderSlotId : defaultAdSettings.adsenseHeaderSlotId,
+            adsenseInContentSlotId: data.adsenseInContentSlotId !== undefined ? data.adsenseInContentSlotId : defaultAdSettings.adsenseInContentSlotId,
+            adsenseSidebarSlotId: data.adsenseSidebarSlotId !== undefined ? data.adsenseSidebarSlotId : defaultAdSettings.adsenseSidebarSlotId,
+            adsenseBelowContentSlotId: data.adsenseBelowContentSlotId !== undefined ? data.adsenseBelowContentSlotId : defaultAdSettings.adsenseBelowContentSlotId,
+            adsenseMobileStickyFooterSlotId: data.adsenseMobileStickyFooterSlotId !== undefined ? data.adsenseMobileStickyFooterSlotId : defaultAdSettings.adsenseMobileStickyFooterSlotId,
         });
       } else {
-        // If document doesn't exist, use defaults
         setSettings(defaultAdSettings);
-        console.warn("Ad settings document ('settings/ads') not found in Firestore. Using default ad settings.");
+        console.warn("Ad settings document ('settings/ads') not found in Firestore. Using default ad settings. Please create this document in Firestore if you want to manage settings centrally.");
       }
       setLoadingSettings(false);
     }, (error) => {
       console.error("Error fetching ad settings:", error);
-      setSettings(defaultAdSettings); // Fallback to defaults on error
+      setSettings(defaultAdSettings); 
       setLoadingSettings(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // If settings are still loading, you might want to show a loader or render children with default settings
-  // For simplicity here, we pass loading state.
-  if (loadingSettings && Object.keys(settings).length === 0) { // Ensure settings has been populated at least once
+  if (loadingSettings && Object.keys(settings).length === 0) { 
      return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -57,7 +65,6 @@ export const AdSettingsProvider = ({ children }: { children: ReactNode }) => {
       </div>
     );
   }
-
 
   return (
     <AdSettingsContext.Provider value={{ ...settings, loadingSettings }}>

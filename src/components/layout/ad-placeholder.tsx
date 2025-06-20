@@ -1,63 +1,104 @@
 
 "use client";
 
+import React, { useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { useAdSettings } from '@/context/ad-settings-context'; // Import useAdSettings
+import { useAdSettings } from '@/context/ad-settings-context';
+
+declare global {
+  interface Window {
+    adsbygoogle?: any[];
+  }
+}
 
 interface AdPlaceholderProps {
   type: 'leaderboard-header' | 'in-content' | 'sidebar' | 'below-content' | 'mobile-sticky-footer';
   className?: string;
-  // Children prop to allow passing actual ad code (<ins> tag)
-  children?: React.ReactNode; 
+  // No children prop needed as we'll render the <ins> tag directly
 }
 
-const AdPlaceholder: React.FC<AdPlaceholderProps> = ({ type, className, children }) => {
-  const { adsEnabled, loadingSettings } = useAdSettings();
+const AdPlaceholder: React.FC<AdPlaceholderProps> = ({ type, className }) => {
+  const {
+    adsEnabled,
+    loadingSettings,
+    adsenseClientId,
+    adsenseHeaderSlotId,
+    adsenseInContentSlotId,
+    adsenseSidebarSlotId,
+    adsenseBelowContentSlotId,
+    adsenseMobileStickyFooterSlotId,
+  } = useAdSettings();
 
-  if (loadingSettings) {
-    // Optional: render a skeleton or nothing while settings load
-    // For simplicity, rendering nothing during load to avoid layout shifts
-    return null;
-  }
+  const adContainerRef = React.useRef<HTMLDivElement>(null);
 
-  if (!adsEnabled) {
-    return null; // Don't render anything if ads are disabled
-  }
-
-  let text = "Ad Placeholder"; // Default text, ideally replaced by actual ad
   let specificClass = "";
+  let currentSlotId: string | null | undefined = null;
+  let adFormat: string = "auto"; // Default format
 
   switch (type) {
     case 'leaderboard-header':
-      text = "Ad: Leaderboard (728x90 Desktop / 320x50 Mobile)";
       specificClass = "ad-placeholder-leaderboard-header";
+      currentSlotId = adsenseHeaderSlotId;
       break;
     case 'in-content':
-      text = "Ad: In-Content (300x250 or 336x280)";
       specificClass = "ad-placeholder-incontent";
+      currentSlotId = adsenseInContentSlotId;
       break;
     case 'sidebar':
-      text = "Ad: Sidebar (300x600)";
       specificClass = "ad-placeholder-sidebar";
+      currentSlotId = adsenseSidebarSlotId;
       break;
     case 'below-content':
-      text = "Ad: Below Content (728x90 or 300x250)";
       specificClass = "ad-placeholder-below-content";
+      currentSlotId = adsenseBelowContentSlotId;
       break;
     case 'mobile-sticky-footer':
-      text = "Ad: Mobile Sticky (320x50)";
-      specificClass = "h-12"; 
-      return (
-           <div className={cn("sm:hidden fixed bottom-0 left-0 right-0 h-12 bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center z-50 border-t border-border", className)}>
-              {children || <span className="text-xs text-muted-foreground">{text}</span>}
-          </div>
-      );
+      specificClass = "sm:hidden fixed bottom-0 left-0 right-0 h-12 bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center z-50 border-t border-border";
+      currentSlotId = adsenseMobileStickyFooterSlotId;
+      adFormat = ""; // Sticky ads often don't use 'auto' format, or have specific format from AdSense. AdSense usually handles this if responsive.
+      break;
   }
 
+  useEffect(() => {
+    if (adsEnabled && adsenseClientId && currentSlotId && typeof window !== 'undefined' && adContainerRef.current && adContainerRef.current.firstChild) {
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        console.error(`Error pushing to adsbygoogle for slot ${currentSlotId}:`, e);
+      }
+    }
+  }, [adsEnabled, adsenseClientId, currentSlotId, type]); // re-run if these key properties change
+
+  if (loadingSettings) {
+    // Render a minimal skeleton or nothing to avoid layout shifts
+    return <div className={cn("ad-placeholder-loading", specificClass, className, "bg-muted/50")}></div>;
+  }
+
+  if (!adsEnabled || !adsenseClientId || !currentSlotId) {
+    // If ads are disabled, or no client/slot ID, don't render the ad.
+    // Optionally, render a non-ad placeholder for layout purposes during development
+    // if (process.env.NODE_ENV === 'development' && !adsEnabled) {
+    //   return <div className={cn('ad-placeholder-dev-disabled', specificClass, className)}>Ads Disabled by Admin</div>;
+    // }
+    // if (process.env.NODE_ENV === 'development' && (!adsenseClientId || !currentSlotId)) {
+    //    return <div className={cn('ad-placeholder-dev-unconfigured', specificClass, className)}>Ad Unit Unconfigured ({type})</div>;
+    // }
+    return null;
+  }
+
+  const adKey = `${type}-${adsenseClientId}-${currentSlotId}`;
+
   return (
-    <div className={cn('ad-placeholder', specificClass, className)}>
-      {/* Render children (actual ad code) if provided, otherwise the placeholder text */}
-      {children || <span className="text-xs p-2">{text}</span>}
+    <div ref={adContainerRef} className={cn('ad-container-wrapper', specificClass, className)}>
+      <ins
+        key={adKey} // Adding a key helps React re-render if slot ID changes
+        className="adsbygoogle"
+        style={{ display: 'block', width: '100%', height: '100%' }} // Ensure ins takes up space for responsive ads
+        data-ad-client={adsenseClientId}
+        data-ad-slot={currentSlotId}
+        data-ad-format={adFormat !== "" ? adFormat : undefined} // only add if not empty
+        data-full-width-responsive="true"
+      ></ins>
     </div>
   );
 };

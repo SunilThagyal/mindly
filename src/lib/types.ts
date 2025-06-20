@@ -50,4 +50,10 @@ export interface Comment {
 export interface AdSettings {
   adsEnabled: boolean;
   adDensity: 'high' | 'medium' | 'low';
+  adsenseClientId?: string | null;
+  adsenseHeaderSlotId?: string | null;
+  adsenseInContentSlotId?: string | null;
+  adsenseSidebarSlotId?: string | null;
+  adsenseBelowContentSlotId?: string | null;
+  adsenseMobileStickyFooterSlotId?: string | null;
 }
