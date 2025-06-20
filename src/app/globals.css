@@ -280,11 +280,12 @@
     > iframe, p > iframe { @apply aspect-video; }
 
     > figure { 
-      @apply mx-auto max-w-full my-6; 
+      @apply mx-auto w-full max-w-full my-6; /* Figure should also be width constrained */
     }
     > figure img, > figure video, > figure iframe { 
       margin-top: 0;
       margin-bottom: 0;
+      @apply block w-full max-w-full h-auto rounded-md shadow-md border border-border; /* Ensure media inside figure is responsive */
     }
     > figcaption { 
       @apply text-sm text-center text-muted-foreground mt-2 italic;
@@ -294,9 +295,9 @@
     .blog-media-container {
       @apply relative w-full my-6 mx-auto overflow-hidden rounded-lg shadow-lg border border-border bg-muted;
       /* aspect-ratio is set inline via JS based on media dimensions */
-      /* Add a default max-height to prevent overly tall containers if aspect-ratio isn't set or is extreme */
-      max-height: 80vh; /* Example: 80% of viewport height */
-      display: flex; /* Helps with centering if needed */
+      max-width: 300px; /* New: Fixed max-width for the container */
+      max-height: 500px; /* New: Fixed max-height for the container */
+      display: flex;
       align-items: center;
       justify-content: center;
     }

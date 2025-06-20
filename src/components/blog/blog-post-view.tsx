@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Blog, UserProfile } from '@/lib/types';
@@ -26,7 +25,7 @@ import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTrans
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdPlaceholder from '@/components/layout/ad-placeholder';
 import RelatedPosts from './related-posts';
 import CommentsSection from './comments-section';
@@ -38,69 +37,6 @@ interface BlogPostViewProps {
   authorProfile?: UserProfile | null;
 }
 
-function wrapMediaElements(htmlContent: string): string {
-  if (typeof window === 'undefined') return htmlContent; // SSR, no DOMParser
-
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlContent, 'text/html');
-    const mediaElements = doc.querySelectorAll('img.requires-media-wrap, video.requires-media-wrap');
-
-    mediaElements.forEach(mediaEl => {
-      const src = mediaEl.getAttribute('data-media-src');
-      const width = mediaEl.getAttribute('data-media-width');
-      const height = mediaEl.getAttribute('data-media-height');
-      const type = mediaEl.getAttribute('data-media-type') as 'image' | 'video';
-      const altText = mediaEl.getAttribute('alt') || (type === 'image' ? 'Blog content image' : 'Blog content video');
-
-      if (!src || !width || !height || !type) {
-        console.warn('Skipping media wrap due to missing data attributes:', mediaEl);
-        return;
-      }
-
-      const aspectRatio = `${width} / ${height}`;
-      const container = doc.createElement('div');
-      container.className = 'blog-media-container';
-      container.style.aspectRatio = aspectRatio;
-      container.setAttribute('data-media-type', type);
-
-      const backgroundMedia = doc.createElement(type);
-      backgroundMedia.className = 'blog-media-background-content';
-      backgroundMedia.setAttribute('src', src);
-      if (type === 'image') {
-        backgroundMedia.setAttribute('alt', ''); // Decorative
-        backgroundMedia.setAttribute('aria-hidden', 'true');
-      } else if (type === 'video') {
-        backgroundMedia.setAttribute('autoplay', '');
-        backgroundMedia.setAttribute('muted', '');
-        backgroundMedia.setAttribute('loop', '');
-        backgroundMedia.setAttribute('playsinline', '');
-        backgroundMedia.setAttribute('aria-hidden', 'true');
-      }
-
-      const mainMedia = doc.createElement(type);
-      mainMedia.className = 'blog-media-main-content';
-      mainMedia.setAttribute('src', src);
-      if (type === 'image') {
-        mainMedia.setAttribute('alt', altText);
-      } else if (type === 'video') {
-        mainMedia.setAttribute('controls', '');
-      }
-      
-      container.appendChild(backgroundMedia);
-      container.appendChild(mainMedia);
-
-      mediaEl.parentNode?.replaceChild(container, mediaEl);
-    });
-
-    return doc.body.innerHTML;
-  } catch (error) {
-    console.error("Error wrapping media elements:", error);
-    return htmlContent; // Return original content on error
-  }
-}
-
-
 export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogPostViewProps) {
   const { user, userProfile: currentUserProfile } = useAuth();
   const { adsEnabled, adDensity } = useAdSettings();
@@ -111,15 +47,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const [blog, setBlog] = useState<Blog>(initialBlog);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
-  const [processedContent, setProcessedContent] = useState<string | null>(null);
 
   useEffect(() => {
     setBlog(initialBlog);
-    if (initialBlog.content) {
-        setProcessedContent(wrapMediaElements(initialBlog.content));
-    } else {
-        setProcessedContent('');
-    }
   }, [initialBlog]);
 
   const formattedDate = blog.publishedAt
@@ -219,56 +149,97 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     }
   };
 
-  const renderContentWithAds = useCallback(() => {
-    if (processedContent === null) {
-      return <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-    }
-    if (!processedContent) return null;
-
-    if (!adsEnabled) {
-      return (
-        <div 
-          className="blog-content prose dark:prose-invert"
-          dangerouslySetInnerHTML={{ __html: processedContent }} 
-        />
-      );
-    }
-  
-    const contentParts = processedContent.split(/(<\/p>)/gi); 
+  const renderContentWithAds = () => {
+    const contentParts = blog.content.split(/(<\/p>)/gi); 
     const renderedElements: JSX.Element[] = [];
   
     const adInsertionPoints = {
-      point1: 6,  // After ~3 paragraphs + their closing tags
-      point2: 14, // After ~7 paragraphs
-      point3: 22, // After ~11 paragraphs
+      point1: 6,
+      point2: 14,
+      point3: 22,
     };
   
+    const wrapMediaInContainer = (html: string) => {
+      // Wrap img and video tags in a styled media container
+      return html.replace(
+        /<(img|video)([^>]*)>/gi,
+        (match, tag, attributes) => {
+          return `<div class="media-container max-w-[800px] max-h-[250px] mx-auto my-4 relative overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800"><${tag}${attributes}></div>`;
+        }
+      );
+    };
+
+    if (!adsEnabled) {
+      return [
+        <div key="full-content" className="blog-content prose dark:prose-invert">
+          <span dangerouslySetInnerHTML={{ __html: wrapMediaInContainer(blog.content) }} />
+        </div>
+      ];
+    }
+
     contentParts.forEach((part, index) => {
-      if (typeof part === 'string' && part.trim() !== '') {
+      if (typeof part === 'string') {
         renderedElements.push(
-          <span 
-            key={`content-part-${index}-${Math.random().toString(36).substr(2, 9)}`} 
-            dangerouslySetInnerHTML={{ __html: part }} 
-          />
+          <div key={`content-part-${index}-${Math.random()}`} className="blog-content prose dark:prose-invert">
+            <span dangerouslySetInnerHTML={{ __html: wrapMediaInContainer(part) }} />
+          </div>
         );
       }
   
-      const paragraphIndex = Math.floor(index / 2); // Each part + closing tag counts as one "paragraph unit" for ad insertion
-      if (paragraphIndex === adInsertionPoints.point1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
-        renderedElements.push(<AdPlaceholder key={`ad-incontent-1-${index}-${Math.random().toString(36).substr(2, 9)}`} type="in-content" className="my-8" />);
-      } else if (paragraphIndex === adInsertionPoints.point2 && (adDensity === 'medium' || adDensity === 'high')) {
-        renderedElements.push(<AdPlaceholder key={`ad-incontent-2-${index}-${Math.random().toString(36).substr(2, 9)}`} type="in-content" className="my-8" />);
-      } else if (paragraphIndex === adInsertionPoints.point3 && adDensity === 'high') {
-        renderedElements.push(<AdPlaceholder key={`ad-incontent-3-${index}-${Math.random().toString(36).substr(2, 9)}`} type="in-content" className="my-8" />);
+      if (index === adInsertionPoints.point1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
+        renderedElements.push(<AdPlaceholder key={`ad-incontent-1-${index}-${Math.random()}`} type="in-content" className="my-8" />);
+      } else if (index === adInsertionPoints.point2 && (adDensity === 'medium' || adDensity === 'high')) {
+        renderedElements.push(<AdPlaceholder key={`ad-incontent-2-${index}-${Math.random()}`} type="in-content" className="my-8" />);
+      } else if (index === adInsertionPoints.point3 && adDensity === 'high') {
+        renderedElements.push(<AdPlaceholder key={`ad-incontent-3-${index}-${Math.random()}`} type="in-content" className="my-8" />);
       }
     });
+  
+    if (renderedElements.length === 0 && blog.content && blog.content.trim() !== '') {
+      return [
+        <div key="full-content-fallback" className="blog-content prose dark:prose-invert">
+          <span dangerouslySetInnerHTML={{ __html: wrapMediaInContainer(blog.content) }} />
+        </div>
+      ];
+    }
     
-    return <div className="blog-content prose dark:prose-invert">{renderedElements}</div>;
-  }, [adsEnabled, adDensity, processedContent]);
-
+    return renderedElements;
+  };
 
   return (
     <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto py-8 px-4 animate-fade-in">
+      <style jsx>{`
+        .media-container {
+          max-width: 800px;
+          max-height: 250px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          position: relative;
+          backdrop-filter: blur(4px);
+          background-color: rgba(243, 244, 246, 0.8); /* Light mode background */
+          aspect-ratio: auto;
+          border-radius: 8px;
+        }
+        .dark .media-container {
+          background-color: rgba(31, 41, 55, 0.8); /* Dark mode background */
+        }
+        .media-container img,
+        .media-container video {
+          max-width: 100%;
+          max-height: 250px;
+          width: auto;
+          height: auto;
+          object-fit: contain;
+          object-position: center;
+          display: block;
+          margin: 0 auto;
+          overflow: visible;
+          border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+      `}</style>
       <main className="flex-1 w-full lg:max-w-3xl xl:max-w-4xl">
         <AdPlaceholder type="leaderboard-header" className="mb-6" />
         <article>
@@ -408,7 +379,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
             )}
           </div>
 
-          {renderContentWithAds()}
+          <div className="prose dark:prose-invert">
+            {renderContentWithAds()}
+          </div>
 
           {blog.tags && blog.tags.length > 0 && (
             <div className="mt-12 pt-6 border-t">
