@@ -269,48 +269,43 @@
       @apply my-8 border-border;
     }
 
-    /* General styles for images, videos, iframes directly in .prose */
-    img, video, iframe { 
+    /* Fallback general styles for unwrapped images, videos, iframes directly in .prose */
+    /* These apply if the .blog-media-container is not used (e.g. old content) */
+    > img, > video, > iframe { 
       @apply block w-full max-w-full h-auto rounded-md my-6 shadow-md border border-border;
     }
-    img { @apply mx-auto; } /* Center standalone images */
-    video { @apply bg-black; } /* Background for video player if controls are transparent */
-    iframe { @apply aspect-video; } /* Default 16:9 for iframes */
+    > img { @apply mx-auto; } 
+    > video { @apply bg-black; } 
+    > iframe { @apply aspect-video; }
 
-    figure { 
-      @apply mx-auto max-w-full my-6; /* Centering figure elements and constraining width */
+    > figure { 
+      @apply mx-auto max-w-full my-6; 
     }
-    figure img, figure video, figure iframe { /* Media inside a figure should not have extra vertical margin */
+    > figure img, > figure video, > figure iframe { 
       margin-top: 0;
       margin-bottom: 0;
     }
-    figcaption { 
+    > figcaption { 
       @apply text-sm text-center text-muted-foreground mt-2 italic;
     }
 
-    /* Styles for the new .blog-media-container */
+    /* Styles for the new .blog-media-container (inserted by editor) */
     .blog-media-container {
-      @apply relative w-full my-6 mx-auto overflow-hidden rounded-lg shadow-md border border-border bg-muted;
+      @apply relative w-full my-6 mx-auto overflow-hidden rounded-lg shadow-lg border border-border bg-muted;
       /* aspect-ratio is set inline via JS based on media dimensions */
     }
     .blog-media-container .blog-media-background-content,
     .blog-media-container .blog-media-main-content {
-      @apply absolute top-0 left-0 w-full h-full rounded-lg; 
+      @apply absolute top-0 left-0 w-full h-full rounded-lg; /* Inherit border-radius */
     }
     .blog-media-container .blog-media-background-content {
       @apply object-cover z-[1] opacity-70;
-      filter: blur(20px); /* Standard blur */
-      transform: scale(1.15); /* Ensure blur extends beyond edges */
+      filter: blur(20px); 
+      transform: scale(1.15); 
     }
     .blog-media-container .blog-media-main-content {
-      @apply object-contain z-[2]; /* Main content on top, contained */
+      @apply object-contain z-[2]; 
     }
-    /* Ensure main video has controls if specified by the editor */
-    .blog-media-container .blog-media-main-content[controls] {
-        /* Controls are inherently part of the video element */
-    }
-
-
   }
 
   .dark .prose {
@@ -319,11 +314,14 @@
      blockquote { @apply border-primary text-muted-foreground; }
      code { @apply bg-muted text-muted-foreground; }
      pre { @apply bg-muted text-muted-foreground; }
-     img, video, iframe, .blog-media-container {
+     
+     /* Fallback for unwrapped media in dark mode */
+     > img, > video, > iframe {
         @apply border-border;
      }
+     /* Styles for .blog-media-container in dark mode */
      .blog-media-container {
-        @apply bg-muted;
+        @apply border-border bg-muted;
      }
   }
 }

@@ -126,7 +126,17 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     }
     setIsAISuggesting(true);
     try {
-      const result = await suggestTagsAI({ blogContent: content }); 
+      // Extract text from HTML for better AI processing
+      let plainTextContent = content;
+      if (typeof DOMParser !== 'undefined') {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(content, 'text/html');
+          plainTextContent = doc.body.textContent || "";
+      } else {
+          plainTextContent = content.replace(/<[^>]+>/g, ' ');
+      }
+
+      const result = await suggestTagsAI({ blogContent: plainTextContent }); 
       if (result.tags && result.tags.length > 0) {
         const newTags = result.tags.filter(tag => !tags.includes(tag));
         const combinedTags = [...tags, ...newTags].slice(0,10); 
@@ -168,10 +178,10 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             ]),
             allowedAttributes: {
               ...sanitizeHtml.defaults.allowedAttributes,
-              div: ['class', 'style', 'data-media-type'],
-              img: [ 'src', 'alt', 'title', 'width', 'height', 'style', 'data-align', 'class' ],
+              div: ['class', 'style', 'data-media-type'], // Added data-media-type
+              img: [ 'src', 'alt', 'title', 'width', 'height', 'style', 'data-align', 'class', 'aria-hidden' ], // Added class, aria-hidden
               iframe: [ 'src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'title' ],
-              video: [ 'src', 'controls', 'width', 'height', 'poster', 'type', 'autoplay', 'muted', 'loop', 'playsinline', 'class', 'aria-hidden' ],
+              video: [ 'src', 'controls', 'width', 'height', 'poster', 'type', 'autoplay', 'muted', 'loop', 'playsinline', 'class', 'aria-hidden', 'preload' ], // Added class, aria-hidden, preload
               source: [ 'src', 'type' ],
               '*': [ 'style', 'class' ], 
               span: ['style', 'class'], 
@@ -187,16 +197,25 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             },
             allowedStyles: {
               '*': {
-                'aspect-ratio': [/^(\d+(\.\d+)?)\s*\/\s*(\d+(\.\d+)?)$/] // Allow aspect-ratio for div
+                'font-size': [ /^\d+(?:px|em|rem|%)$/ ],
+                'text-align': [/^left$/, /^right$/, /^center$/, /^justify$/],
+                'color': [/^#(?:[0-9a-fA-F]{3}){1,2}$/, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/, /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(?:0|1|0?\.\d+)\s*\)$/, /^hsl\(\s*\d+\s*,\s*\d+%?\s*,\s*\d+%?\s*\)$/, /^hsla\(\s*\d+\s*,\s*\d+%?\s*,\s*\d+%?\s*,\s*(?:0|1|0?\.\d+)\s*\)$/],
+                'background-color': [/^#(?:[0-9a-fA-F]{3}){1,2}$/, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/, /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(?:0|1|0?\.\d+)\s*\)$/, /^hsl\(\s*\d+\s*,\s*\d+%?\s*,\s*\d+%?\s*\)$/, /^hsla\(\s*\d+\s*,\s*\d+%?\s*,\s*\d+%?\s*,\s*(?:0|1|0?\.\d+)\s*\)$/],
+                'font-family': [/.*/], // Allow any font family specified by Quill
+              },
+              div: { // Specifically for .blog-media-container style
+                'aspect-ratio': [/^(\d+(\.\d+)?)\s*\/\s*(\d+(\.\d+)?)$/, /^\d+(\.\d+)?$/]
               }
             },
             allowedSchemes: [ 'http', 'https', 'ftp', 'mailto', 'tel', 'data' ],
             allowedClasses: {
-              '*': [ 'ql-*', 'blog-media-container', 'blog-media-background-content', 'blog-media-main-content' ] 
+              '*': [ 
+                'ql-*', 'blog-media-container', 'blog-media-background-content', 'blog-media-main-content' 
+              ] 
             },
              selfClosing: [ 'img', 'br', 'hr', 'area', 'base', 'basefont', 'input', 'link', 'meta' ],
              exclusiveFilter: function(frame) {
-                return frame.tag === 'script' || frame.tag === 'style' && !frame.text.includes('/* Quill editor styles */');
+                return frame.tag === 'script' || (frame.tag === 'style' && !frame.text.includes('/* Quill editor styles */') && !frame.text.includes('aspect-ratio'));
             }
           });
           setContent(sanitizedContent); 
@@ -224,9 +243,18 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
       toast({ title: 'Error', description: 'User not authenticated.', variant: 'destructive' });
       return;
     }
-    const plainTextContentForValidation = content.replace(/<[^>]+>/g, '').trim();
-    if (!title.trim() || !plainTextContentForValidation) {
-      toast({ title: 'Validation Error', description: 'Title and content are required.', variant: 'destructive' });
+    
+    let plainTextContentForValidation = content;
+    if (typeof DOMParser !== 'undefined') { // Ensure DOMParser exists (it does in browsers)
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(content, 'text/html');
+        plainTextContentForValidation = doc.body.textContent || "";
+    } else { // Basic fallback for environments without DOMParser
+        plainTextContentForValidation = content.replace(/<[^>]+>/g, ' ').trim();
+    }
+
+    if (!title.trim() || !plainTextContentForValidation.trim()) {
+      toast({ title: 'Validation Error', description: 'Title and non-empty content are required.', variant: 'destructive' });
       return;
     }
 
@@ -245,6 +273,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
       const formData = new FormData();
       formData.append('file', coverImageFile);
       formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      formData.append('folder', 'blog_covers'); 
       try {
         const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
           method: 'POST',
@@ -435,7 +464,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
               </div>
             )}
             <p className="text-xs text-muted-foreground mt-1">
-                If no image is uploaded, a relevant thumbnail will be auto-generated from the title upon saving.
+                If no image is uploaded, a relevant thumbnail will be auto-generated from the title upon saving. Max 10MB.
             </p>
         </div>
 
@@ -486,3 +515,4 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     </>
   );
 }
+

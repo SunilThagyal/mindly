@@ -80,23 +80,45 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
           });
           const data = await response.json();
           
-          const currentPlaceholderIndex = quill.getText().indexOf(placeholderText);
-          if (currentPlaceholderIndex !== -1) {
-            quill.deleteText(currentPlaceholderIndex, placeholderText.length);
-          } else {
-            quill.deleteText(range.index, placeholderText.length);
+          // Find and delete placeholder
+          const currentContent = quill.getContents();
+          let placeholderIndex = -1;
+          let placeholderLength = 0;
+
+          currentContent.ops.forEach((op: any) => {
+            if (typeof op.insert === 'string') {
+                const idx = op.insert.indexOf(placeholderText);
+                if (idx !== -1 && placeholderIndex === -1) { // Found the first instance
+                    placeholderIndex = quill.getText().indexOf(op.insert) + idx;
+                    placeholderLength = placeholderText.length;
+                }
+            }
+          });
+          if (placeholderIndex !== -1) {
+            quill.deleteText(placeholderIndex, placeholderLength, 'silent');
+          } else { // Fallback if placeholder not found in ops (e.g., subsequent edits)
+            const textContent = quill.getText();
+            const directIndex = textContent.indexOf(placeholderText);
+            if (directIndex !== -1) {
+                quill.deleteText(directIndex, placeholderText.length, 'silent');
+            } else {
+                 // If still not found, adjust range based on original insertion
+                quill.deleteText(range.index, placeholderText.length, 'silent');
+            }
           }
+          const insertionIndex = placeholderIndex !== -1 ? placeholderIndex : range.index;
+
 
           if (data.secure_url && data.width && data.height) {
-            const aspectRatio = `${data.width} / ${data.height}`;
+            const aspectRatio = `${data.width}/${data.height}`;
             const mediaElementTag = fileType === 'image' ? 'img' : 'video';
             
             const mainMediaAttributes = fileType === 'image' 
-              ? `alt="${file.name || 'User uploaded content'}"` // Use file name as default alt
-              : 'controls';
+              ? `alt="${file.name || 'User uploaded content'}"`
+              : 'controls preload="metadata"'; // Added preload for video
             const backgroundMediaAttributes = fileType === 'image'
               ? 'alt="" aria-hidden="true"'
-              : 'autoplay muted loop playsinline aria-hidden="true"';
+              : 'autoplay muted loop playsinline aria-hidden="true" preload="metadata"'; // Added preload for video
 
             const htmlToInsert = `
               <div class="blog-media-container" data-media-type="${fileType}" style="aspect-ratio: ${aspectRatio};">
@@ -111,9 +133,12 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
                   ${mainMediaAttributes}
                 ></${mediaElementTag}>
               </div>
-            `;
-            quill.clipboard.dangerouslyPasteHTML(range.index, htmlToInsert, 'user');
-            quill.setSelection(range.index + 1, 0); 
+              <p><br></p> 
+            `; // Added <p><br></p> to ensure cursor moves to a new line
+
+            quill.clipboard.dangerouslyPasteHTML(insertionIndex, htmlToInsert, 'user');
+            quill.setSelection(insertionIndex + htmlToInsert.length, 0, 'silent'); // Move cursor after inserted HTML
+
           } else {
             let errorMsg = `Cloudinary ${fileType} upload failed.`;
             if (data.error?.message) {
@@ -127,9 +152,11 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
           }
         } catch (error) {
           console.error(`Cloudinary ${fileType} upload error:`, error);
-          const currentPlaceholderIndexOnError = quill.getText().indexOf(placeholderText);
-          if (currentPlaceholderIndexOnError !== -1) {
-            quill.deleteText(currentPlaceholderIndexOnError, placeholderText.length);
+           // Attempt to remove placeholder on error too
+          const textContentOnError = quill.getText();
+          const placeholderIndexOnError = textContentOnError.indexOf(placeholderText);
+          if (placeholderIndexOnError !== -1) {
+            quill.deleteText(placeholderIndexOnError, placeholderText.length, 'silent');
           }
           alert(`${fileType.charAt(0).toUpperCase() + fileType.slice(1)} upload failed: ` + (error as Error).message);
         }
@@ -148,9 +175,9 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
     
     const fontWhitelist = [
       false, 
-      'serif', 'monospace', // Generic fallbacks
-      'Montserrat', 'Merriweather', 'Lora', // Theme fonts
-      'Arial', 'Verdana', 'Times New Roman', 'Georgia', 'Courier New' // Common web-safe fonts
+      'serif', 'monospace', 
+      'Montserrat', 'Merriweather', 'Lora', 
+      'Arial', 'Verdana', 'Times New Roman', 'Georgia', 'Courier New' 
     ];
     const sizeWhitelist = ['small', false, 'large', 'huge'];
 
@@ -195,6 +222,7 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
     const handleChange = (delta: DeltaStatic, oldDelta: DeltaStatic, source: Sources) => {
       if (source === 'user') {
         let html = quill.root.innerHTML;
+        // Prevent empty editor from being just <p><br></p> if user clears everything
         if (html === '<p><br></p>') {
           html = '';
         }
@@ -236,7 +264,13 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
             quill.clipboard.dangerouslyPasteHTML(0, normalizedIncomingHtml, 'silent');
         }
         if (currentSelection) { 
-            quill.setSelection(currentSelection, 'silent');
+            // Attempt to restore selection, only if it's plausible (e.g., not beyond new content length)
+            const newLength = quill.getLength();
+            if (currentSelection.index <= newLength) {
+                 quill.setSelection(currentSelection.index, currentSelection.length, 'silent');
+            } else {
+                 quill.setSelection(newLength, 0, 'silent'); // Move to end
+            }
         }
       } catch (e) {
         console.error("[RTE-ValueSyncEffect] Error during content update in Quill:", e);
@@ -262,3 +296,4 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
 };
 
 export default RichTextEditor;
+
