@@ -20,7 +20,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger, // Ensured this is imported
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, collection, FieldValue } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -60,6 +60,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const earnings = (blog.views * baseEarningPerView).toFixed(2);
   const currentLikes = blog.likes || 0;
   const isLikedByCurrentUser = user ? blog.likedBy?.includes(user.uid) : false;
+  const canShowEarningsToAuthor = user && user.uid === blog.authorId && currentUserProfile?.isMonetizationApproved;
 
   const handleDelete = async () => {
     if (!user || user.uid !== blog.authorId) {
@@ -84,11 +85,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       toast({ title: "Login Required", description: "Please log in to like a post.", variant: "destructive" });
       return;
     }
-    if (isLiking) return;
 
-    const originallyLiked = blog.likedBy?.includes(user.uid);
-    
     // Optimistic UI Update First
+    const originallyLiked = blog.likedBy?.includes(user.uid);
     setBlog(prevBlog => ({
       ...prevBlog,
       likes: (prevBlog.likes || 0) + (originallyLiked ? -1 : 1),
@@ -96,7 +95,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         ? (prevBlog.likedBy || []).filter(uid => uid !== user.uid)
         : [...(prevBlog.likedBy || []), user.uid],
     }));
-
+    
+    if (isLiking) return;
     setIsLiking(true); 
 
     const blogRef = doc(db, "blogs", blog.id);
@@ -142,7 +142,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
-      // Revert UI on error by re-setting to initialBlog (or a fetched version if needed for absolute latest)
+      // Revert UI on error by re-setting to initialBlog
       setBlog(initialBlog); 
     } finally {
       setIsLiking(false);
@@ -214,7 +214,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               <span>{formattedDate}</span>
               <span className="flex items-center"><Clock className="h-4 w-4 mr-1 text-primary" /> {blog.readingTime} min read</span>
               <span className="flex items-center"><Eye className="h-4 w-4 mr-1 text-primary" /> {blog.views} views</span>
-              <span className="flex items-center font-semibold"><Coins className="h-4 w-4 mr-1 text-yellow-500" /> ${earnings}</span>
+              {canShowEarningsToAuthor && (
+                <span className="flex items-center font-semibold"><Coins className="h-4 w-4 mr-1 text-yellow-500" /> ${earnings}</span>
+              )}
             </div>
           </header>
 
@@ -227,12 +229,14 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                 aria-pressed={isLikedByCurrentUser}
                 title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
               >
-                <span className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-150",
+                 <span className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200",
                     "shadow-md group-hover:shadow-lg transform group-hover:scale-105 group-active:scale-95",
                     isLikedByCurrentUser
-                      ? "bg-red-500 border-red-500 text-white" // LIKED: No hover color changes for background/border/text
-                      : "border-muted-foreground/30 text-muted-foreground", // UNLIKED: No hover color changes
+                      ? "bg-red-500 border-red-500 text-white"
+                      : "border-muted-foreground/30 text-muted-foreground",
+                    isLikedByCurrentUser && "group-hover:bg-red-600 group-hover:border-red-700", // No color change from group-hover for text/icon if liked
+                    !isLikedByCurrentUser && "group-hover:border-muted-foreground/30 group-hover:text-muted-foreground", // No color change if unliked
                     isLiking && "cursor-wait"
                 )}>
                   {isLiking ? (
@@ -242,14 +246,14 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                       <Heart className={cn(
                         "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-125",
                         isLikedByCurrentUser
-                          ? "fill-white text-white" // LIKED
-                          : "" // UNLIKED: No hover color changes for icon
+                          ? "fill-white text-white" 
+                          : "group-hover:text-muted-foreground" // Icon stroke remains muted on hover for unliked
                       )} />
                       <span className={cn(
                         "text-sm tabular-nums",
                          isLikedByCurrentUser 
                             ? "text-white" 
-                            : "" // UNLIKED: No hover color changes for text
+                            : "group-hover:text-muted-foreground" // Text remains muted on hover for unliked
                       )}>
                         {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
                       </span>
