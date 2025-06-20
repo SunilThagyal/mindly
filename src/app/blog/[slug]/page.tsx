@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import BlogPostView from '@/components/blog/blog-post-view';
-import type { Blog, UserProfile } from '@/lib/types';
+import type { Blog, UserProfile, EarningsSettings } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, query, where, limit, getDocs, doc, getDoc, updateDoc, increment, Timestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,9 +21,33 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
 
   const blogDoc = snapshot.docs[0];
   const blogData = blogDoc.data();
+  let currentViews = blogData.views || 0;
 
   if (blogData.status === 'published') {
-     await updateDoc(doc(db, 'blogs', blogDoc.id), { views: increment(1) });
+    // Increment blog views
+    const blogRef = doc(db, 'blogs', blogDoc.id);
+    await updateDoc(blogRef, { views: increment(1) });
+    currentViews++; // Reflect incremented view for current load
+
+    // If author is monetized, increment their earnings
+    if (blogData.authorId) {
+      const authorRef = doc(db, 'users', blogData.authorId);
+      const authorSnap = await getDoc(authorRef);
+      if (authorSnap.exists()) {
+        const authorProfile = authorSnap.data() as UserProfile;
+        if (authorProfile.isMonetizationApproved) {
+          const earningsSettingsRef = doc(db, 'settings', 'earnings');
+          const earningsSettingsSnap = await getDoc(earningsSettingsRef);
+          let baseEarning = 0.01; // Default
+          if (earningsSettingsSnap.exists()) {
+            baseEarning = (earningsSettingsSnap.data() as EarningsSettings).baseEarningPerView || 0.01;
+          }
+          if (baseEarning > 0) { // Ensure earnings rate is positive
+            await updateDoc(authorRef, { virtualEarnings: increment(baseEarning) });
+          }
+        }
+      }
+    }
   }
 
   return {
@@ -36,7 +60,7 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
     authorDisplayName: blogData.authorDisplayName || null,
     authorPhotoURL: blogData.authorPhotoURL || null,
     tags: blogData.tags || [],
-    views: (blogData.views || 0) + (blogData.status === 'published' ? 1: 0),
+    views: currentViews, // Use the updated view count
     readingTime: blogData.readingTime || 0,
     status: blogData.status || 'draft',
     createdAt: blogData.createdAt instanceof Timestamp ? blogData.createdAt : Timestamp.now(),
@@ -82,6 +106,7 @@ export default function BlogPage() {
         }
       } catch (error) {
         console.error("Error fetching blog:", error);
+        // Consider setting an error state here to show a user-friendly message
       } finally {
         setLoading(false);
       }
@@ -107,7 +132,9 @@ export default function BlogPage() {
   }
 
   if (!blog) {
-    return <div className="text-center py-10">Blog post not found.</div>;
+    // This typically means notFound() was called or an error occurred
+    // notFound() will render the not-found.tsx page
+    return null; 
   }
 
   if (blog.status === 'draft' && (!authUser || authUser?.uid !== blog.authorId)) {

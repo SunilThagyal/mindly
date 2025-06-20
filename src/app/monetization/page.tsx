@@ -1,29 +1,65 @@
 
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import MonetizationForm from '@/components/monetization/monetization-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ShieldAlert, DollarSign } from 'lucide-react';
+import { Loader2, ShieldAlert, DollarSign, History } from 'lucide-react';
+import PaymentHistoryTable from '@/components/monetization/payment-history-table';
+import type { WithdrawalRequest } from '@/lib/types';
+import { db } from '@/lib/firebase';
+import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
+
+async function getUserWithdrawalHistory(userId: string): Promise<WithdrawalRequest[]> {
+    const requestsCol = collection(db, 'withdrawalRequests');
+    const q = query(requestsCol, where('userId', '==', userId), orderBy('requestedAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+            id: docSnap.id,
+            ...data,
+            requestedAt: data.requestedAt instanceof Timestamp ? data.requestedAt : Timestamp.now(),
+            processedAt: data.processedAt instanceof Timestamp ? data.processedAt : null,
+        } as WithdrawalRequest;
+    });
+}
+
 
 export default function MonetizationPage() {
   const { user, userProfile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalRequest[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
 
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
         router.push('/auth/login?redirect=/monetization');
       } else if (userProfile && !userProfile.isMonetizationApproved) {
-        // Redirect or show a message if not approved
-        // For now, let's show a message on this page
+        // Message shown below
+      } else if (user && userProfile?.isMonetizationApproved) {
+        // Fetch withdrawal history only if user is approved and logged in
+        const fetchHistory = async () => {
+            setLoadingHistory(true);
+            try {
+                const history = await getUserWithdrawalHistory(user.uid);
+                setWithdrawalHistory(history);
+            } catch (error) {
+                console.error("Error fetching withdrawal history:", error);
+                // Optionally, show a toast to the user
+            } finally {
+                setLoadingHistory(false);
+            }
+        };
+        fetchHistory();
       }
     }
   }, [user, userProfile, authLoading, router]);
 
-  if (authLoading || !userProfile) {
+  if (authLoading || !userProfile && !user) { // If userProfile is null because user is null (and still loading)
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -31,10 +67,8 @@ export default function MonetizationPage() {
       </div>
     );
   }
-
-  if (!user) {
-    // This case should ideally be caught by the useEffect redirect,
-    // but as a fallback:
+  
+  if (!user) { // Should be caught by useEffect, but added for robustness
     return (
        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center px-4">
         <ShieldAlert className="w-20 h-20 text-destructive mb-6" />
@@ -46,7 +80,7 @@ export default function MonetizationPage() {
     );
   }
   
-  if (!userProfile.isMonetizationApproved) {
+  if (!userProfile?.isMonetizationApproved) {
     return (
       <div className="container mx-auto px-4 py-12">
         <Card className="max-w-2xl mx-auto text-center shadow-xl">
@@ -58,11 +92,10 @@ export default function MonetizationPage() {
           </CardHeader>
           <CardContent>
             <p className="text-lg text-muted-foreground mb-2">
-              Your account is not yet approved for monetization.
+              Your account is not yet approved for monetization by an administrator.
             </p>
             <p className="text-sm text-muted-foreground">
-              Once an administrator approves your account, you will be able to set up your payment details and request withdrawals here.
-              Please contact support or wait for approval.
+              Once approved, you will be able to set up your payment details, view earnings history, and request withdrawals here.
             </p>
           </CardContent>
         </Card>
@@ -71,7 +104,7 @@ export default function MonetizationPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="container mx-auto px-4 py-12 space-y-12">
       <Card className="max-w-3xl mx-auto shadow-xl">
         <CardHeader>
           <CardTitle className="text-3xl font-headline flex items-center">
@@ -80,10 +113,35 @@ export default function MonetizationPage() {
           </CardTitle>
           <CardDescription>
             Manage your payment information and request withdrawals for your earnings.
+            Your current earnings are updated automatically when your published posts receive views.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <MonetizationForm userProfile={userProfile} userId={user.uid} />
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-3xl mx-auto shadow-xl">
+        <CardHeader>
+          <CardTitle className="text-2xl font-headline flex items-center">
+            <History className="mr-3 h-7 w-7 text-primary" />
+            Withdrawal History
+          </CardTitle>
+          <CardDescription>
+            A record of your past withdrawal requests.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadingHistory ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="ml-2">Loading history...</p>
+            </div>
+          ) : withdrawalHistory.length === 0 ? (
+            <p className="text-muted-foreground text-center py-5">You have no withdrawal requests yet.</p>
+          ) : (
+            <PaymentHistoryTable requests={withdrawalHistory} />
+          )}
         </CardContent>
       </Card>
     </div>
