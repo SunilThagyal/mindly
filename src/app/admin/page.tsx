@@ -5,9 +5,10 @@ import { useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShieldAlert, Settings, Loader2, ExternalLink } from 'lucide-react';
+import { ShieldAlert, Settings, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import AdSettingsForm from '@/components/admin/ad-settings-form'; // Import the new component
 
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -18,7 +19,7 @@ export default function AdminPage() {
       if (!user) {
         router.push('/auth/login?redirect=/admin');
       } else if (!isAdmin) {
-        // Keep non-admins on this page but show access denied
+        // Keep non-admins on this page but show access denied (handled below)
       }
     }
   }, [user, isAdmin, loading, router]);
@@ -77,42 +78,17 @@ export default function AdminPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <AdSettingsForm /> 
           <div className="p-4 border rounded-lg bg-background/50">
-            <h3 className="text-xl font-semibold mb-2 text-foreground">Ad Settings Management</h3>
-            <p className="text-sm text-muted-foreground mb-3">
-              Ad settings (enable/disable ads, ad density) are currently managed directly in your Firestore database.
-            </p>
-            <p className="text-sm text-muted-foreground mb-1">
-              Navigate to: <code className="px-1 py-0.5 bg-muted rounded text-xs">Firestore Database</code>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Collection: <code className="px-1 py-0.5 bg-muted rounded text-xs">settings</code>
-            </p>
-            <p className="text-sm text-muted-foreground mb-4">
-              Document ID: <code className="px-1 py-0.5 bg-muted rounded text-xs">ads</code>
-            </p>
-            <Button variant="outline" asChild>
-              <a 
-                href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "YOUR_FIREBASE_PROJECT_ID"}/firestore/data/~2Fsettings~2Fads`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center"
-              >
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Go to Firestore (settings/ads)
-              </a>
-            </Button>
-            <p className="text-xs text-muted-foreground mt-2">
-              You may need to replace "YOUR_FIREBASE_PROJECT_ID" in the link if it's not automatically detected.
-            </p>
-          </div>
-           <div className="p-4 border rounded-lg bg-background/50">
             <h3 className="text-xl font-semibold mb-2 text-foreground">Admin User UID</h3>
             <p className="text-sm text-muted-foreground">
               The current Admin User UID is configured in your <code className="px-1 py-0.5 bg-muted rounded text-xs">.env</code> file as <code className="px-1 py-0.5 bg-muted rounded text-xs">ADMIN_USER_UID</code>.
             </p>
             <p className="text-sm text-muted-foreground mt-1">
               Make sure this matches the Firebase UID of your designated admin user.
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              To see this value, check your <code className="px-1 py-0.5 bg-muted rounded text-xs">.env</code> file and ensure your Next.js server was restarted after any changes.
             </p>
           </div>
           {/* Future admin panel features would go here */}
