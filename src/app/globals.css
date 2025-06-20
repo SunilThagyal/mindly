@@ -269,6 +269,18 @@
     hr {
       @apply my-8 border-border;
     }
+    img { /* Default image styling within prose */
+      @apply rounded-md my-6 shadow-md;
+    }
+    iframe { /* Styling for embedded videos/iframes */
+      @apply w-full aspect-video rounded-md my-6 shadow-md border border-border;
+    }
+    figure { /* Styling for figures */
+      @apply my-6;
+    }
+    figcaption { /* Styling for figcaptions */
+      @apply text-sm text-center text-muted-foreground mt-2 italic;
+    }
   }
 
   .dark .prose {
@@ -277,6 +289,9 @@
      blockquote { @apply border-primary text-muted-foreground; }
      code { @apply bg-muted text-muted-foreground; }
      pre { @apply bg-muted text-muted-foreground; }
+     iframe { /* Dark mode iframe border if different */
+        @apply border-border;
+     }
   }
 }
 

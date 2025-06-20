@@ -26,7 +26,7 @@ import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTrans
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Imported React
 import AdPlaceholder from '@/components/layout/ad-placeholder';
 import RelatedPosts from './related-posts';
 import CommentsSection from './comments-section';
@@ -60,7 +60,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const earnings = (blog.views * baseEarningPerView).toFixed(2);
   const currentLikes = blog.likes || 0;
   const isLikedByCurrentUser = user ? blog.likedBy?.includes(user.uid) : false;
-  const canShowEarningsToAuthor = user && user.uid === blog.authorId && currentUserProfile?.isMonetizationApproved;
+  
+  const canShowEarningsToAuthor = user && user.uid === blog.authorId && currentUserProfile?.isMonetizationApproved === true;
   const isGeneratedCover = blog.coverImageUrl?.includes('api.a0.dev');
 
   const handleDelete = async () => {
@@ -84,7 +85,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const handleLikePost = async () => {
     if (!user || !currentUserProfile) {
       toast({ title: "Login Required", description: "Redirecting to login...", variant: "default", duration: 2000 });
-      router.push(`/auth/login?redirect=/blog/${blog.slug}`);
+      // Construct the redirect URL including query parameters if they exist
+      const currentPath = `/blog/${blog.slug}`;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
       return;
     }
     
@@ -152,29 +155,29 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
   const renderContentWithAds = () => {
     let contentWithAds: (string | JSX.Element)[] = [];
-    const contentParts = blog.content.split(/(<\/p>)/); // Basic split, might need refinement
+    const contentParts = blog.content.split(/(<\/p>)/); 
 
     const adSlotIndices = {
-      slot1: 6, // After ~3 paragraphs
-      slot2: 14, // After ~7 paragraphs
-      slot3: 22, // After ~11 paragraphs
+      slot1: 6, 
+      slot2: 14, 
+      slot3: 22, 
     };
 
     contentParts.forEach((part, index) => {
       contentWithAds.push(part);
       if (index === adSlotIndices.slot1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
-        contentWithAds.push(<AdPlaceholder key="ad-incontent-1" type="in-content" className="my-8" />);
+        contentWithAds.push(<AdPlaceholder key={`ad-incontent-1-${index}`} type="in-content" className="my-8" />);
       }
       if (index === adSlotIndices.slot2 && (adDensity === 'medium' || adDensity === 'high')) {
-        contentWithAds.push(<AdPlaceholder key="ad-incontent-2" type="in-content" className="my-8" />);
+        contentWithAds.push(<AdPlaceholder key={`ad-incontent-2-${index}`} type="in-content" className="my-8" />);
       }
       if (index === adSlotIndices.slot3 && adDensity === 'high') {
-        contentWithAds.push(<AdPlaceholder key="ad-incontent-3" type="in-content" className="my-8" />);
+        contentWithAds.push(<AdPlaceholder key={`ad-incontent-3-${index}`} type="in-content" className="my-8" />);
       }
     });
 
     return contentWithAds.map((item, i) =>
-        typeof item === 'string' ? <span key={i} dangerouslySetInnerHTML={{ __html: item }}/> : item
+        typeof item === 'string' ? <span key={`content-part-${i}`} dangerouslySetInnerHTML={{ __html: item }}/> : React.cloneElement(item, { key: item.key || `ad-placeholder-${i}` }) 
     );
   };
 
@@ -227,17 +230,15 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                 onClick={handleLikePost}
                 disabled={isLiking}
                 variant="ghost"
-                className="group relative p-0 h-auto rounded-xl font-semibold shadow-md hover:shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-background focus:ring-red-400"
+                className="group relative p-0 h-auto rounded-xl focus:outline-none focus:ring-2 ring-offset-background focus:ring-red-400"
                 aria-pressed={isLikedByCurrentUser}
                 title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
               >
                  <span className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200",
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 group-hover:scale-105",
                     isLikedByCurrentUser
-                      ? "bg-red-500 border-red-500 text-white" // Liked state
-                      : "border-muted-foreground/30 text-muted-foreground", // Unliked state
-                    isLikedByCurrentUser && "hover:bg-red-600 hover:border-red-700", // Liked hover: Darken red
-                    !isLikedByCurrentUser && "group-hover:border-accent/50 group-hover:text-accent group-hover:fill-accent/20", // Unliked hover: Light orange effects
+                      ? "bg-red-500 border-red-500 text-white" 
+                      : "border-muted-foreground/30 text-muted-foreground", 
                     isLiking && "cursor-not-allowed"
                 )}>
                   {isLiking ? (
@@ -246,15 +247,11 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     <>
                       <Heart className={cn(
                         "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-125",
-                        isLikedByCurrentUser
-                          ? "fill-white text-white" // Liked: Filled white icon
-                          : "group-hover:text-accent group-hover:fill-accent/20", // Unliked hover: Orange icon with light orange fill
+                         isLikedByCurrentUser ? "fill-white text-white" : "",
                       )} />
                       <span className={cn(
                         "text-sm tabular-nums",
-                         isLikedByCurrentUser 
-                            ? "text-white" // Liked: White text
-                            : "group-hover:text-accent" // Unliked hover: Orange text
+                        isLikedByCurrentUser ? "text-white" : ""
                       )}>
                         {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
                       </span>
@@ -401,3 +398,4 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     </div>
   );
 }
+
