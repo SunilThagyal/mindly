@@ -20,7 +20,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"; // AlertDialogTrigger was removed intentionally as it's not directly used here now with Button asChild
+  AlertDialogTrigger, // Added missing import
+} from "@/components/ui/alert-dialog";
 import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, collection, FieldValue } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -83,24 +84,23 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       toast({ title: "Login Required", description: "Please log in to like a post.", variant: "destructive" });
       return;
     }
-    if (isLiking) return; // Prevent multiple clicks if already processing
+    if (isLiking) return;
 
-    // --- Optimistic UI Update ---
+    // Optimistic UI Update First
     const originallyLiked = blog.likedBy?.includes(user.uid);
     const newLikesCount = (blog.likes || 0) + (originallyLiked ? -1 : 1);
     const newLikedByArray = originallyLiked
       ? (blog.likedBy || []).filter(uid => uid !== user.uid)
       : [...(blog.likedBy || []), user.uid];
 
-    // Apply optimistic update to local 'blog' state FIRST
     setBlog(prevBlog => ({
       ...prevBlog,
       likes: newLikesCount,
       likedBy: newLikedByArray,
     }));
-    // --- End of Optimistic UI Update ---
 
-    setIsLiking(true); // Now set loading state for background operation
+    // Then, start background operation
+    setIsLiking(true);
 
     const blogRef = doc(db, "blogs", blog.id);
 
@@ -114,17 +114,13 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         const firestoreLikedBy = blogDoc.data().likedBy || [];
         let operationType: 'like' | 'unlike';
 
-        // Check the actual state from Firestore within the transaction
         if (firestoreLikedBy.includes(user.uid)) { 
-          // If Firestore says liked, but optimistic was un-like, this is an unlike operation
-          // Or if Firestore says liked, and optimistic was like (due to rapid click), this ensures it becomes an unlike
           transaction.update(blogRef, {
             likes: increment(-1),
             likedBy: arrayRemove(user.uid)
           });
           operationType = 'unlike';
         } else { 
-          // If Firestore says not liked, but optimistic was like, this is a like operation
           transaction.update(blogRef, {
             likes: increment(1),
             likedBy: arrayUnion(user.uid)
@@ -134,7 +130,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         
         if (operationType === 'like' && user.uid !== blog.authorId) {
           const notificationRef = collection(db, 'users', blog.authorId, 'notifications');
-          // Use addDoc directly for creating a new notification document
           await addDoc(notificationRef, { 
             type: 'new_post_like',
             blogId: blog.id,
@@ -150,10 +145,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
-      // Revert UI on error by setting 'blog' state back to 'initialBlog'
-      setBlog(initialBlog);
+      setBlog(initialBlog); // Revert UI on error
     } finally {
-      setIsLiking(false); // Hides loader, re-enables button
+      setIsLiking(false);
     }
   };
 
@@ -226,44 +220,44 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
             </div>
           </header>
 
-          <div className="my-6 flex items-center gap-3">
-            <Button
-              onClick={handleLikePost}
-              disabled={!user || isLiking}
-              variant="ghost"
-              className={cn(
-                "group relative px-2 py-1.5 h-auto rounded-xl font-semibold shadow-md hover:shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-background",
-                isLikedByCurrentUser
-                  ? "focus:ring-red-400"
-                  : "focus:ring-gray-400",
-              )}
-              aria-pressed={isLikedByCurrentUser}
-              title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
-            >
-              {isLiking ? (
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              ) : (
-                <span className={cn(
-                  "flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-colors duration-150",
+          <div className="my-6 flex items-center gap-4">
+             <Button
+                onClick={handleLikePost}
+                disabled={!user || isLiking}
+                variant="ghost"
+                className={cn(
+                  "group relative px-2 py-1.5 h-auto rounded-xl font-semibold shadow-md hover:shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ring-offset-background",
                   isLikedByCurrentUser
-                    ? "border-red-500 text-red-500"
-                    : "border-muted-foreground/30 text-muted-foreground group-hover:border-red-400 group-hover:text-red-500"
-                )}>
-                  <Heart
-                    className={cn(
-                      "h-5 w-5 transition-all duration-150 ease-in-out group-active:scale-125",
-                      isLikedByCurrentUser
-                        ? "fill-red-500 text-red-500"
-                        : "text-inherit group-hover:fill-red-500/20"
-                    )}
-                    fill={isLikedByCurrentUser ? "currentColor" : "none"}
-                  />
-                  <span className="text-sm tabular-nums">
-                    {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
+                    ? "focus:ring-red-400"
+                    : "focus:ring-gray-400",
+                )}
+                aria-pressed={isLikedByCurrentUser}
+                title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
+              >
+                {isLiking ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                ) : (
+                  <span className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors duration-150",
+                    isLikedByCurrentUser
+                      ? "border-red-500 text-red-500"
+                      : "border-muted-foreground/30 text-muted-foreground group-hover:border-red-400 group-hover:text-red-500"
+                  )}>
+                    <Heart
+                      className={cn(
+                        "h-5 w-5 transition-all duration-150 ease-in-out group-active:scale-125",
+                        isLikedByCurrentUser
+                          ? "fill-red-500 text-red-500"
+                          : "text-inherit group-hover:text-red-500 group-hover:fill-red-500/20" 
+                      )}
+                      fill={isLikedByCurrentUser ? "currentColor" : "none"}
+                    />
+                    <span className="text-sm tabular-nums">
+                      {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
+                    </span>
                   </span>
-                </span>
-              )}
-            </Button>
+                )}
+              </Button>
 
             {user && user.uid === blog.authorId && (
               <>
