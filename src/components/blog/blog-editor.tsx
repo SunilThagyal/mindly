@@ -43,6 +43,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
   
   const [aiBlogTopic, setAiBlogTopic] = useState('');
   const [isGeneratingBlog, setIsGeneratingBlog] = useState(false);
+  const [isAISuggesting, setIsAISuggesting] = useState(false); // Re-added this state
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingBlog, setIsLoadingBlog] = useState(!!blogId);
