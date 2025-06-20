@@ -5,8 +5,9 @@ import type { UserProfile, Blog } from '@/lib/types';
 import Image from 'next/image';
 import BlogCard from '@/components/blog/blog-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { UserCircle, Mail, BarChart3, Coins, Eye } from 'lucide-react'; // Added Eye
-import { VIRTUAL_CURRENCY_RATE_PER_VIEW } from '@/lib/types';
+import { UserCircle, Mail, BarChart3, Coins, Eye } from 'lucide-react';
+// import { VIRTUAL_CURRENCY_RATE_PER_VIEW } from '@/lib/types'; // Replaced by context
+import { useEarningsSettings } from '@/context/earnings-settings-context';
 
 interface UserProfileViewProps {
   profile: UserProfile;
@@ -14,9 +15,10 @@ interface UserProfileViewProps {
 }
 
 export default function UserProfileView({ profile, blogs }: UserProfileViewProps) {
+  const { baseEarningPerView } = useEarningsSettings();
   
   const totalViews = blogs.reduce((sum, blog) => sum + blog.views, 0);
-  const totalVirtualEarnings = blogs.reduce((sum, blog) => sum + (blog.views * VIRTUAL_CURRENCY_RATE_PER_VIEW), 0).toFixed(2);
+  const totalVirtualEarnings = blogs.reduce((sum, blog) => sum + (blog.views * baseEarningPerView), 0).toFixed(2);
 
   return (
     <div className="container mx-auto px-4 py-8 animate-fade-in">

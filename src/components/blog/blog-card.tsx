@@ -7,7 +7,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import type { Blog } from '@/lib/types';
 import { Eye, Clock, UserCircle, Coins } from 'lucide-react';
-import { VIRTUAL_CURRENCY_RATE_PER_VIEW } from '@/lib/types';
+// import { VIRTUAL_CURRENCY_RATE_PER_VIEW } from '@/lib/types'; // Replaced by context
+import { useEarningsSettings } from '@/context/earnings-settings-context';
 import React from 'react';
 
 interface BlogCardProps {
@@ -15,11 +16,12 @@ interface BlogCardProps {
 }
 
 const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
+  const { baseEarningPerView } = useEarningsSettings();
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString()
     : 'Not published';
   
-  const earnings = (blog.views * VIRTUAL_CURRENCY_RATE_PER_VIEW).toFixed(2);
+  const earnings = (blog.views * baseEarningPerView).toFixed(2);
 
   return (
     <Card className="w-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full animate-fade-in">

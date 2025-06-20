@@ -54,23 +54,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             isBlocked: false,
             postingRestricted: false,
             postingRestrictionReason: null,
-            adsEnabledForUser: true, // Default to true or could inherit global
-            adIntensityForUser: 'global', // Default to global setting
+            adsEnabledForUser: true, 
+            adIntensityForUser: 'global',
             virtualEarnings: 0,
+            isMonetizationApproved: false, // Default new monetization field
+            paymentCountry: null,
+            paymentContactDetails: null,
+            paymentAddress: null,
+            paymentUpiId: null,
+            paymentAccountNumber: null,
+            paymentBankName: null,
+            paymentIfscCode: null,
+            paymentPaypalEmail: null,
         };
 
         if (userDocSnap.exists()) {
           const existingData = userDocSnap.data() as UserProfile;
           setUserProfile({ ...defaultProfileValues, ...existingData });
         } else {
-          // Ensure new profiles include all fields with defaults
           const newProfile: UserProfile = {
-            ...defaultProfileValues, // Apply defaults first
+            ...defaultProfileValues, 
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             displayName: firebaseUser.displayName,
             photoURL: firebaseUser.photoURL,
-            // virtualEarnings already in defaultProfileValues
           };
           await setDoc(userDocRef, newProfile);
           setUserProfile(newProfile);

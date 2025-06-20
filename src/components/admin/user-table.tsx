@@ -13,7 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import UserTableRowActions from './user-table-row-actions';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { UserCircle } from 'lucide-react';
+import { UserCircle, CheckCircle, XCircle } from 'lucide-react';
 
 interface UserTableProps {
   users: UserProfile[];
@@ -30,9 +30,9 @@ export default function UserTable({ users, onUpdateUser, postCounts }: UserTable
             <TableHead className="w-[80px]">Avatar</TableHead>
             <TableHead>Display Name</TableHead>
             <TableHead>Email</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Account Status</TableHead>
+            <TableHead>Monetization</TableHead>
             <TableHead className="text-center">Posts</TableHead>
-            {/* <TableHead className="text-center">Total Views</TableHead> */}
             <TableHead className="text-right w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -57,8 +57,17 @@ export default function UserTable({ users, onUpdateUser, postCounts }: UserTable
                   </Badge>
                 </div>
               </TableCell>
+              <TableCell>
+                <Badge variant={user.isMonetizationApproved ? 'default' : 'secondary'} className={user.isMonetizationApproved ? "bg-green-600 hover:bg-green-700" : ""}>
+                  {user.isMonetizationApproved ? (
+                    <CheckCircle className="mr-1 h-3.5 w-3.5" />
+                  ) : (
+                    <XCircle className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  {user.isMonetizationApproved ? 'Approved' : 'Not Approved'}
+                </Badge>
+              </TableCell>
               <TableCell className="text-center">{postCounts[user.uid] ?? 0}</TableCell>
-              {/* <TableCell className="text-center">TODO</TableCell> */}
               <TableCell className="text-right">
                 <UserTableRowActions user={user} onUpdateUser={onUpdateUser} />
               </TableCell>

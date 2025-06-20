@@ -3,9 +3,10 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
-import { AdSettingsProvider } from '@/context/ad-settings-context'; // Import AdSettingsProvider
+import { AdSettingsProvider } from '@/context/ad-settings-context';
+import { EarningsSettingsProvider } from '@/context/earnings-settings-context'; // Import EarningsSettingsProvider
 import Header from '@/components/layout/header';
-import AdPlaceholder from '@/components/layout/ad-placeholder'; // Import AdPlaceholder
+import AdPlaceholder from '@/components/layout/ad-placeholder';
 import { cn } from '@/lib/utils';
 import { Montserrat, Merriweather, Lora } from 'next/font/google';
 
@@ -47,14 +48,15 @@ export default function RootLayout({
       </head>
       <body className={cn("font-body antialiased flex flex-col min-h-screen")}>
         <AuthProvider>
-          <AdSettingsProvider> {/* Wrap with AdSettingsProvider */}
-            <Header />
-            <main className="flex-grow container mx-auto px-4 py-8">
-              {children}
-            </main>
-            {/* Mobile Sticky Anchor Ad - Now uses AdPlaceholder for conditional rendering */}
-            <AdPlaceholder type="mobile-sticky-footer" />
-            <Toaster />
+          <AdSettingsProvider>
+            <EarningsSettingsProvider> {/* Wrap with EarningsSettingsProvider */}
+              <Header />
+              <main className="flex-grow container mx-auto px-4 py-8">
+                {children}
+              </main>
+              <AdPlaceholder type="mobile-sticky-footer" />
+              <Toaster />
+            </EarningsSettingsProvider>
           </AdSettingsProvider>
         </AuthProvider>
       </body>

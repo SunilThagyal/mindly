@@ -3,28 +3,40 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { useRouter, useSearchParams } from 'next/navigation'; // Added useSearchParams
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShieldAlert, Settings, Loader2, LayoutDashboard, Users, FileText, Annoyed } from 'lucide-react';
+import { ShieldAlert, Settings, Loader2, LayoutDashboard, Users, FileText, Annoyed, DollarSign, SendToBack } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import AdSettingsForm from '@/components/admin/ad-settings-form';
 import UserManagementTab from '@/components/admin/user-management-tab';
 import PostManagementTab from '@/components/admin/post-management-tab';
+import EarningsSettingsForm from '@/components/admin/earnings-settings-form';
+import WithdrawalManagementTab from '@/components/admin/withdrawal-management-tab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const ADMIN_TABS = ['dashboard', 'ads', 'earnings', 'users', 'posts', 'withdrawals'] as const;
+type AdminTab = typeof ADMIN_TABS[number];
+
+function isValidTab(tab: string | null): tab is AdminTab {
+  return ADMIN_TABS.includes(tab as AdminTab);
+}
 
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
 
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
-    if (tabFromUrl && ['dashboard', 'ads', 'users', 'posts'].includes(tabFromUrl)) {
+    if (isValidTab(tabFromUrl)) {
       setActiveTab(tabFromUrl);
+    } else if (tabFromUrl) {
+      // If tab is invalid, redirect to default dashboard
+      router.push('/admin?tab=dashboard', { scroll: false });
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   useEffect(() => {
     if (!loading) {
@@ -35,8 +47,10 @@ export default function AdminPage() {
   }, [user, isAdmin, loading, router, activeTab]);
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    router.push(`/admin?tab=${value}`, { scroll: false }); // Update URL without full page reload
+    if (isValidTab(value)) {
+      setActiveTab(value);
+      router.push(`/admin?tab=${value}`, { scroll: false });
+    }
   };
 
   if (loading) {
@@ -89,11 +103,13 @@ export default function AdminPage() {
       </header>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-6">
-          <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4 sm:mr-1" />Dashboard</TabsTrigger>
-          <TabsTrigger value="ads"><Annoyed className="mr-2 h-4 w-4 sm:mr-1" />Ads Management</TabsTrigger>
-          <TabsTrigger value="users"><Users className="mr-2 h-4 w-4 sm:mr-1" />User Management</TabsTrigger>
-          <TabsTrigger value="posts"><FileText className="mr-2 h-4 w-4 sm:mr-1" />Post Management</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 mb-6">
+          <TabsTrigger value="dashboard"><LayoutDashboard className="mr-1.5 h-4 w-4" />Dashboard</TabsTrigger>
+          <TabsTrigger value="ads"><Annoyed className="mr-1.5 h-4 w-4" />Ads</TabsTrigger>
+          <TabsTrigger value="earnings"><DollarSign className="mr-1.5 h-4 w-4" />Earnings</TabsTrigger>
+          <TabsTrigger value="users"><Users className="mr-1.5 h-4 w-4" />Users</TabsTrigger>
+          <TabsTrigger value="posts"><FileText className="mr-1.5 h-4 w-4" />Posts</TabsTrigger>
+          <TabsTrigger value="withdrawals"><SendToBack className="mr-1.5 h-4 w-4" />Withdrawals</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -112,12 +128,20 @@ export default function AdminPage() {
           <AdSettingsForm />
         </TabsContent>
 
+        <TabsContent value="earnings">
+          <EarningsSettingsForm />
+        </TabsContent>
+
         <TabsContent value="users">
           <UserManagementTab />
         </TabsContent>
 
         <TabsContent value="posts">
           <PostManagementTab />
+        </TabsContent>
+
+        <TabsContent value="withdrawals">
+          <WithdrawalManagementTab />
         </TabsContent>
       </Tabs>
 

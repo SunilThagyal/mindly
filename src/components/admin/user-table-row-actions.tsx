@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit, Slash, ShieldCheck, ShieldOff, MessageSquareWarning, Eye } from 'lucide-react';
+import { MoreHorizontal, Edit, ShieldOff, ShieldCheck, MessageSquareWarning, Eye, DollarSign, CheckCircle, XCircle } from 'lucide-react';
 import EditUserProfileDialog from './edit-user-profile-dialog';
 import RestrictPostingDialog from './restrict-posting-dialog';
 import { useRouter } from 'next/navigation';
@@ -35,6 +35,10 @@ export default function UserTableRowActions({ user, onUpdateUser }: UserTableRow
     router.push(`/admin?tab=posts&authorId=${user.uid}`);
   };
 
+  const handleToggleMonetization = () => {
+    onUpdateUser(user.uid, { isMonetizationApproved: !user.isMonetizationApproved });
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -44,7 +48,7 @@ export default function UserTableRowActions({ user, onUpdateUser }: UserTableRow
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel>Actions for {user.displayName || user.email}</DropdownMenuLabel>
           <DropdownMenuItem onClick={handleViewPosts}>
             <Eye className="mr-2 h-4 w-4" />
@@ -61,7 +65,12 @@ export default function UserTableRowActions({ user, onUpdateUser }: UserTableRow
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setIsRestrictModalOpen(true)}>
             <MessageSquareWarning className={`mr-2 h-4 w-4 ${user.postingRestricted ? 'text-yellow-600' : ''}`} />
-            {user.postingRestricted ? 'Manage Posting Restriction' : 'Restrict Posting'}
+            {user.postingRestricted ? 'Manage Posting Ban' : 'Ban Posting'}
+          </DropdownMenuItem>
+           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleToggleMonetization}>
+            {user.isMonetizationApproved ? <XCircle className="mr-2 h-4 w-4 text-orange-500" /> : <CheckCircle className="mr-2 h-4 w-4 text-green-600" />}
+            {user.isMonetizationApproved ? 'Revoke Monetization' : 'Approve Monetization'}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
