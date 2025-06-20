@@ -5,7 +5,7 @@ import type { Blog, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart } from 'lucide-react'; // Removed Loader2
+import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useAdSettings } from '@/context/ad-settings-context';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
@@ -97,7 +97,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         : [...(prevBlog.likedBy || []), user.uid]
     }));
     
-    setIsLiking(true); // Disable button during Firestore operation
+    setIsLiking(true); 
 
     const blogRef = doc(db, "blogs", blog.id);
 
@@ -109,29 +109,25 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         }
         
         const currentFirestoreLikedBy = blogDoc.data().likedBy || [];
-        let newLikesCount = blogDoc.data().likes || 0;
         let operationType: 'like' | 'unlike';
 
-        if (currentFirestoreLikedBy.includes(user.uid)) { // User is unliking
+        if (currentFirestoreLikedBy.includes(user.uid)) { 
           transaction.update(blogRef, {
             likes: increment(-1),
             likedBy: arrayRemove(user.uid)
           });
-          newLikesCount--;
           operationType = 'unlike';
-        } else { // User is liking
+        } else { 
           transaction.update(blogRef, {
             likes: increment(1),
             likedBy: arrayUnion(user.uid)
           });
-          newLikesCount++;
           operationType = 'like';
         }
         
-        // Send notification only if liking and not the author
         if (operationType === 'like' && user.uid !== blog.authorId) {
           const notificationRef = collection(db, 'users', blog.authorId, 'notifications');
-          await addDoc(notificationRef, { // Using addDoc directly as it's outside the transaction scope for this example
+          await addDoc(notificationRef, { 
             type: 'new_post_like',
             blogId: blog.id,
             blogSlug: blog.slug,
@@ -146,7 +142,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Your view might be out of sync.", variant: "destructive" });
-      // Revert optimistic update on error
       setBlog(initialBlog); 
     } finally {
       setIsLiking(false);
@@ -228,20 +223,23 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               size="default"
               onClick={handleLikePost}
               disabled={isLiking || !user}
-              className={cn(
-                "group transition-colors duration-200",
-                isLikedByCurrentUser ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"
-              )}
+              className="group transition-colors duration-200"
               aria-pressed={isLikedByCurrentUser}
               title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
             >
               <Heart
                 className={cn(
                   "mr-2 h-5 w-5 transition-transform duration-150 ease-in-out group-active:scale-125",
-                  isLikedByCurrentUser ? "fill-red-500 text-red-500" : "text-muted-foreground group-hover:text-red-500"
+                  isLikedByCurrentUser 
+                    ? "fill-red-500 text-red-500 group-hover:fill-red-600 group-hover:text-red-600" 
+                    : "text-muted-foreground group-hover:text-red-500"
                 )}
               />
-              <span className={cn(isLikedByCurrentUser ? "text-red-500" : "text-muted-foreground group-hover:text-red-500")}>
+              <span className={cn(
+                isLikedByCurrentUser
+                  ? "text-red-500 group-hover:text-red-600"
+                  : "text-muted-foreground group-hover:text-red-500"
+              )}>
                 {currentLikes > 0 ? `${currentLikes}` : 'Like'}
               </span>
             </Button>
@@ -353,6 +351,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     </div>
   );
 }
+    
+
     
 
     
