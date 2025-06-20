@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Loader2, Share2 } from 'lucide-react';
 import { VIRTUAL_CURRENCY_RATE_PER_VIEW } from '@/lib/types';
 import { useAuth } from '@/context/auth-context';
-import { useAdSettings } from '@/context/ad-settings-context'; // Import useAdSettings
+import { useAdSettings } from '@/context/ad-settings-context'; 
 import Link from 'next/link';
 import { Button } from '../ui/button';
 import {
@@ -39,7 +39,7 @@ interface BlogPostViewProps {
 
 export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps) {
   const { user } = useAuth();
-  const { adDensity } = useAdSettings(); // Get adDensity
+  const { adDensity } = useAdSettings(); 
   const router = useRouter();
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -68,31 +68,37 @@ export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps)
     }
   };
 
-  // Determine number of in-content ads based on density
-  const showSecondInContentAd = adDensity === 'high';
-  const showThirdInContentAd = adDensity === 'high' || adDensity === 'medium';
-
-  // Split content for ad insertion (simplified logic)
-  // A more robust approach might involve parsing HTML or using markers
-  const contentParts = blog.content.split(/(<\/p>)/); // Split by closing paragraph tags
-  const firstAdInsertionIndex = 6; // Approx after 3 paragraphs (p, /p, p, /p, p, /p)
-  const secondAdInsertionIndex = 14; // Approx after 7 paragraphs
-  const thirdAdInsertionIndex = 22; // Approx after 11 paragraphs
-
   const renderContentWithAds = () => {
     let contentWithAds: (string | JSX.Element)[] = [];
+    const contentParts = blog.content.split(/(<\/p>)/); // Split by closing paragraph tags
+    
+    // Define insertion points (indices in the contentParts array)
+    // These are approximate placements after a certain number of paragraphs
+    const adSlotIndices = {
+      slot1: 6,  // Approx after 3 paragraphs
+      slot2: 14, // Approx after 7 paragraphs
+      slot3: 22, // Approx after 11 paragraphs
+    };
+
     contentParts.forEach((part, index) => {
       contentWithAds.push(part);
-      if (index === firstAdInsertionIndex) {
-        contentWithAds.push(<AdPlaceholder key="ad1" type="in-content" className="my-8" />);
+
+      // Ad Slot 1: Shown for low, medium, high density
+      if (index === adSlotIndices.slot1 && (adDensity === 'low' || adDensity === 'medium' || adDensity === 'high')) {
+        contentWithAds.push(<AdPlaceholder key="ad-incontent-1" type="in-content" className="my-8" />);
       }
-      if (showSecondInContentAd && index === secondAdInsertionIndex) {
-        contentWithAds.push(<AdPlaceholder key="ad2" type="in-content" className="my-8" />);
+
+      // Ad Slot 2: Shown for medium, high density
+      if (index === adSlotIndices.slot2 && (adDensity === 'medium' || adDensity === 'high')) {
+        contentWithAds.push(<AdPlaceholder key="ad-incontent-2" type="in-content" className="my-8" />);
       }
-      if (showThirdInContentAd && index === thirdAdInsertionIndex && blog.content.length > 3000) { // Example condition for 3rd ad
-         contentWithAds.push(<AdPlaceholder key="ad3" type="in-content" className="my-8" />);
+
+      // Ad Slot 3: Shown for high density
+      if (index === adSlotIndices.slot3 && adDensity === 'high') {
+        contentWithAds.push(<AdPlaceholder key="ad-incontent-3" type="in-content" className="my-8" />);
       }
     });
+
     return contentWithAds.map((item, i) => 
         typeof item === 'string' ? <span key={i} dangerouslySetInnerHTML={{ __html: item }}/> : item
     );
@@ -242,3 +248,5 @@ export default function BlogPostView({ blog, authorProfile }: BlogPostViewProps)
     </div>
   );
 }
+
+    
