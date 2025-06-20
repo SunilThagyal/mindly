@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, Timestamp, updateDoc, doc } from 'firebase/firestore';
 import type { WithdrawalRequest } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, AlertTriangle, SendToBack, CheckCircle, XCircle, Hourglass, Info } from 'lucide-react';
+import { Loader2, AlertTriangle, SendToBack, CheckCircle, XCircle, Hourglass, Info, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,9 +42,9 @@ async function fetchWithdrawalRequests(): Promise<WithdrawalRequest[]> {
       return { 
           id: docSnap.id, 
           ...data,
-          // Ensure timestamps are correctly cast if they come from Firestore
           requestedAt: data.requestedAt instanceof Timestamp ? data.requestedAt : Timestamp.now(), 
           processedAt: data.processedAt instanceof Timestamp ? data.processedAt : null,
+          adminNotes: data.adminNotes || null,
         } as WithdrawalRequest;
     });
 }
@@ -101,12 +101,35 @@ export default function WithdrawalManagementTab() {
 
   const handleStatusUpdate = async (requestId: string, newStatus: WithdrawalRequest['status']) => {
     setUpdatingStatus(requestId);
+    let adminRejectionNotes: string | null = null;
+
+    if (newStatus === 'rejected') {
+      const reason = window.prompt("Please enter the reason for rejecting this withdrawal request:");
+      if (reason === null) { // User clicked cancel
+        setUpdatingStatus(null);
+        toast({ title: 'Action Cancelled', description: 'Rejection reason was not provided. Status not changed.', variant: 'default' });
+        return;
+      }
+      adminRejectionNotes = reason.trim() || "No reason provided."; // Store empty string or default if no reason
+    }
+
     try {
       const requestDocRef = doc(db, 'withdrawalRequests', requestId);
       const updateData: Partial<WithdrawalRequest> = { status: newStatus };
-      if (['completed', 'rejected'].includes(newStatus) && newStatus !== 'pending' && newStatus !== 'approved' && newStatus !== 'processing') { // only set processedAt for terminal states
+      
+      if (newStatus === 'rejected') {
+        updateData.adminNotes = adminRejectionNotes;
+      } else {
+        // If changing from rejected to something else, clear notes, or keep them. For now, let's keep them.
+        // If you want to clear notes when moving away from rejected:
+        // const currentRequest = requests.find(r => r.id === requestId);
+        // if (currentRequest?.status === 'rejected') updateData.adminNotes = null;
+      }
+
+      if (['completed', 'rejected'].includes(newStatus) && newStatus !== 'pending' && newStatus !== 'approved' && newStatus !== 'processing') {
         updateData.processedAt = Timestamp.now();
       }
+      
       await updateDoc(requestDocRef, updateData);
       toast({ title: 'Status Updated', description: `Request status changed to ${newStatus}.` });
       loadRequests(); // Reload all requests to reflect changes
@@ -233,6 +256,12 @@ export default function WithdrawalManagementTab() {
                                     {req.paymentDetailsSnapshot.ifscCode && <div><dt className="font-medium text-muted-foreground">IFSC Code:</dt> <dd>{req.paymentDetailsSnapshot.ifscCode}</dd></div>}
                                 </dl>
                                 {req.processedAt && <p className="text-xs text-muted-foreground mt-3">Processed At: {format(req.processedAt.toDate(), 'MMM d, yyyy, h:mm a')}</p>}
+                                {req.adminNotes && (
+                                    <div className="mt-3 pt-3 border-t">
+                                        <h5 className="font-semibold text-xs flex items-center text-muted-foreground"><MessageSquare className="mr-1.5 h-3.5 w-3.5"/>Admin Notes:</h5>
+                                        <p className="text-xs text-foreground whitespace-pre-wrap">{req.adminNotes}</p>
+                                    </div>
+                                )}
                             </AccordionContent>
                         </TableCell>
                       </TableRow>
@@ -250,4 +279,3 @@ export default function WithdrawalManagementTab() {
     </Card>
   );
 }
-

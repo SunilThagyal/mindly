@@ -22,7 +22,7 @@ export interface UserProfile {
 
   // India Specific (can be one or the other, or PayPal)
   paymentUpiId?: string | null;
-  paymentBankAccountHolderName?: string | null; // New field
+  paymentBankAccountHolderName?: string | null;
   paymentAccountNumber?: string | null;
   paymentBankName?: string | null;
   paymentIfscCode?: string | null;
@@ -79,7 +79,7 @@ export interface AdSettings {
 
 export interface EarningsSettings {
   baseEarningPerView: number;
-  minimumWithdrawalAmount?: number; // New field
+  minimumWithdrawalAmount?: number;
 }
 
 export interface WithdrawalRequest {
@@ -91,14 +91,14 @@ export interface WithdrawalRequest {
   status: 'pending' | 'approved' | 'rejected' | 'processing' | 'completed';
   requestedAt: Timestamp;
   processedAt?: Timestamp | null;
-  adminNotes?: string | null;
+  adminNotes?: string | null; // For rejection reasons or other notes
   // Snapshot of payment details at the time of request
   paymentDetailsSnapshot: {
     country?: UserProfile['paymentCountry'];
     contact?: UserProfile['paymentContactDetails'];
     address?: UserProfile['paymentAddress'];
     upiId?: UserProfile['paymentUpiId'];
-    bankAccountHolderName?: UserProfile['paymentBankAccountHolderName']; // New field
+    bankAccountHolderName?: UserProfile['paymentBankAccountHolderName'];
     accountNumber?: UserProfile['paymentAccountNumber'];
     bankName?: UserProfile['paymentBankName'];
     ifscCode?: UserProfile['paymentIfscCode'];
@@ -106,4 +106,3 @@ export interface WithdrawalRequest {
     chosenPaymentMethod?: 'upi' | 'bank' | 'paypal'; // To clarify which method user chose if multiple were available/filled
   };
 }
-

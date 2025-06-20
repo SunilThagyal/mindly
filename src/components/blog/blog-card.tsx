@@ -7,8 +7,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import type { Blog } from '@/lib/types';
 import { Eye, Clock, UserCircle, Coins } from 'lucide-react';
-// import { VIRTUAL_CURRENCY_RATE_PER_VIEW } from '@/lib/types'; // Replaced by context
 import { useEarningsSettings } from '@/context/earnings-settings-context';
+import { useAuth } from '@/context/auth-context'; // Import useAuth
 import React from 'react';
 
 interface BlogCardProps {
@@ -17,11 +17,16 @@ interface BlogCardProps {
 
 const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
   const { baseEarningPerView } = useEarningsSettings();
+  const { user, userProfile } = useAuth(); // Get current user and profile
+
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString()
     : 'Not published';
   
   const earnings = (blog.views * baseEarningPerView).toFixed(2);
+
+  // Check if the current user is the author and is approved for monetization
+  const canShowEarnings = user?.uid === blog.authorId && userProfile?.isMonetizationApproved;
 
   return (
     <Card className="w-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full animate-fade-in">
@@ -71,9 +76,11 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
             <Clock className="h-4 w-4 mr-1 text-primary" /> {blog.readingTime} min
           </span>
         </div>
-         <span className="flex items-center font-medium" title="Virtual Earnings">
-            <Coins className="h-4 w-4 mr-1 text-yellow-500" /> ${earnings}
-          </span>
+         {canShowEarnings && (
+           <span className="flex items-center font-medium" title="Virtual Earnings">
+              <Coins className="h-4 w-4 mr-1 text-yellow-500" /> ${earnings}
+            </span>
+         )}
       </CardFooter>
     </Card>
   );
