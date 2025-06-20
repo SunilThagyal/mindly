@@ -4,7 +4,7 @@
 import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, deleteDoc, updateDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -76,11 +76,23 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
   }, [blogId, toast]);
 
   const topLevelComments = useMemo(() => {
-    return allComments.filter(comment => !comment.parentId).sort((a,b) => a.createdAt.seconds - b.createdAt.seconds);
+    return allComments
+      .filter(comment => !comment.parentId)
+      .sort((a, b) => {
+        const aTime = a.createdAt?.seconds ?? 0;
+        const bTime = b.createdAt?.seconds ?? 0;
+        return aTime - bTime;
+      });
   }, [allComments]);
 
   const getReplies = (parentId: string) => {
-    return allComments.filter(comment => comment.parentId === parentId).sort((a,b) => a.createdAt.seconds - b.createdAt.seconds);
+    return allComments
+      .filter(comment => comment.parentId === parentId)
+      .sort((a, b) => {
+        const aTime = a.createdAt?.seconds ?? 0;
+        const bTime = b.createdAt?.seconds ?? 0;
+        return aTime - bTime;
+      });
   };
 
 
@@ -210,14 +222,14 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
     try {
       // Also delete replies to this comment if it's a top-level comment
       const repliesToDelete = allComments.filter(c => c.parentId === commentId);
-      const batch = db.batch(); // Use Firestore batch for multiple deletes
+      const batchOp = writeBatch(db); // Use Firestore batch for multiple deletes
       
       repliesToDelete.forEach(reply => {
-        batch.delete(doc(db, 'blogs', blogId, 'comments', reply.id));
+        batchOp.delete(doc(db, 'blogs', blogId, 'comments', reply.id));
       });
-      batch.delete(doc(db, 'blogs', blogId, 'comments', commentId));
+      batchOp.delete(doc(db, 'blogs', blogId, 'comments', commentId));
       
-      await batch.commit();
+      await batchOp.commit();
 
       toast({ title: "Comment Deleted", description: "The comment and its replies have been removed." });
     } catch (error) {
@@ -243,7 +255,7 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
           <div className="flex items-center justify-between mb-0.5">
             <p className="font-semibold text-xs text-card-foreground">{comment.userName}</p>
             <p className="text-xs text-muted-foreground">
-              {comment.createdAt ? new Date(comment.createdAt.seconds * 1000).toLocaleString() : 'Just now'}
+              {comment.createdAt?.seconds ? new Date(comment.createdAt.seconds * 1000).toLocaleString() : 'Just now'}
             </p>
           </div>
           {editingCommentId === comment.id ? (
