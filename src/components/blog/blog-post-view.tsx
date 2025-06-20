@@ -5,7 +5,7 @@ import type { Blog, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart, Loader2 } from 'lucide-react';
+import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart, Loader2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useAdSettings } from '@/context/ad-settings-context';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
@@ -142,8 +142,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
-      // Revert UI on error by fetching the original blog state or the state before optimistic update
-      setBlog(initialBlog); // Simple revert to initial, or store pre-optimistic state
+      // Revert UI on error
+      setBlog(initialBlog);
     } finally {
       setIsLiking(false);
     }
@@ -223,7 +223,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                 onClick={handleLikePost}
                 disabled={!user || isLiking}
                 variant="ghost"
-                className="group relative p-0 h-auto rounded-xl font-semibold focus:outline-none focus:ring-2 ring-offset-background ring-red-400"
+                className="group relative p-0 h-auto rounded-xl font-semibold focus:outline-none focus:ring-2 ring-offset-background focus:ring-red-400"
                 aria-pressed={isLikedByCurrentUser}
                 title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
               >
@@ -232,23 +232,28 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-150",
                     "shadow-md group-hover:shadow-lg transform group-hover:scale-105 group-active:scale-95",
                     isLikedByCurrentUser
-                      ? "bg-red-500 border-red-500 text-white group-hover:border-red-600" // Liked: No background change on hover, subtle border change
-                      : "border-muted-foreground/30 text-muted-foreground group-hover:border-accent/50 group-hover:text-accent" // Unliked: No background change on hover
+                      ? "bg-red-500 border-red-500 text-white" // LIKED: No hover color changes for background/border
+                      : "border-muted-foreground/30 text-muted-foreground group-hover:text-accent group-hover:border-accent/50" // UNLIKED: Text, border to accent
                   )}
                 >
                   {isLiking ? (
-                     <Loader2 className="h-5 w-5 animate-spin" />
+                     <Loader2 className="h-6 w-6 animate-spin text-current" />
                   ) : (
-                    <Heart className={cn(
-                      "h-5 w-5 transition-all duration-150 ease-in-out group-active:scale-125",
-                       isLikedByCurrentUser
-                        ? "fill-white text-white"
-                        : "fill-transparent group-hover:fill-accent/20" 
-                    )} />
+                    <>
+                      <Heart className={cn(
+                        "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-125",
+                        isLikedByCurrentUser
+                          ? "fill-white text-white" // LIKED
+                          : "group-hover:fill-accent/20 group-hover:text-accent" // UNLIKED: Fill and stroke to accent on hover
+                      )} />
+                      <span className={cn(
+                        "text-sm tabular-nums",
+                         isLikedByCurrentUser ? "text-white" : "group-hover:text-accent"
+                      )}>
+                        {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
+                      </span>
+                    </>
                   )}
-                  <span className="text-sm tabular-nums">
-                    {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
-                  </span>
                 </span>
               </Button>
 
@@ -258,7 +263,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                   asChild
                   variant="default"
                   className={cn(
-                    "px-4 py-2 rounded-xl font-semibold text-primary-foreground bg-primary hover:bg-primary/90",
+                    "px-4 py-2 rounded-xl font-semibold text-primary-foreground",
+                    "bg-primary hover:bg-primary/90", // Theme primary
                     "shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 active:scale-95",
                     "focus:outline-none focus:ring-2 ring-offset-2 ring-primary ring-offset-background"
                   )}
@@ -274,7 +280,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     <Button
                       variant="destructive"
                       className={cn(
-                        "px-4 py-2 rounded-xl font-semibold text-destructive-foreground bg-destructive hover:bg-destructive/90",
+                        "px-4 py-2 rounded-xl font-semibold text-destructive-foreground",
+                        "bg-destructive hover:bg-destructive/90", // Theme destructive
                         "shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 active:scale-95",
                         "focus:outline-none focus:ring-2 ring-offset-2 ring-destructive ring-offset-background",
                         isDeleting && "cursor-not-allowed opacity-70"
@@ -391,6 +398,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     
 
     
+
 
 
 
