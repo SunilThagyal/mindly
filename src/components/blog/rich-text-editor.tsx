@@ -30,17 +30,21 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
       return;
     }
 
-    // Updated fontWhitelist to remove the generic 'sans-serif'
-    // 'false' will represent the default font, which is typically sans-serif.
-    // Specific sans-serif fonts like Montserrat, Arial, etc., are still available.
+    // Revised fontWhitelist to be more specific and reduce generic "sans-serif" repetition.
+    // `false` represents the editor's default font (usually a system sans-serif).
+    // Specific sans-serif fonts like 'Montserrat' and 'Arial' are explicitly listed.
     const fontWhitelist = [
-      false, // Default font (editor's base style)
-      'serif',      // Generic Serif
-      'monospace',  // Generic Monospace
-      'Arial', 'Verdana', 'Times New Roman', 'Georgia', // Common system fonts
-      'Montserrat', 'Merriweather', 'Lora', // App specific fonts
-      'Inter', 'Poppins', // Previous app fonts, kept for compatibility if content exists
-      'Courier New',
+      false,            // Default editor font (often sans-serif)
+      'serif',          // Generic Serif
+      'monospace',      // Generic Monospace
+      'Arial',          // Specific Sans-Serif
+      'Verdana',        // Specific Sans-Serif
+      'Times New Roman',// Specific Serif
+      'Georgia',        // Specific Serif
+      'Montserrat',     // App-specific Sans-Serif (from theme)
+      'Merriweather',   // App-specific Serif (from theme)
+      'Lora',           // App-specific Serif (from theme)
+      'Courier New',    // Specific Monospace
     ];
     const sizeWhitelist = ['small', false, 'large', 'huge']; // Standard sizes
 
@@ -57,7 +61,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
           [{ 'script': 'sub'}, { 'script': 'super' }],
           [{ 'indent': '-1'}, { 'indent': '+1' }],
           [{ 'align': [] }],
-          ['blockquote', 'code-block'], // code-block option is here
+          ['blockquote', 'code-block'],
           ['link', 'image', 'video'],
           ['clean']
         ],
@@ -107,7 +111,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
         quillInstanceRef.current.off('text-change', handleChange);
       }
     };
-  // Added `value` to deps here to ensure initial content gets set if value is ready on first client render.
   }, [isClient, onChange, placeholder, value]);
 
 
@@ -129,7 +132,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     const incomingHtml = typeof value === 'string' ? value : '';
     let currentEditorHtml = quill.root.innerHTML;
 
-    // Normalize empty states for comparison
     const normalizedIncomingHtml = (incomingHtml === "<p><br></p>") ? "" : incomingHtml;
     const normalizedCurrentEditorHtml = (currentEditorHtml === "<p><br></p>") ? "" : currentEditorHtml;
 
@@ -138,9 +140,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     if (normalizedIncomingHtml !== normalizedCurrentEditorHtml) {
       console.log("[RTE-ValueSyncEffect] Content differs. Attempting to update Quill editor.");
       try {
-        // Directly paste the HTML. Quill's clipboard module handles conversion to Delta.
-        quill.setContents([], 'silent'); // Clear current content silently first
-        if (normalizedIncomingHtml) { // Only paste if there's actual content
+        quill.setContents([], 'silent'); 
+        if (normalizedIncomingHtml) { 
             quill.clipboard.dangerouslyPasteHTML(0, normalizedIncomingHtml, 'silent');
             console.log("[RTE-ValueSyncEffect] Editor updated with dangerouslyPasteHTML. Pasted:", normalizedIncomingHtml.substring(0,100) + "...");
         } else {

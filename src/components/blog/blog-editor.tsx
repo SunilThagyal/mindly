@@ -17,11 +17,12 @@ import { generateBlogPost as generateBlogPostAI } from '@/ai/flows/generate-blog
 import type { Blog } from '@/lib/types';
 import { slugify, estimateReadingTime } from '@/lib/helpers';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Lightbulb, X, Sparkles } from 'lucide-react';
+import { Loader2, Lightbulb, X, Sparkles, Info } from 'lucide-react'; // Added Info icon
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import sanitizeHtml from 'sanitize-html';
+import EditorHelpDialog from './editor-help-dialog'; // Import the new help dialog
 
 interface BlogEditorProps {
   blogId?: string;
@@ -44,8 +45,8 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
   const [isGeneratingBlog, setIsGeneratingBlog] = useState(false);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAISuggesting, setIsAISuggesting] = useState(false);
   const [isLoadingBlog, setIsLoadingBlog] = useState(!!blogId);
+  const [showEditorHelpDialog, setShowEditorHelpDialog] = useState(false); // State for help dialog
 
 
   useEffect(() => {
@@ -74,7 +75,6 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             setTags(blogData.tags || []);
             setCurrentStatus(blogData.status);
             setCoverImageUrl(blogData.coverImageUrl || null);
-            // Note: 'likes' and 'likedBy' are not managed here; they are interaction metrics.
           } else {
             toast({ title: 'Not Found', description: 'Blog post not found.', variant: 'destructive' });
             router.push('/');
@@ -303,8 +303,6 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         const updatePayload: Partial<Blog> = {
           ...blogDataPayload,
           publishedAt: newPublishedAt,
-          // Fields like authorId, createdAt, views, likes, likedBy should not be overwritten by editor updates
-          // Only user-editable content, status, and associated metadata like publishedAt should be updated here.
         };
 
 
@@ -317,8 +315,8 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
           authorDisplayName: userProfile.displayName || 'Anonymous',
           authorPhotoURL: userProfile.photoURL || null,
           views: 0,
-          likes: 0, // Initialize likes for new posts
-          likedBy: [], // Initialize likedBy for new posts
+          likes: 0, 
+          likedBy: [], 
           createdAt: serverTimestamp() as Timestamp, 
           publishedAt: newSaveStatus === 'published' ? serverTimestamp() as Timestamp : null,
         };
@@ -346,6 +344,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
 
 
   return (
+    <>
     <Card className="w-full max-w-3xl mx-auto shadow-xl animate-fade-in">
       <CardHeader>
         <CardTitle className="text-3xl font-headline">{blogId ? 'Edit Blog Post' : 'Create New Blog Post'}</CardTitle>
@@ -404,7 +403,12 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="content" className="text-lg">Content</Label>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="content" className="text-lg">Content</Label>
+            <Button variant="ghost" size="icon" onClick={() => setShowEditorHelpDialog(true)} title="Editor Help" className="h-6 w-6 text-muted-foreground hover:text-primary">
+                <Info className="h-4 w-4" />
+            </Button>
+          </div>
            <RichTextEditor
             value={content}
             onChange={setContent}
@@ -483,5 +487,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         </Button>
       </CardFooter>
     </Card>
+    <EditorHelpDialog isOpen={showEditorHelpDialog} onClose={() => setShowEditorHelpDialog(false)} />
+    </>
   );
 }
