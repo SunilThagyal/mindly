@@ -5,7 +5,7 @@ import type { Blog, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart } from 'lucide-react';
+import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useAdSettings } from '@/context/ad-settings-context';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
@@ -86,18 +86,18 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     }
     if (isLiking) return;
     
-    const alreadyLiked = blog.likedBy?.includes(user.uid);
-
+    setIsLiking(true); 
+    
     // Optimistic UI update
+    const originallyLiked = blog.likedBy?.includes(user.uid);
     setBlog(prevBlog => ({
       ...prevBlog,
-      likes: (prevBlog.likes || 0) + (alreadyLiked ? -1 : 1),
-      likedBy: alreadyLiked
+      likes: (prevBlog.likes || 0) + (originallyLiked ? -1 : 1),
+      likedBy: originallyLiked
         ? prevBlog.likedBy?.filter(uid => uid !== user.uid)
         : [...(prevBlog.likedBy || []), user.uid]
     }));
     
-    setIsLiking(true); 
 
     const blogRef = doc(db, "blogs", blog.id);
 
@@ -111,6 +111,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         const currentFirestoreLikedBy = blogDoc.data().likedBy || [];
         let operationType: 'like' | 'unlike';
 
+        // Check against Firestore state, not optimistic UI state
         if (currentFirestoreLikedBy.includes(user.uid)) { 
           transaction.update(blogRef, {
             likes: increment(-1),
@@ -141,7 +142,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       });
     } catch (error) {
       console.error("Error liking post:", error);
-      toast({ title: "Error", description: "Could not update like status. Your view might be out of sync.", variant: "destructive" });
+      toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
+      // Revert optimistic update on error by fetching original state
       setBlog(initialBlog); 
     } finally {
       setIsLiking(false);
@@ -223,26 +225,34 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               size="default"
               onClick={handleLikePost}
               disabled={isLiking || !user}
-              className="group transition-colors duration-200"
+              className="group p-1.5 h-auto" // Adjusted padding and height for the button
               aria-pressed={isLikedByCurrentUser}
               title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
             >
-              <Heart
-                className={cn(
-                  "mr-2 h-5 w-5 transition-transform duration-150 ease-in-out group-active:scale-125",
-                  isLikedByCurrentUser 
-                    ? "fill-red-500 text-red-500 group-hover:fill-red-600 group-hover:text-red-600" 
-                    : "text-muted-foreground group-hover:text-red-500"
-                )}
-              />
-              <span className={cn(
-                isLikedByCurrentUser
-                  ? "text-red-500 group-hover:text-red-600"
-                  : "text-muted-foreground group-hover:text-red-500"
-              )}>
-                {currentLikes > 0 ? `${currentLikes}` : 'Like'}
-              </span>
+              {isLiking ? (
+                <Loader2 className="h-5 w-5 animate-spin text-red-500" />
+              ) : (
+                <span className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition-colors",
+                  isLikedByCurrentUser
+                    ? "border-red-500 text-red-500"
+                    : "border-muted-foreground/30 text-muted-foreground group-hover:border-red-400 group-hover:text-red-500"
+                )}>
+                  <Heart
+                    className={cn(
+                      "h-5 w-5 transition-all duration-150 ease-in-out group-active:scale-125",
+                      isLikedByCurrentUser
+                        ? "fill-red-500 text-red-500" 
+                        : "text-muted-foreground group-hover:text-red-500 group-hover:fill-red-500/20"
+                    )}
+                  />
+                  <span className="text-sm font-medium">
+                    {currentLikes > 0 ? `${currentLikes}` : (isLikedByCurrentUser ? 'Liked' : 'Like')}
+                  </span>
+                </span>
+              )}
             </Button>
+
             {user && user.uid === blog.authorId && (
               <div className="flex gap-2">
                 <Button asChild variant="outline" size="sm">
@@ -253,7 +263,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" size="sm" className="flex items-center" disabled={isDeleting}>
-                      {isDeleting ? <svg className="animate-spin mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : <Trash2 className="mr-2 h-4 w-4" />} Delete
+                      {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />} Delete
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -266,7 +276,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     <AlertDialogFooter>
                       <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                       <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
-                        {isDeleting ? <svg className="animate-spin mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : null}
+                        {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Yes, delete it
                       </AlertDialogAction>
                     </AlertDialogFooter>
