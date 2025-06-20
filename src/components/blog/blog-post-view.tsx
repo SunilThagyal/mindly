@@ -5,7 +5,7 @@ import type { Blog, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Loader2, Share2, Heart } from 'lucide-react';
+import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Loader2, Share2, Heart, ThumbsUp } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useAdSettings } from '@/context/ad-settings-context'; 
 import { useEarningsSettings } from '@/context/earnings-settings-context';
@@ -31,6 +31,7 @@ import AdPlaceholder from '@/components/layout/ad-placeholder';
 import RelatedPosts from './related-posts';
 import CommentsSection from './comments-section';
 import SocialShareButtons from './social-share-buttons';
+import { cn } from '@/lib/utils';
 
 interface BlogPostViewProps {
   blog: Blog;
@@ -124,8 +125,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           // Send notification if not liking own post
           if (user.uid !== blog.authorId) {
             const notificationRef = collection(db, 'users', blog.authorId, 'notifications');
-            // Check for existing unread like notification from this user for this post? (More complex, skip for now)
-            await addDoc(notificationRef, { // Use addDoc directly as it's okay if multiple like notifs exist
+            await addDoc(notificationRef, { 
               type: 'new_post_like',
               blogId: blog.id,
               blogSlug: blog.slug,
@@ -148,7 +148,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       setIsLiking(false);
     }
   };
-
 
   const renderContentWithAds = () => {
     let contentWithAds: (string | JSX.Element)[] = [];
@@ -180,6 +179,14 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         typeof item === 'string' ? <span key={i} dangerouslySetInnerHTML={{ __html: item }}/> : item
     );
   };
+
+  let likeButtonText = "Like";
+  if (currentLikes > 0) {
+    likeButtonText = `${currentLikes} Like${currentLikes === 1 ? '' : 's'}`;
+  }
+  if (isLikedByCurrentUser) {
+    likeButtonText = currentLikes > 0 ? `${currentLikes} Liked` : "Liked";
+  }
   
 
   return (
@@ -225,18 +232,28 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           
           <div className="my-6 flex items-center gap-4">
             <Button
-              variant={isLikedByCurrentUser ? "default" : "outline"}
+              variant={isLikedByCurrentUser ? "destructive" : "outline"}
               size="default"
               onClick={handleLikePost}
               disabled={isLiking || !user}
-              className={`transition-colors duration-200 ${isLikedByCurrentUser ? 'bg-red-500 hover:bg-red-600 text-white border-red-500' : 'border-muted-foreground/50 hover:border-primary hover:text-primary'}`}
+              className={cn(
+                "transition-colors duration-200",
+                !isLikedByCurrentUser && "text-muted-foreground hover:text-destructive hover:border-destructive/70 dark:hover:text-red-500 dark:hover:border-red-500/70" 
+              )}
+              aria-pressed={isLikedByCurrentUser}
+              title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
             >
               {isLiking ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Heart className={`mr-2 h-4 w-4 ${isLikedByCurrentUser ? 'fill-current' : ''}`} />
+                <Heart
+                  className={cn(
+                    "mr-2 h-4 w-4",
+                    isLikedByCurrentUser && "fill-current" // Icon will be filled if liked (uses button's text color)
+                  )}
+                />
               )}
-              {currentLikes > 0 ? `${currentLikes} Like${currentLikes === 1 ? '' : 's'}` : 'Like'}
+              {likeButtonText}
             </Button>
             {user && user.uid === blog.authorId && (
               <div className="flex gap-2">
@@ -346,3 +363,4 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     </div>
   );
 }
+
