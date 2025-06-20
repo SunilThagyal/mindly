@@ -4,12 +4,12 @@
 import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, deleteDoc, updateDoc, getDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { UserCircle, Send, MessageCircle, Loader2, Trash2, Edit3, CornerDownRight } from 'lucide-react';
-import type { Comment as CommentType, UserProfile as UserProfileType } from '@/lib/types'; // Renamed to avoid conflict
+import { UserCircle, Send, MessageCircle, Loader2, Trash2, Edit3, CornerDownRight, ChevronDown, ChevronUp } from 'lucide-react';
+import type { Comment as CommentType, UserProfile as UserProfileType } from '@/lib/types'; 
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -44,9 +44,11 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
 
+  const [expandedReplies, setExpandedReplies] = useState<Record<string, boolean>>({}); // For reply expansion
+
   const [loadingComments, setLoadingComments] = useState(true);
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [submittingReply, setSubmittingReply] = useState<string | null>(null); // Store parentId being replied to
+  const [submittingReply, setSubmittingReply] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
 
@@ -93,6 +95,13 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
         const bTime = b.createdAt?.seconds ?? 0;
         return aTime - bTime;
       });
+  };
+
+  const toggleRepliesVisibility = (commentId: string) => {
+    setExpandedReplies(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }));
   };
 
 
@@ -164,10 +173,10 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
             blogId: blogId,
         });
         setReplyText('');
-        setReplyingToCommentId(null); // Close reply form
+        setReplyingToCommentId(null); 
         toast({ title: "Reply Posted!", description: "Your reply has been added." });
+        setExpandedReplies(prev => ({ ...prev, [parentId]: true })); // Auto-expand replies on new reply
 
-        // Notify author of parent comment, if they are not the one replying
         if (user.uid !== parentComment.userId) {
             const notificationRef = collection(db, 'users', parentComment.userId, 'notifications');
             await addDoc(notificationRef, {
@@ -176,12 +185,12 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
                 blogSlug: blogSlug,
                 blogTitle: blogTitle,
                 replierName: userProfile.displayName || 'Anonymous',
-                commentId: replyRef.id, // ID of the reply
+                commentId: replyRef.id, 
                 parentCommentId: parentId,
                 parentCommentAuthorId: parentComment.userId,
                 createdAt: serverTimestamp(),
                 isRead: false,
-                link: `/blog/${blogSlug}#comment-${replyRef.id}`, // Link to the reply
+                link: `/blog/${blogSlug}#comment-${replyRef.id}`, 
             });
         }
 
@@ -197,12 +206,12 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
   const handleEditComment = (comment: CommentType) => {
     setEditingCommentId(comment.id);
     setEditingText(comment.text);
-    setReplyingToCommentId(null); // Close any open reply forms
+    setReplyingToCommentId(null); 
   };
 
   const handleSaveEdit = async () => {
     if (!editingCommentId || !editingText.trim()) return;
-    setSubmittingComment(true); // Reuse submittingComment for general edit save
+    setSubmittingComment(true); 
     try {
       const commentRef = doc(db, 'blogs', blogId, 'comments', editingCommentId);
       await updateDoc(commentRef, { text: editingText.trim() });
@@ -220,9 +229,8 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
   const handleDeleteComment = async (commentId: string) => {
     setIsDeleting(commentId);
     try {
-      // Also delete replies to this comment if it's a top-level comment
       const repliesToDelete = allComments.filter(c => c.parentId === commentId);
-      const batchOp = writeBatch(db); // Use Firestore batch for multiple deletes
+      const batchOp = writeBatch(db); 
       
       repliesToDelete.forEach(reply => {
         batchOp.delete(doc(db, 'blogs', blogId, 'comments', reply.id));
@@ -241,7 +249,8 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
   };
 
   const renderComment = (comment: CommentType, isReply: boolean = false) => {
-    const commentReplies = isReply ? [] : getReplies(comment.id); // Don't get replies for a reply
+    const commentReplies = isReply ? [] : getReplies(comment.id);
+    const areRepliesExpanded = !!expandedReplies[comment.id];
 
     return (
       <div key={comment.id} id={`comment-${comment.id}`} className={`flex items-start space-x-3 ${isReply ? 'ml-8 sm:ml-12' : ''}`}>
@@ -357,8 +366,20 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
             </form>
           )}
 
-          {/* Render Replies */}
-          {commentReplies.length > 0 && (
+          {/* Toggle and Render Replies */}
+          {!isReply && commentReplies.length > 0 && (
+            <Button
+              onClick={() => toggleRepliesVisibility(comment.id)}
+              variant="ghost"
+              size="sm"
+              className="mt-2 text-xs p-1 h-auto text-primary hover:text-primary/80"
+            >
+              {areRepliesExpanded ? <ChevronUp className="mr-1 h-3.5 w-3.5" /> : <ChevronDown className="mr-1 h-3.5 w-3.5" />}
+              {areRepliesExpanded ? 'Hide Replies' : `View ${commentReplies.length} ${commentReplies.length === 1 ? 'Reply' : 'Replies'}`}
+            </Button>
+          )}
+
+          {areRepliesExpanded && commentReplies.length > 0 && (
             <div className="mt-4 space-y-4 pt-3 border-l-2 border-muted pl-3">
               {commentReplies.map(reply => renderComment(reply, true))}
             </div>
@@ -433,3 +454,4 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
     </section>
   );
 }
+
