@@ -1,14 +1,17 @@
 
+// REMOVED "use client"; 
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 import { AdSettingsProvider } from '@/context/ad-settings-context';
-import { EarningsSettingsProvider } from '@/context/earnings-settings-context'; // Import EarningsSettingsProvider
+import { EarningsSettingsProvider } from '@/context/earnings-settings-context'; 
 import Header from '@/components/layout/header';
-import AdPlaceholder from '@/components/layout/ad-placeholder';
+import ConditionalFooterAd from '@/components/layout/conditional-footer-ad'; // NEW
 import { cn } from '@/lib/utils';
 import { Montserrat, Merriweather, Lora } from 'next/font/google';
+// REMOVED: import { usePathname } from 'next/navigation'; 
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -29,7 +32,7 @@ const lora = Lora({
   style: ['normal', 'italic'],
 });
 
-export const metadata: Metadata = {
+export const metadata: Metadata = { // This is now valid
   title: 'Blogchain',
   description: 'A decentralized blogging platform where creativity pays.',
 };
@@ -39,6 +42,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // REMOVED: const pathname = usePathname();
+  // REMOVED: const isAdminPage = pathname.startsWith('/admin');
+
   return (
     <html lang="en" suppressHydrationWarning className={cn(montserrat.variable, merriweather.variable, lora.variable)}>
       <head>
@@ -49,12 +55,12 @@ export default function RootLayout({
       <body className={cn("font-body antialiased flex flex-col min-h-screen")}>
         <AuthProvider>
           <AdSettingsProvider>
-            <EarningsSettingsProvider> {/* Wrap with EarningsSettingsProvider */}
+            <EarningsSettingsProvider> 
               <Header />
               <main className="flex-grow container mx-auto px-4 py-8">
                 {children}
               </main>
-              <AdPlaceholder type="mobile-sticky-footer" />
+              <ConditionalFooterAd /> {/* MODIFIED: Use new component */}
               <Toaster />
             </EarningsSettingsProvider>
           </AdSettingsProvider>
