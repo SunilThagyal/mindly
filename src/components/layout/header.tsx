@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/context/auth-context';
-import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings, DollarSign, Bell, Loader2 } from 'lucide-react'; 
+import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings, DollarSign, Bell, Loader2, MessageSquare } from 'lucide-react'; 
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,13 +13,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuPortal,
-  DropdownMenuSubContent
 } from "@/components/ui/dropdown-menu";
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, limit, getDocs, Timestamp, writeBatch } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, Timestamp, doc, writeBatch, onSnapshot } from 'firebase/firestore';
 import type { Notification } from '@/lib/types';
 import React, { useEffect, useState, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -31,22 +27,22 @@ export default function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotificationsData = useCallback(async (isInitialFetch = false) => {
     if (!user) {
       setNotifications([]);
       setUnreadCount(0);
+      setLoadingNotifications(false);
       return;
     }
-    setLoadingNotifications(true);
+    if(isInitialFetch) setLoadingNotifications(true);
+
     try {
       const notificationsRef = collection(db, 'users', user.uid, 'notifications');
       
-      // Fetch unread count
       const unreadQuery = query(notificationsRef, where('isRead', '==', false));
       const unreadSnapshot = await getDocs(unreadQuery);
       setUnreadCount(unreadSnapshot.size);
 
-      // Fetch latest 5 unread notifications for display, then latest 5 read if not enough unread.
       let fetchedNotifications: Notification[] = [];
       const unreadDisplayQuery = query(notificationsRef, where('isRead', '==', false), orderBy('createdAt', 'desc'), limit(5));
       const unreadDisplaySnapshot = await getDocs(unreadDisplayQuery);
@@ -62,30 +58,55 @@ export default function Header() {
         const readDisplaySnapshot = await getDocs(readDisplayQuery);
         readDisplaySnapshot.forEach(doc => fetchedNotifications.push({ id: doc.id, ...doc.data() } as Notification));
       }
-      // Sort combined by date again if mixing read/unread
+      
       fetchedNotifications.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-
-      setNotifications(fetchedNotifications.slice(0, 5)); // Ensure we only show max 5
+      setNotifications(fetchedNotifications.slice(0, 5));
 
     } catch (error) {
       console.error("Error fetching notifications:", error);
-      // Optionally show a toast error
     } finally {
-      setLoadingNotifications(false);
+      if(isInitialFetch) setLoadingNotifications(false);
     }
   }, [user]);
 
   useEffect(() => {
     if (user) {
-      fetchNotifications();
-      // Set up a listener for real-time updates if desired, or re-fetch periodically
-      const interval = setInterval(fetchNotifications, 60000); // Re-fetch every minute
-      return () => clearInterval(interval);
+      fetchNotificationsData(true); // Initial fetch with loading indicator
+      
+      // Real-time listener for unread count and recent notifications
+      const notificationsRef = collection(db, 'users', user.uid, 'notifications');
+      const q = query(notificationsRef, orderBy('createdAt', 'desc'));
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        let currentUnreadCount = 0;
+        const currentNotifications: Notification[] = [];
+        snapshot.forEach(docSnap => {
+          const notif = { id: docSnap.id, ...docSnap.data() } as Notification;
+          if (!notif.isRead) {
+            currentUnreadCount++;
+          }
+          if (currentNotifications.length < 5) { // Keep track of latest 5 for display
+            currentNotifications.push(notif);
+          }
+        });
+        setUnreadCount(currentUnreadCount);
+        // Prioritize unread, then fill with read for display
+        const displayNotifications = currentNotifications
+            .sort((a,b) => (a.isRead === b.isRead) ? 0 : a.isRead ? 1 : -1) // unread first
+            .slice(0,5);
+        setNotifications(displayNotifications);
+
+      }, (error) => {
+        console.error("Error with notification listener:", error);
+      });
+
+      return () => unsubscribe();
     } else {
       setNotifications([]);
       setUnreadCount(0);
     }
-  }, [user, fetchNotifications]);
+  }, [user, fetchNotificationsData]);
+
 
   const handleMarkNotificationsAsRead = async (notificationIds: string[]) => {
     if (!user || notificationIds.length === 0) return;
@@ -96,9 +117,9 @@ export default function Header() {
     });
     try {
       await batch.commit();
-      // Optimistically update UI or re-fetch
+      // Optimistic UI update (already handled by listener, but good for immediate feedback if listener is slow)
       setNotifications(prev => prev.map(n => notificationIds.includes(n.id) ? { ...n, isRead: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - notificationIds.length));
+      setUnreadCount(prev => Math.max(0, prev - notificationIds.filter(id => notifications.find(n => n.id === id && !n.isRead)).length));
     } catch (error) {
       console.error("Error marking notifications as read:", error);
     }
@@ -106,20 +127,30 @@ export default function Header() {
   
   const handleNotificationDropdownOpen = (open: boolean) => {
     if (open && user) {
-       // Fetch fresh notifications when opening, as some might have been read elsewhere
-      fetchNotifications().then(() => {
-        const unreadToMark = notifications.filter(n => !n.isRead).map(n => n.id);
-        if (unreadToMark.length > 0) {
-          handleMarkNotificationsAsRead(unreadToMark);
+      fetchNotificationsData().then(() => { // Fetch latest before marking
+        const unreadDisplayed = notifications.filter(n => !n.isRead).map(n => n.id);
+        if (unreadDisplayed.length > 0) {
+          handleMarkNotificationsAsRead(unreadDisplayed);
         }
       });
     }
   };
 
-
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  const formatCompactDistanceToNow = (date: Date) => {
+    return formatDistanceToNow(date, { addSuffix: true, includeSeconds: false })
+      .replace('about ', '')
+      .replace('less than a minute ago', '<1m ago')
+      .replace(' minutes ago', 'm ago')
+      .replace(' minute ago', 'm ago')
+      .replace(' hours ago', 'h ago')
+      .replace(' hour ago', 'h ago')
+      .replace(' days ago', 'd ago')
+      .replace(' day ago', 'd ago');
   };
 
   return (
@@ -159,25 +190,51 @@ export default function Header() {
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-80" align="end">
+              <DropdownMenuContent className="w-80 sm:w-96" align="end">
                 <DropdownMenuLabel className="flex justify-between items-center">
                   Notifications
-                  {loadingNotifications && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loadingNotifications && notifications.length === 0 && <Loader2 className="h-4 w-4 animate-spin" />}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {notifications.length === 0 && !loadingNotifications && (
-                  <DropdownMenuItem disabled className="text-muted-foreground text-center py-4">
+                  <DropdownMenuItem disabled className="text-muted-foreground text-center py-4 text-xs">
                     No new notifications.
                   </DropdownMenuItem>
                 )}
                 {notifications.map(notif => (
-                  <DropdownMenuItem key={notif.id} asChild className={`cursor-pointer ${!notif.isRead ? 'bg-primary/5 hover:bg-primary/10' : ''}`}>
-                    <Link href={notif.link || `/blog/${notif.blogSlug}`} className="flex flex-col items-start whitespace-normal py-2">
-                      <p className="text-sm font-medium">
-                        <span className="font-semibold">{notif.commenterName}</span> commented on <span className="text-primary">{notif.blogTitle}</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(notif.createdAt.toDate(), { addSuffix: true })}
+                  <DropdownMenuItem key={notif.id} asChild className="p-0 focus:bg-transparent cursor-pointer">
+                    <Link
+                      href={notif.link || `/blog/${notif.blogSlug}#comment-${notif.commentId}`}
+                      className={`flex items-start gap-2.5 py-2 px-3 w-full rounded-md transition-colors ${
+                        !notif.isRead ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-accent'
+                      }`}
+                      onClick={() => {
+                          if (!notif.isRead) {
+                              handleMarkNotificationsAsRead([notif.id]);
+                          }
+                      }}
+                    >
+                      <MessageSquare
+                        className={`mt-0.5 h-4 w-4 shrink-0 ${
+                          !notif.isRead ? 'text-primary' : 'text-muted-foreground'
+                        }`}
+                      />
+                      <div className="flex-1 overflow-hidden">
+                        <p className={`text-xs ${!notif.isRead ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                          <span className="font-semibold">{notif.commenterName}</span>
+                          <span className="ml-1">commented on:</span>
+                        </p>
+                        <p
+                          className={`text-xs truncate ${
+                            !notif.isRead ? 'text-primary' : 'text-foreground/80'
+                          }`}
+                          title={notif.blogTitle}
+                        >
+                          {notif.blogTitle}
+                        </p>
+                      </div>
+                      <p className="ml-2 text-xs text-muted-foreground self-start whitespace-nowrap">
+                        {formatCompactDistanceToNow(notif.createdAt.toDate())}
                       </p>
                     </Link>
                   </DropdownMenuItem>
@@ -188,7 +245,9 @@ export default function Header() {
           )}
 
           {authLoading ? (
-            <div className="h-8 w-8 sm:w-20 bg-muted rounded-md animate-pulse"></div>
+             <div className="flex items-center justify-center h-9 w-9">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
           ) : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -261,3 +320,5 @@ export default function Header() {
     </header>
   );
 }
+
+    
