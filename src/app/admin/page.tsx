@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShieldAlert, Settings, Loader2, LayoutDashboard, Users, FileText, Annoyed, DollarSign, SendToBack } from 'lucide-react';
+import { ShieldAlert, Settings, Loader2, LayoutDashboard, Users, FileText, Annoyed, DollarSign, SendToBack, BellDot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import AdSettingsForm from '@/components/admin/ad-settings-form';
@@ -14,6 +14,8 @@ import PostManagementTab from '@/components/admin/post-management-tab';
 import EarningsSettingsForm from '@/components/admin/earnings-settings-form';
 import WithdrawalManagementTab from '@/components/admin/withdrawal-management-tab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { collection, query, where, getDocs,getCountFromServer } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const ADMIN_TABS = ['dashboard', 'ads', 'earnings', 'users', 'posts', 'withdrawals'] as const;
 type AdminTab = typeof ADMIN_TABS[number];
@@ -22,18 +24,30 @@ function isValidTab(tab: string | null): tab is AdminTab {
   return ADMIN_TABS.includes(tab as AdminTab);
 }
 
+async function fetchPendingWithdrawalCount(): Promise<number> {
+  try {
+    const requestsCol = collection(db, 'withdrawalRequests');
+    const q = query(requestsCol, where('status', '==', 'pending'));
+    const snapshot = await getCountFromServer(q);
+    return snapshot.data().count;
+  } catch (error) {
+    console.error("Error fetching pending withdrawal count:", error);
+    return 0;
+  }
+}
+
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  const [pendingWithdrawalCount, setPendingWithdrawalCount] = useState(0);
 
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
     if (isValidTab(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     } else if (tabFromUrl) {
-      // If tab is invalid, redirect to default dashboard
       router.push('/admin?tab=dashboard', { scroll: false });
     }
   }, [searchParams, router]);
@@ -42,6 +56,8 @@ export default function AdminPage() {
     if (!loading) {
       if (!user) {
         router.push(`/auth/login?redirect=/admin${activeTab !== 'dashboard' ? `?tab=${activeTab}` : ''}`);
+      } else if (isAdmin) {
+        fetchPendingWithdrawalCount().then(setPendingWithdrawalCount);
       }
     }
   }, [user, isAdmin, loading, router, activeTab]);
@@ -109,7 +125,16 @@ export default function AdminPage() {
           <TabsTrigger value="earnings"><DollarSign className="mr-1.5 h-4 w-4" />Earnings</TabsTrigger>
           <TabsTrigger value="users"><Users className="mr-1.5 h-4 w-4" />Users</TabsTrigger>
           <TabsTrigger value="posts"><FileText className="mr-1.5 h-4 w-4" />Posts</TabsTrigger>
-          <TabsTrigger value="withdrawals"><SendToBack className="mr-1.5 h-4 w-4" />Withdrawals</TabsTrigger>
+          <TabsTrigger value="withdrawals">
+            <div className="flex items-center relative">
+              <SendToBack className="mr-1.5 h-4 w-4" />Withdrawals
+              {pendingWithdrawalCount > 0 && (
+                <span className="absolute -top-1.5 -right-3 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-xs font-medium text-destructive-foreground">
+                  {pendingWithdrawalCount}
+                </span>
+              )}
+            </div>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -118,8 +143,35 @@ export default function AdminPage() {
               <CardTitle>Dashboard</CardTitle>
               <CardDescription>Overview and general analytics.</CardDescription>
             </CardHeader>
-            <CardContent className="min-h-[200px] flex items-center justify-center">
+            <CardContent className="min-h-[200px] space-y-6">
               <p className="text-muted-foreground">Analytics and overview will be displayed here. (Coming Soon)</p>
+              
+              {isAdmin && (
+                <Card className="bg-accent/10 border-accent">
+                  <CardHeader>
+                    <CardTitle className="text-xl flex items-center">
+                      <BellDot className="mr-2 h-5 w-5 text-accent" />
+                      Pending Actions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {pendingWithdrawalCount > 0 ? (
+                      <div className="flex items-center justify-between">
+                        <p>
+                          There {pendingWithdrawalCount === 1 ? "is" : "are"}{" "}
+                          <span className="font-bold text-destructive">{pendingWithdrawalCount}</span> pending withdrawal
+                          request{pendingWithdrawalCount === 1 ? "" : "s"}.
+                        </p>
+                        <Button variant="outline" size="sm" onClick={() => handleTabChange('withdrawals')}>
+                          View Requests
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">No pending withdrawal requests.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
