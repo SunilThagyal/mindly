@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -38,11 +38,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [isGithubLoading, setIsGithubLoading] = useState(false);
   
   const router = useRouter();
+  const searchParams = useSearchParams(); // For App Router
   const { toast } = useToast();
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
+    const redirectUrl = searchParams.get('redirect');
 
     try {
       if (mode === 'signup') {
@@ -54,13 +56,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName });
         
-        // Send verification email
         try {
             await sendEmailVerification(userCredential.user);
             toast({
               title: 'Account Created & Verification Email Sent!',
               description: `IMPORTANT: A verification email has been sent to ${userCredential.user.email}. Please check your inbox (and especially your spam/junk folder) to verify your account before logging in.`,
-              duration: 10000, // Longer duration for important messages
+              duration: 10000, 
             });
         } catch (verificationError: any) {
             console.error("Error sending verification email:", verificationError);
@@ -72,8 +73,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
             });
         }
 
-
-        // Create user profile in Firestore
         const userDocRef = doc(db, 'users', userCredential.user.uid);
         const newUserProfile: UserProfile = {
           uid: userCredential.user.uid,
@@ -83,13 +82,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
           virtualEarnings: 0,
         };
         await setDoc(userDocRef, newUserProfile);
-        router.push('/auth/login');
+        // After signup, typically redirect to login, which will then handle the original redirect if present
+        router.push(`/auth/login${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`); 
 
       } else { // Login mode
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const loggedInUser = userCredential.user;
 
-        // Bypass email verification for the admin user
         const isAdminLogin = ADMIN_USER_UID && loggedInUser.uid === ADMIN_USER_UID;
 
         if (!isAdminLogin && !loggedInUser.emailVerified) {
@@ -115,7 +114,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
            return;
         }
         toast({ title: 'Logged In!', description: `Welcome back, ${loggedInUser.displayName || 'User'}!` });
-        router.push('/');
+        router.push(redirectUrl || '/');
       }
     } catch (error: any) {
       toast({
@@ -131,6 +130,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const handleSocialLogin = async (providerType: 'google' | 'github') => {
     providerType === 'google' ? setIsGoogleLoading(true) : setIsGithubLoading(true);
     const provider = providerType === 'google' ? new GoogleAuthProvider() : new GithubAuthProvider();
+    const redirectUrl = searchParams.get('redirect');
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
@@ -149,7 +149,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
       }
       
       toast({ title: 'Logged In!', description: `Welcome, ${user.displayName || 'User'}!` });
-      router.push('/');
+      router.push(redirectUrl || '/');
     } catch (error: any) {
       toast({
         title: 'Social Login Error',
@@ -245,14 +245,14 @@ export default function AuthForm({ mode }: AuthFormProps) {
             {mode === 'signup' ? (
               <>
                 Already have an account?{' '}
-                <Link href="/auth/login" className="font-medium text-primary hover:underline">
+                <Link href={`/auth/login${searchParams.get('redirect') ? `?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : ''}`} className="font-medium text-primary hover:underline">
                   Log In
                 </Link>
               </>
             ) : (
               <>
                 Don&apos;t have an account?{' '}
-                <Link href="/auth/signup" className="font-medium text-primary hover:underline">
+                 <Link href={`/auth/signup${searchParams.get('redirect') ? `?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : ''}`} className="font-medium text-primary hover:underline">
                   Sign Up
                 </Link>
                  <span className="mx-1">·</span>

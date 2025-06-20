@@ -82,16 +82,16 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
   const handleLikePost = async () => {
     if (!user || !currentUserProfile) {
-      toast({ title: "Login Required", description: "Please log in to like a post.", variant: "destructive" });
+      toast({ title: "Login Required", description: "Redirecting to login...", variant: "default", duration: 3000 });
+      router.push(`/auth/login?redirect=/blog/${blog.slug}`);
       return;
     }
-
+    
     // Optimistic UI Update First
-    const originallyLiked = blog.likedBy?.includes(user.uid);
     setBlog(prevBlog => ({
       ...prevBlog,
-      likes: (prevBlog.likes || 0) + (originallyLiked ? -1 : 1),
-      likedBy: originallyLiked
+      likes: (prevBlog.likes || 0) + (isLikedByCurrentUser ? -1 : 1),
+      likedBy: isLikedByCurrentUser
         ? (prevBlog.likedBy || []).filter(uid => uid !== user.uid)
         : [...(prevBlog.likedBy || []), user.uid],
     }));
@@ -111,7 +111,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         const firestoreLikedBy = blogDoc.data().likedBy || [];
         let operationType: 'like' | 'unlike';
 
-        if (firestoreLikedBy.includes(user.uid)) { 
+        // Use the pre-optimistic update state for the DB transaction
+        if (initialBlog.likedBy?.includes(user.uid)) { 
           transaction.update(blogRef, {
             likes: increment(-1),
             likedBy: arrayRemove(user.uid)
@@ -142,7 +143,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     } catch (error) {
       console.error("Error liking post:", error);
       toast({ title: "Error", description: "Could not update like status. Reverting UI.", variant: "destructive" });
-      // Revert UI on error by re-setting to initialBlog
+      // Revert UI on error by re-setting to initialBlog (or the version before this attempt)
       setBlog(initialBlog); 
     } finally {
       setIsLiking(false);
@@ -223,7 +224,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           <div className="my-6 flex items-center gap-3 sm:gap-4">
              <Button
                 onClick={handleLikePost}
-                disabled={!user || isLiking}
+                disabled={isLiking} // Only disable if actually processing, not if user is null (handled by redirect)
                 variant="ghost"
                 className="group relative p-0 h-auto rounded-xl font-semibold focus:outline-none focus:ring-2 ring-offset-background focus:ring-red-400"
                 aria-pressed={isLikedByCurrentUser}
@@ -235,9 +236,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     isLikedByCurrentUser
                       ? "bg-red-500 border-red-500 text-white"
                       : "border-muted-foreground/30 text-muted-foreground",
-                    isLikedByCurrentUser && "group-hover:bg-red-600 group-hover:border-red-700", // No color change from group-hover for text/icon if liked
-                    !isLikedByCurrentUser && "group-hover:border-muted-foreground/30 group-hover:text-muted-foreground", // No color change if unliked
-                    isLiking && "cursor-wait"
+                     isLikedByCurrentUser && "hover:bg-red-600 hover:border-red-700", // Maintained hover for liked
+                     !isLikedByCurrentUser && "group-hover:border-accent/50 group-hover:text-accent group-hover:fill-accent/20", // Maintained hover for unliked
+                    isLiking && "cursor-not-allowed"
                 )}>
                   {isLiking ? (
                      <Loader2 className="h-6 w-6 animate-spin text-current" />
@@ -247,13 +248,13 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                         "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-125",
                         isLikedByCurrentUser
                           ? "fill-white text-white" 
-                          : "group-hover:text-muted-foreground" // Icon stroke remains muted on hover for unliked
+                          : "group-hover:text-accent group-hover:fill-accent/20", // Icon stroke and fill change for unliked hover
                       )} />
                       <span className={cn(
                         "text-sm tabular-nums",
                          isLikedByCurrentUser 
                             ? "text-white" 
-                            : "group-hover:text-muted-foreground" // Text remains muted on hover for unliked
+                            : "group-hover:text-accent" // Text color change for unliked hover
                       )}>
                         {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
                       </span>
