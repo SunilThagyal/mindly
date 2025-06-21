@@ -70,8 +70,8 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
     views: currentViews,
     readingTime: blogData.readingTime || 0,
     status: blogData.status || 'draft',
-    createdAt: blogData.createdAt instanceof Timestamp ? blogData.createdAt : Timestamp.now(),
-    publishedAt: blogData.publishedAt instanceof Timestamp ? blogData.publishedAt : null,
+    createdAt: blogData.createdAt,
+    publishedAt: blogData.publishedAt,
     coverImageUrl: blogData.coverImageUrl || null,
     likes: blogData.likes || 0,
     likedBy: blogData.likedBy || [],
@@ -113,7 +113,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
         },
       ],
       type: 'article',
-      publishedTime: blog.publishedAt ? blog.publishedAt.toDate().toISOString() : new Date().toISOString(),
+      publishedTime: blog.publishedAt ? new Date(blog.publishedAt.seconds * 1000).toISOString() : new Date().toISOString(),
       authors: [blog.authorDisplayName || 'Anonymous'],
     },
     twitter: {
@@ -132,20 +132,22 @@ export default async function BlogPage({ params }: { params: { slug: string } })
     notFound();
   }
 
-  const blog = await getBlogBySlug(slug);
+  const blogFromDB = await getBlogBySlug(slug);
   
-  if (!blog) {
+  if (!blogFromDB) {
     notFound();
   }
 
-  // NOTE: This check cannot be fully implemented on the server without knowing the current user.
-  // The logic in BlogPostView will handle the final visibility check on the client.
-  // We allow fetching here, but the client component will decide whether to render.
-  // if (blog.status === 'draft') {
-  //   // You might want to check user permissions here if you have server-side auth access
-  // }
+  const authorProfile = await getAuthorProfile(blogFromDB.authorId);
   
-  const authorProfile = await getAuthorProfile(blog.authorId);
+  // Serialize the blog object to make it safe to pass to the client component
+  const blog = {
+    ...blogFromDB,
+    // Convert Timestamps to plain objects that are JSON serializable
+    createdAt: JSON.parse(JSON.stringify(blogFromDB.createdAt)),
+    publishedAt: blogFromDB.publishedAt ? JSON.parse(JSON.stringify(blogFromDB.publishedAt)) : null,
+  };
+
 
   return <BlogPostView blog={blog} authorProfile={authorProfile} />;
 }

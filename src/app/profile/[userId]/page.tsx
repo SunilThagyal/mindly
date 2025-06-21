@@ -36,8 +36,8 @@ async function getUserBlogs(userId: string): Promise<Blog[]> {
       views: data.views || 0,
       readingTime: data.readingTime || 0,
       status: data.status || 'draft',
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
-      publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt : null,
+      createdAt: data.createdAt,
+      publishedAt: data.publishedAt,
       coverImageUrl: data.coverImageUrl || null,
       likes: data.likes || 0,
       likedBy: data.likedBy || [],
@@ -89,7 +89,16 @@ export default async function UserProfilePage({ params }: { params: { userId: st
     notFound();
   }
 
-  const blogs = await getUserBlogs(userId);
+  const blogsFromDB = await getUserBlogs(userId);
+  
+  // Serialize the blogs array to make it safe to pass to the client component
+  const blogs = blogsFromDB.map(blog => ({
+    ...blog,
+    // Convert Timestamps to plain objects that are JSON serializable
+    createdAt: JSON.parse(JSON.stringify(blog.createdAt)),
+    publishedAt: blog.publishedAt ? JSON.parse(JSON.stringify(blog.publishedAt)) : null,
+  }));
+
 
   return <UserProfileView profile={profile} blogs={blogs} />;
 }

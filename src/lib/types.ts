@@ -40,8 +40,8 @@ export interface Blog {
   views: number;
   readingTime: number;
   status: 'draft' | 'published';
-  createdAt: Timestamp;
-  publishedAt: Timestamp | null;
+  createdAt: any;
+  publishedAt: any;
   coverImageUrl: string | null;
   likes?: number; // Added for post likes count
   likedBy?: string[]; // Added for list of user UIDs who liked the post
