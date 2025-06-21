@@ -5,11 +5,12 @@ import React, { useState } from 'react';
 import type { UserProfile, Blog } from '@/lib/types';
 import BlogCard from '@/components/blog/blog-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { UserCircle, Mail, BarChart3, Coins, Eye, Edit } from 'lucide-react';
+import { UserCircle, Mail, BarChart3, Coins, Eye, Edit, FileText } from 'lucide-react';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
 import EditProfileDialog from './edit-profile-dialog'; 
+import Link from 'next/link';
 
 interface UserProfileViewProps {
   profile: UserProfile;
@@ -91,9 +92,22 @@ export default function UserProfileView({ profile, blogs }: UserProfileViewProps
               ))}
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-10 text-lg">
-              This user hasn&apos;t published any blogs yet.
-            </p>
+            <div className="text-center py-10">
+              {isOwner ? (
+                <div className="flex flex-col items-center gap-4 text-muted-foreground">
+                  <FileText className="h-12 w-12 opacity-50 mb-2" />
+                  <p className="text-lg font-medium">You haven't published any blogs yet.</p>
+                  <p className="text-sm max-w-md">
+                    Your public profile only shows published posts. To view your drafts or create a new post, head over to your personal dashboard.
+                  </p>
+                  <Button asChild className="mt-2">
+                    <Link href="/my-blogs">Go to My Blogs</Link>
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-lg text-muted-foreground">This user hasn&apos;t published any blogs yet.</p>
+              )}
+            </div>
           )}
         </section>
       </div>
