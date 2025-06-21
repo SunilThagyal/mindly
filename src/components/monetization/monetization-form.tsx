@@ -46,11 +46,15 @@ export default function MonetizationForm({ userProfile, userId }: MonetizationFo
   // Determine initial India payment method selection
   useEffect(() => {
     if (userProfile.paymentCountry === 'India') {
-      if (userProfile.paymentUpiId) setIndiaPaymentMethod('upi');
-      else if (userProfile.paymentAccountNumber) setIndiaPaymentMethod('bank');
-      else if (userProfile.paymentPaypalEmail) setIndiaPaymentMethod('paypal_india');
+      if (userProfile.paymentUpiId) {
+        setIndiaPaymentMethod('upi');
+      } else if (userProfile.paymentAccountNumber) {
+        setIndiaPaymentMethod('bank');
+      } else if (userProfile.paymentPaypalEmail) {
+        setIndiaPaymentMethod('paypal_india');
+      }
     }
-  }, [userProfile]);
+  }, [userProfile.paymentCountry, userProfile.paymentUpiId, userProfile.paymentAccountNumber, userProfile.paymentPaypalEmail]);
 
 
   const handleDetailsChange = (field: keyof UserProfile, value: any) => {
@@ -348,4 +352,3 @@ export default function MonetizationForm({ userProfile, userId }: MonetizationFo
     </div>
   );
 }
-

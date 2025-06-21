@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -110,7 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     setLoading(true);
     try {
       await firebaseSignOut(auth);
@@ -123,7 +123,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
   if (loading) {
     return (
@@ -133,8 +133,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
   }
 
+  const contextValue = useMemo(() => ({
+    user,
+    userProfile,
+    loading,
+    isAdmin,
+    signOut,
+  }), [user, userProfile, loading, isAdmin, signOut]);
+
+
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, isAdmin, signOut }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
@@ -147,4 +156,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-
