@@ -1,14 +1,19 @@
 
-"use client";
-
-import { useEffect, useState } from 'react';
-import { useParams, notFound } from 'next/navigation';
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import BlogPostView from '@/components/blog/blog-post-view';
 import type { Blog, UserProfile, EarningsSettings } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, query, where, limit, getDocs, doc, getDoc, updateDoc, increment, Timestamp } from 'firebase/firestore';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context'; // Keep for potential server-side auth checks in future
+
+// Helper function to get the first 150 characters of plain text from HTML
+function getHtmlExcerpt(html: string, length: number = 150): string {
+    if (!html) return '';
+    const plainText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return plainText.length > length ? plainText.substring(0, length) + '...' : plainText;
+}
+
 
 async function getBlogBySlug(slug: string): Promise<Blog | null> {
   const blogsCol = collection(db, 'blogs');
@@ -23,13 +28,15 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
   const blogData = blogDoc.data();
   let currentViews = blogData.views || 0;
 
-  if (blogData.status === 'published') {
-    // Increment blog views
+  // This logic now runs on the server during the request for the page.
+  // It's a good practice to avoid incrementing for every single server render,
+  // especially by bots. A more robust solution might involve a separate API endpoint
+  // called from the client, but for now, we'll keep the server-side increment.
+  if (process.env.NODE_ENV === 'production' && blogData.status === 'published') {
     const blogRef = doc(db, 'blogs', blogDoc.id);
     await updateDoc(blogRef, { views: increment(1) });
-    currentViews++; // Reflect incremented view for current load
+    currentViews++; 
 
-    // If author is monetized, increment their earnings
     if (blogData.authorId) {
       const authorRef = doc(db, 'users', blogData.authorId);
       const authorSnap = await getDoc(authorRef);
@@ -38,11 +45,11 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
         if (authorProfile.isMonetizationApproved) {
           const earningsSettingsRef = doc(db, 'settings', 'earnings');
           const earningsSettingsSnap = await getDoc(earningsSettingsRef);
-          let baseEarning = 0.01; // Default
+          let baseEarning = 0.01; 
           if (earningsSettingsSnap.exists()) {
             baseEarning = (earningsSettingsSnap.data() as EarningsSettings).baseEarningPerView || 0.01;
           }
-          if (baseEarning > 0) { // Ensure earnings rate is positive
+          if (baseEarning > 0) { 
             await updateDoc(authorRef, { virtualEarnings: increment(baseEarning) });
           }
         }
@@ -60,7 +67,7 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
     authorDisplayName: blogData.authorDisplayName || null,
     authorPhotoURL: blogData.authorPhotoURL || null,
     tags: blogData.tags || [],
-    views: currentViews, // Use the updated view count
+    views: currentViews,
     readingTime: blogData.readingTime || 0,
     status: blogData.status || 'draft',
     createdAt: blogData.createdAt instanceof Timestamp ? blogData.createdAt : Timestamp.now(),
@@ -78,70 +85,67 @@ async function getAuthorProfile(authorId: string): Promise<UserProfile | null> {
   return userSnap.exists() ? (userSnap.data() as UserProfile) : null;
 }
 
-
-export default function BlogPage() {
-  const params = useParams();
-  const slug = typeof params.slug === 'string' ? params.slug : '';
-  const [blog, setBlog] = useState<Blog | null>(null);
-  const [authorProfile, setAuthorProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { user: authUser } = useAuth(); // Call useAuth at the top level
-
-  useEffect(() => {
-    if (!slug) {
-      setLoading(false);
-      notFound();
-      return;
-    }
-
-    async function fetchBlogData() {
-      try {
-        const fetchedBlog = await getBlogBySlug(slug);
-        if (fetchedBlog) {
-          setBlog(fetchedBlog);
-          if (fetchedBlog.authorId) {
-            const fetchedAuthor = await getAuthorProfile(fetchedBlog.authorId);
-            setAuthorProfile(fetchedAuthor);
-          }
-        } else {
-          notFound();
-        }
-      } catch (error) {
-        console.error("Error fetching blog:", error);
-        // Consider setting an error state here to show a user-friendly message
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchBlogData();
-  }, [slug]);
-
-  if (loading) {
-    return (
-      <div className="max-w-3xl mx-auto py-8 space-y-8">
-        <Skeleton className="h-96 w-full rounded-lg" />
-        <Skeleton className="h-12 w-3/4" />
-        <div className="flex items-center space-x-4">
-          <Skeleton className="h-10 w-10 rounded-full" />
-          <Skeleton className="h-6 w-1/4" />
-        </div>
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-5/6" />
-        <Skeleton className="h-4 w-3/4" />
-      </div>
-    );
-  }
+// Dynamic Metadata Generation for SEO
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const blog = await getBlogBySlug(params.slug);
 
   if (!blog) {
-    // This typically means notFound() was called or an error occurred
-    // notFound() will render the not-found.tsx page
-    return null; 
+    return {
+      title: 'Blog Post Not Found',
+      description: 'The blog post you are looking for could not be found.',
+    };
   }
 
-  if (blog.status === 'draft' && (!authUser || authUser?.uid !== blog.authorId)) {
-     return <div className="text-center py-10">This blog post is currently a draft and not publicly visible.</div>;
+  const excerpt = getHtmlExcerpt(blog.content);
+
+  return {
+    title: blog.title,
+    description: excerpt,
+    openGraph: {
+      title: blog.title,
+      description: excerpt,
+      images: [
+        {
+          url: blog.coverImageUrl || '/default-og-image.png', // Provide a fallback OG image
+          width: 1200,
+          height: 630,
+          alt: blog.title,
+        },
+      ],
+      type: 'article',
+      publishedTime: blog.publishedAt ? blog.publishedAt.toDate().toISOString() : new Date().toISOString(),
+      authors: [blog.authorDisplayName || 'Anonymous'],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: blog.title,
+      description: excerpt,
+      images: [blog.coverImageUrl || '/default-og-image.png'],
+    },
+  };
+}
+
+
+export default async function BlogPage({ params }: { params: { slug: string } }) {
+  const slug = params.slug;
+  if (!slug) {
+    notFound();
   }
+
+  const blog = await getBlogBySlug(slug);
+  
+  if (!blog) {
+    notFound();
+  }
+
+  // NOTE: This check cannot be fully implemented on the server without knowing the current user.
+  // The logic in BlogPostView will handle the final visibility check on the client.
+  // We allow fetching here, but the client component will decide whether to render.
+  // if (blog.status === 'draft') {
+  //   // You might want to check user permissions here if you have server-side auth access
+  // }
+  
+  const authorProfile = await getAuthorProfile(blog.authorId);
 
   return <BlogPostView blog={blog} authorProfile={authorProfile} />;
 }

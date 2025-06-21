@@ -20,7 +20,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger, // Added AlertDialogTrigger
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, collection, FieldValue } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -51,7 +51,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const [isLiking, setIsLiking] = useState(false);
   const [processedContent, setProcessedContent] = useState<string | null>(null);
 
-
   const wrapMediaElements = useCallback((htmlContent: string) => {
     if (typeof window === 'undefined' || !htmlContent) return htmlContent;
 
@@ -59,57 +58,47 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     const doc = parser.parseFromString(htmlContent, 'text/html');
     const body = doc.body;
 
-    // Process images, videos, and iframes
-    const mediaSelectors = 'img:not(.media-item), video:not(.media-item), iframe:not(.media-item)';
+    const mediaSelectors = 'img, video, iframe';
     const mediaElements = Array.from(body.querySelectorAll(mediaSelectors));
 
     mediaElements.forEach(mediaEl => {
-        if (mediaEl.closest('.media-container')) {
-            return; // Already wrapped or part of an intended structure
-        }
+      if (mediaEl.closest('.media-container')) {
+        return;
+      }
 
-        const container = doc.createElement('div');
-        container.classList.add('media-container');
+      const container = doc.createElement('div');
+      container.classList.add('media-container');
 
-        const mediaType = mediaEl.tagName.toLowerCase();
-        let mediaSrc = mediaEl.getAttribute('src') || '';
+      const mediaType = mediaEl.tagName.toLowerCase();
+      const mediaSrc = mediaEl.getAttribute('src') || '';
 
-        if (mediaType === 'img') {
-            container.style.setProperty('--bg-image', `url("${mediaSrc}")`);
-        } else if (mediaType === 'video') {
-            container.classList.add('video-container');
-        } else if (mediaType === 'iframe') {
-            container.classList.add('iframe-container');
-        }
-        
-        const clonedMedia = mediaEl.cloneNode(true) as HTMLElement;
-        clonedMedia.classList.add('media-item');
+      if (mediaType === 'img') {
+        container.style.setProperty('--bg-image', `url("${mediaSrc}")`);
+      } else if (mediaType === 'video') {
+        container.classList.add('video-container');
+      } else if (mediaType === 'iframe') {
+        container.classList.add('iframe-container');
+      }
 
-        if (mediaType === 'img' && clonedMedia instanceof HTMLImageElement) {
-           clonedMedia.alt = mediaEl.getAttribute('alt') || 'Blog media'; // Preserve or set alt
-           clonedMedia.removeAttribute('data-media-src'); // Clean up helper attributes if any
-           clonedMedia.removeAttribute('data-media-width');
-           clonedMedia.removeAttribute('data-media-height');
-           clonedMedia.removeAttribute('data-media-type');
-        } else if (mediaType === 'video' && clonedMedia instanceof HTMLVideoElement) {
-           clonedMedia.controls = true; // Ensure videos have controls
-           clonedMedia.removeAttribute('data-media-src');
-           clonedMedia.removeAttribute('data-media-width');
-           clonedMedia.removeAttribute('data-media-height');
-           clonedMedia.removeAttribute('data-media-type');
-        } else if (mediaType === 'iframe' && clonedMedia instanceof HTMLIFrameElement) {
-            clonedMedia.setAttribute('frameborder', '0');
-            clonedMedia.setAttribute('allowfullscreen', 'true');
-            clonedMedia.title = mediaEl.getAttribute('title') || "Embedded content";
-        }
+      const clonedMedia = mediaEl.cloneNode(true) as HTMLElement;
+      clonedMedia.classList.add('media-item');
 
-        container.appendChild(clonedMedia);
-        mediaEl.parentNode?.replaceChild(container, mediaEl);
+      if (clonedMedia instanceof HTMLImageElement) {
+        clonedMedia.alt = mediaEl.getAttribute('alt') || 'Blog media';
+      } else if (clonedMedia instanceof HTMLVideoElement) {
+        clonedMedia.controls = true;
+      } else if (clonedMedia instanceof HTMLIFrameElement) {
+        clonedMedia.setAttribute('frameborder', '0');
+        clonedMedia.setAttribute('allowfullscreen', 'true');
+        clonedMedia.title = mediaEl.getAttribute('title') || "Embedded content";
+      }
+
+      container.appendChild(clonedMedia);
+      mediaEl.parentNode?.replaceChild(container, mediaEl);
     });
-    
+
     return body.innerHTML;
   }, []);
-
 
   useEffect(() => {
     setBlog(initialBlog);
@@ -120,7 +109,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         setProcessedContent('');
     }
   }, [initialBlog, wrapMediaElements]);
-
 
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -224,6 +212,10 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         return <div className="flex justify-center items-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
 
+    if (!adsEnabled) {
+      return [<div key="full-content" dangerouslySetInnerHTML={{ __html: processedContent }} />];
+    }
+    
     const contentParts = processedContent.split(/(<\/p>)/gi); 
     const renderedElements: JSX.Element[] = [];
   
@@ -233,14 +225,10 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       point3: 22,
     };
   
-    if (!adsEnabled) {
-      return [<span key="full-content" dangerouslySetInnerHTML={{ __html: processedContent }} />];
-    }
-
     contentParts.forEach((part, index) => {
-      if (typeof part === 'string') {
+      if (typeof part === 'string' && part.trim() !== '') {
         renderedElements.push(
-          <span key={`content-part-${index}-${Math.random()}`} dangerouslySetInnerHTML={{ __html: part }} />
+          <div key={`content-part-${index}-${Math.random()}`} dangerouslySetInnerHTML={{ __html: part }} />
         );
       }
   
@@ -254,11 +242,15 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     });
   
     if (renderedElements.length === 0 && processedContent && processedContent.trim() !== '') {
-        return [<span key="full-content-fallback" dangerouslySetInnerHTML={{ __html: processedContent }} />];
+        return [<div key="full-content-fallback" dangerouslySetInnerHTML={{ __html: processedContent }} />];
     }
     
     return renderedElements;
   };
+  
+  if (blog.status === 'draft' && (!user || user?.uid !== blog.authorId)) {
+     return <div className="text-center py-10">This blog post is currently a draft and not publicly visible.</div>;
+  }
 
   return (
     <>

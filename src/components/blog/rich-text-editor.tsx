@@ -80,39 +80,28 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
           });
           const data = await response.json();
           
-          const currentContent = quill.getContents();
-          let placeholderActualIndex = -1;
-          let cumulativeIndex = 0;
-          for (const op of currentContent.ops || []) {
-            if (typeof op.insert === 'string') {
-              const foundIndex = op.insert.indexOf(placeholderText);
-              if (foundIndex !== -1) {
-                placeholderActualIndex = cumulativeIndex + foundIndex;
-                break;
-              }
-              cumulativeIndex += op.insert.length;
-            } else {
-              cumulativeIndex += 1; 
-            }
-          }
+          quill.deleteText(range.index, placeholderText.length, Quill.sources.SILENT);
           
-          if (placeholderActualIndex !== -1) {
-            quill.deleteText(placeholderActualIndex, placeholderText.length, Quill.sources.SILENT);
-          } else {
-             quill.deleteText(range.index, placeholderText.length, Quill.sources.SILENT);
-          }
-          
-          const insertionIndex = placeholderActualIndex !== -1 ? placeholderActualIndex : range.index;
-
           if (data.secure_url) {
-            if (fileType === 'image') {
-              quill.insertEmbed(insertionIndex, 'image', data.secure_url, Quill.sources.USER);
-            } else if (fileType === 'video') {
-              quill.clipboard.dangerouslyPasteHTML(insertionIndex, `<video src="${data.secure_url}" controls></video>`, Quill.sources.USER);
-            }
-            quill.setSelection(insertionIndex + 1, 0, Quill.sources.SILENT); 
-            quill.insertText(insertionIndex + 1, '\n', Quill.sources.USER); 
+              const attributes = {
+                  src: data.secure_url,
+                  alt: file.name, // Use filename as default alt text
+                  'data-media-width': data.width,
+                  'data-media-height': data.height,
+                  'data-media-type': fileType,
+              };
 
+              quill.insertEmbed(range.index, fileType, attributes.src, Quill.sources.USER);
+              // It's tricky to set multiple attributes directly with insertEmbed. 
+              // The primary goal is getting the URL in. The client-side wrapper will handle the rest.
+              // For a more robust solution, custom blots would be needed.
+              
+              if(fileType === 'image') {
+                quill.formatText(range.index, 1, { alt: file.name });
+              }
+
+              quill.setSelection(range.index + 1, 0, Quill.sources.SILENT);
+              quill.insertText(range.index + 1, '\n', Quill.sources.USER);
           } else {
             let errorMsg = `Cloudinary ${fileType} upload failed.`;
             if (data.error?.message) {
@@ -122,26 +111,7 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
           }
         } catch (error) {
           console.error(`Cloudinary ${fileType} upload error:`, error);
-          const currentContentOnError = quill.getContents();
-          let placeholderIndexOnError = -1;
-          let cumulativeIndexOnError = 0;
-          for (const op of currentContentOnError.ops || []) {
-            if (typeof op.insert === 'string') {
-              const foundIndex = op.insert.indexOf(placeholderText);
-              if (foundIndex !== -1) {
-                placeholderIndexOnError = cumulativeIndexOnError + foundIndex;
-                break;
-              }
-              cumulativeIndexOnError += op.insert.length;
-            } else {
-              cumulativeIndexOnError += 1;
-            }
-          }
-          if (placeholderIndexOnError !== -1) {
-            quill.deleteText(placeholderIndexOnError, placeholderText.length, Quill.sources.SILENT);
-          } else {
-             quill.deleteText(range.index, placeholderText.length, Quill.sources.SILENT);
-          }
+          quill.deleteText(range.index, placeholderText.length, Quill.sources.SILENT);
           alert(`${fileType.charAt(0).toUpperCase() + fileType.slice(1)} upload failed: ` + (error as Error).message);
         }
       }
@@ -278,4 +248,3 @@ ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} uploads via the editor w
 };
 
 export default RichTextEditor;
-
