@@ -28,7 +28,7 @@ export default function HowItWorksPage() {
         <StepCard
           icon={<ShieldCheck className="h-10 w-10 text-accent" />}
           title="3. Become Eligible for Monetization"
-          description="Before you can earn, your account must be approved. To qualify, you need to publish at least 10 high-quality posts and achieve a minimum of 200 views on each of them. This ensures a standard of quality on the platform."
+          description="Before you can earn, your account must be approved. To qualify, you need to publish at least 10 high-quality posts and achieve a combined total of at least 500 views across all your published posts. This ensures a standard of quality on the platform."
         />
         <StepCard
           icon={<HandCoins className="h-10 w-10 text-accent" />}
