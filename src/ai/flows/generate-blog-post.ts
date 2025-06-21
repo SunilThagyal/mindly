@@ -37,6 +37,7 @@ Key requirements for your writing:
 - **Language**: Employ varied vocabulary and sentence structures. Strictly avoid repetitive phrases, clichés, overly formal or academic language, and any patterns that might suggest AI generation (e.g., "In conclusion...", "It is important to note...", "Furthermore...", "The digital age...", "In today's fast-paced world...").
 - **Structure**: Ensure the blog post is well-organized with a clear introduction that hooks the reader, a body with logical paragraph breaks and potentially 2-3 subheadings (using <h2> or <h3>), and a natural-sounding conclusion that summarizes key takeaways or offers a final thought.
 - **Formatting**: Generate the blog content in HTML. Use appropriate HTML tags such as <p> for paragraphs, <h2> and <h3> for subheadings, <strong> for bold text, and <em> for italic text. Do NOT include <html>, <head>, or <body> tags. The HTML should be clean and ready for direct use in a rich text editor.
+- **Markdown**: Strictly avoid using any Markdown syntax (e.g., # for headings, * or _ for emphasis). All formatting must be done exclusively with the specified HTML tags.
 - **Title**: Create a compelling, concise, and SEO-friendly title for the blog post. The title should be captivating and accurately reflect the content.
 - **Content Quality**: Ensure the content is original, insightful, and provides real value to the reader. Be creative and think outside the box.
 
