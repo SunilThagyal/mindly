@@ -15,8 +15,9 @@ import EarningsSettingsForm from '@/components/admin/earnings-settings-form';
 import WithdrawalManagementTab from '@/components/admin/withdrawal-management-tab';
 import ThemeManagementTab from '@/components/admin/theme-management-tab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { collection, query, where, getCountFromServer } from 'firebase/firestore';
+import { collection, query, where, getCountFromServer, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import type { UserProfile } from '@/lib/types';
 
 const ADMIN_TABS = ['dashboard', 'ads', 'earnings', 'users', 'posts', 'withdrawals', 'theme'] as const;
 type AdminTab = typeof ADMIN_TABS[number];
@@ -37,12 +38,50 @@ async function fetchPendingWithdrawalCount(): Promise<number> {
   }
 }
 
+async function fetchEligibleForMonetizationCount(): Promise<number> {
+  try {
+    const usersCol = collection(db, 'users');
+    const userSnapshot = await getDocs(usersCol);
+
+    const usersToProcess = userSnapshot.docs
+      .map(doc => doc.data() as UserProfile)
+      .filter(user => !user.isMonetizationApproved);
+
+    let eligibleCount = 0;
+    
+    for (const user of usersToProcess) {
+      const blogsCol = collection(db, 'blogs');
+      const qPosts = query(blogsCol, where('authorId', '==', user.uid), where('status', '==', 'published'));
+      const postsSnapshot = await getDocs(qPosts);
+      
+      const postCount = postsSnapshot.size;
+      if (postCount < 10) {
+        continue; 
+      }
+
+      let totalViews = 0;
+      postsSnapshot.forEach(doc => {
+        totalViews += doc.data().views || 0;
+      });
+
+      if (totalViews >= 500) {
+        eligibleCount++;
+      }
+    }
+    return eligibleCount;
+  } catch (error) {
+    console.error("Error fetching eligible user count:", error);
+    return 0;
+  }
+}
+
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [pendingWithdrawalCount, setPendingWithdrawalCount] = useState(0);
+  const [eligibleUserCount, setEligibleUserCount] = useState(0);
 
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
@@ -60,6 +99,7 @@ export default function AdminPage() {
         router.push(`/auth/login?redirect=/admin${activeTab !== 'dashboard' ? `?tab=${activeTab}` : ''}`);
       } else if (isAdmin) {
         fetchPendingWithdrawalCount().then(setPendingWithdrawalCount);
+        fetchEligibleForMonetizationCount().then(setEligibleUserCount);
       }
     }
   }, [user, isAdmin, loading, router, activeTab]);
@@ -163,19 +203,35 @@ export default function AdminPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {pendingWithdrawalCount > 0 ? (
-                      <div className="flex items-center justify-between">
-                        <p>
-                          There {pendingWithdrawalCount === 1 ? "is" : "are"}{" "}
-                          <span className="font-bold text-destructive">{pendingWithdrawalCount}</span> pending withdrawal
-                          request{pendingWithdrawalCount === 1 ? "" : "s"}.
-                        </p>
-                        <Button variant="outline" size="sm" onClick={() => handleTabChange('withdrawals')}>
-                          View Requests
-                        </Button>
+                    {pendingWithdrawalCount > 0 || eligibleUserCount > 0 ? (
+                      <div className="space-y-4">
+                        {pendingWithdrawalCount > 0 && (
+                          <div className="flex items-center justify-between">
+                            <p>
+                              There {pendingWithdrawalCount === 1 ? 'is' : 'are'}{' '}
+                              <span className="font-bold text-destructive">{pendingWithdrawalCount}</span> pending withdrawal
+                              request{pendingWithdrawalCount === 1 ? '' : 's'}.
+                            </p>
+                            <Button variant="outline" size="sm" onClick={() => handleTabChange('withdrawals')}>
+                              View Requests
+                            </Button>
+                          </div>
+                        )}
+                        {eligibleUserCount > 0 && (
+                          <div className={`flex items-center justify-between ${pendingWithdrawalCount > 0 ? 'pt-4 border-t border-accent/20' : ''}`}>
+                            <p>
+                              There {eligibleUserCount === 1 ? 'is' : 'are'}{' '}
+                              <span className="font-bold text-destructive">{eligibleUserCount}</span> user{eligibleUserCount === 1 ? '' : 's'}{' '}
+                              eligible for monetization approval.
+                            </p>
+                            <Button variant="outline" size="sm" onClick={() => handleTabChange('users')}>
+                              View Users
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <p className="text-muted-foreground">No pending withdrawal requests.</p>
+                      <p className="text-muted-foreground">No pending actions.</p>
                     )}
                   </CardContent>
                 </Card>
