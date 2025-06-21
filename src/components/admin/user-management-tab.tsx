@@ -20,17 +20,27 @@ async function getAllUserProfiles(): Promise<UserProfile[]> {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile & { id: string }));
 }
 
-async function getUserPostCount(userId: string): Promise<number> {
+async function getUserStats(userId: string): Promise<{ postCount: number; totalViews: number }> {
     const blogsCol = collection(db, 'blogs');
-    const q = query(blogsCol, where('authorId', '==', userId));
+    // Only count published posts and their views for monetization eligibility
+    const q = query(blogsCol, where('authorId', '==', userId), where('status', '==', 'published'));
     const snapshot = await getDocs(q);
-    return snapshot.size;
+
+    let totalViews = 0;
+    snapshot.docs.forEach(doc => {
+        totalViews += doc.data().views || 0;
+    });
+
+    return {
+        postCount: snapshot.size,
+        totalViews,
+    };
 }
 
 
 export default function UserManagementTab() {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
-  const [userPostCounts, setUserPostCounts] = useState<Record<string, number>>({});
+  const [userStats, setUserStats] = useState<Record<string, { postCount: number, totalViews: number }>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -38,6 +48,7 @@ export default function UserManagementTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBlocked, setFilterBlocked] = useState(false);
   const [filterRestricted, setFilterRestricted] = useState(false);
+  const [filterEligible, setFilterEligible] = useState(false);
 
   const fetchUsersData = useCallback(async () => {
     setLoading(true);
@@ -46,11 +57,11 @@ export default function UserManagementTab() {
       const fetchedUsers = await getAllUserProfiles();
       setAllUsers(fetchedUsers);
 
-      const counts: Record<string, number> = {};
+      const stats: Record<string, { postCount: number; totalViews: number }> = {};
       for (const user of fetchedUsers) {
-        counts[user.uid] = await getUserPostCount(user.uid);
+        stats[user.uid] = await getUserStats(user.uid);
       }
-      setUserPostCounts(counts);
+      setUserStats(stats);
 
     } catch (err: any) {
       console.error("Error fetching users:", err);
@@ -85,9 +96,18 @@ export default function UserManagementTab() {
         user.email?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesBlocked = !filterBlocked || user.isBlocked === true;
       const matchesRestricted = !filterRestricted || user.postingRestricted === true;
-      return matchesSearch && matchesBlocked && matchesRestricted;
+
+      const matchesEligible = (() => {
+        if (!filterEligible) return true;
+        const stats = userStats[user.uid];
+        if (!stats) return false;
+        const isEligible = stats.postCount >= 10 && stats.totalViews >= 500;
+        return isEligible && !user.isMonetizationApproved;
+      })();
+      
+      return matchesSearch && matchesBlocked && matchesRestricted && matchesEligible;
     });
-  }, [allUsers, searchTerm, filterBlocked, filterRestricted]);
+  }, [allUsers, searchTerm, filterBlocked, filterRestricted, filterEligible, userStats]);
 
   if (loading) {
     return (
@@ -127,8 +147,8 @@ export default function UserManagementTab() {
       <CardContent>
         <div className="mb-6 p-4 border rounded-lg bg-muted/30 space-y-4">
           <h3 className="text-lg font-semibold">Filters</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">
-            <div className="space-y-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            <div className="space-y-1 lg:col-span-1">
               <Label htmlFor="userSearch">Search User (Name/Email)</Label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -147,7 +167,7 @@ export default function UserManagementTab() {
                 )}
               </div>
             </div>
-            <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+            <div className="flex items-center space-x-2 pt-2 sm:pt-6">
               <Checkbox
                 id="filterBlocked"
                 checked={filterBlocked}
@@ -155,7 +175,7 @@ export default function UserManagementTab() {
               />
               <Label htmlFor="filterBlocked" className="cursor-pointer">Show Blocked Only</Label>
             </div>
-            <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+            <div className="flex items-center space-x-2 pt-2 sm:pt-6">
               <Checkbox
                 id="filterRestricted"
                 checked={filterRestricted}
@@ -163,13 +183,21 @@ export default function UserManagementTab() {
               />
               <Label htmlFor="filterRestricted" className="cursor-pointer">Show Posting Restricted Only</Label>
             </div>
+             <div className="flex items-center space-x-2 pt-2 sm:pt-6">
+              <Checkbox
+                id="filterEligible"
+                checked={filterEligible}
+                onCheckedChange={(checked) => setFilterEligible(checked as boolean)}
+              />
+              <Label htmlFor="filterEligible" className="cursor-pointer">Eligible for Monetization</Label>
+            </div>
           </div>
         </div>
 
         {filteredUsers.length === 0 ? (
           <p className="text-muted-foreground text-center py-5">No users match the current filters.</p>
         ) : (
-          <UserTable users={filteredUsers} onUpdateUser={handleUpdateUser} postCounts={userPostCounts} />
+          <UserTable users={filteredUsers} onUpdateUser={handleUpdateUser} userStats={userStats} />
         )}
       </CardContent>
     </Card>

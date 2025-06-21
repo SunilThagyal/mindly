@@ -18,10 +18,10 @@ import { UserCircle, CheckCircle, XCircle } from 'lucide-react';
 interface UserTableProps {
   users: UserProfile[];
   onUpdateUser: (userId: string, updates: Partial<UserProfile>) => Promise<void>;
-  postCounts: Record<string, number>;
+  userStats: Record<string, { postCount: number; totalViews: number }>;
 }
 
-export default function UserTable({ users, onUpdateUser, postCounts }: UserTableProps) {
+export default function UserTable({ users, onUpdateUser, userStats }: UserTableProps) {
   return (
     <div className="rounded-md border overflow-x-auto">
       <Table>
@@ -33,6 +33,7 @@ export default function UserTable({ users, onUpdateUser, postCounts }: UserTable
             <TableHead>Account Status</TableHead>
             <TableHead>Monetization</TableHead>
             <TableHead className="text-center">Posts</TableHead>
+            <TableHead className="text-center">Total Views</TableHead>
             <TableHead className="text-right w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -67,7 +68,8 @@ export default function UserTable({ users, onUpdateUser, postCounts }: UserTable
                   {user.isMonetizationApproved ? 'Approved' : 'Not Approved'}
                 </Badge>
               </TableCell>
-              <TableCell className="text-center">{postCounts[user.uid] ?? 0}</TableCell>
+              <TableCell className="text-center">{userStats[user.uid]?.postCount ?? 0}</TableCell>
+              <TableCell className="text-center">{userStats[user.uid]?.totalViews ?? 0}</TableCell>
               <TableCell className="text-right">
                 <UserTableRowActions user={user} onUpdateUser={onUpdateUser} />
               </TableCell>
