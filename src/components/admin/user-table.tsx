@@ -38,43 +38,46 @@ export default function UserTable({ users, onUpdateUser, userStats }: UserTableP
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((user) => (
-            <TableRow key={user.uid}>
-              <TableCell>
-                <Avatar className="h-9 w-9">
-                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
-                    <AvatarFallback>{user.displayName ? user.displayName.charAt(0).toUpperCase() : <UserCircle size={18}/>}</AvatarFallback>
-                </Avatar>
-              </TableCell>
-              <TableCell className="font-medium">{user.displayName || 'N/A'}</TableCell>
-              <TableCell>{user.email}</TableCell>
-              <TableCell>
-                <div className="flex flex-col gap-1">
-                  <Badge variant={user.isBlocked ? 'destructive' : 'secondary'}>
-                    {user.isBlocked ? 'Blocked' : 'Active'}
+          {users.map((user) => {
+            const stats = userStats[user.uid] || { postCount: 0, totalViews: 0 };
+            return (
+              <TableRow key={user.uid}>
+                <TableCell>
+                  <Avatar className="h-9 w-9">
+                      <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
+                      <AvatarFallback>{user.displayName ? user.displayName.charAt(0).toUpperCase() : <UserCircle size={18}/>}</AvatarFallback>
+                  </Avatar>
+                </TableCell>
+                <TableCell className="font-medium">{user.displayName || 'N/A'}</TableCell>
+                <TableCell>{user.email}</TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <Badge variant={user.isBlocked ? 'destructive' : 'secondary'}>
+                      {user.isBlocked ? 'Blocked' : 'Active'}
+                    </Badge>
+                    <Badge variant={user.postingRestricted ? 'outline' : 'secondary'} className={user.postingRestricted ? "border-yellow-500 text-yellow-600" : ""}>
+                      {user.postingRestricted ? 'Posting Restricted' : 'Posting Allowed'}
+                    </Badge>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={user.isMonetizationApproved ? 'default' : 'secondary'} className={user.isMonetizationApproved ? "bg-green-600 hover:bg-green-700" : ""}>
+                    {user.isMonetizationApproved ? (
+                      <CheckCircle className="mr-1 h-3.5 w-3.5" />
+                    ) : (
+                      <XCircle className="mr-1 h-3.5 w-3.5" />
+                    )}
+                    {user.isMonetizationApproved ? 'Approved' : 'Not Approved'}
                   </Badge>
-                  <Badge variant={user.postingRestricted ? 'outline' : 'secondary'} className={user.postingRestricted ? "border-yellow-500 text-yellow-600" : ""}>
-                    {user.postingRestricted ? 'Posting Restricted' : 'Posting Allowed'}
-                  </Badge>
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge variant={user.isMonetizationApproved ? 'default' : 'secondary'} className={user.isMonetizationApproved ? "bg-green-600 hover:bg-green-700" : ""}>
-                  {user.isMonetizationApproved ? (
-                    <CheckCircle className="mr-1 h-3.5 w-3.5" />
-                  ) : (
-                    <XCircle className="mr-1 h-3.5 w-3.5" />
-                  )}
-                  {user.isMonetizationApproved ? 'Approved' : 'Not Approved'}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-center">{userStats[user.uid]?.postCount ?? 0}</TableCell>
-              <TableCell className="text-center">{userStats[user.uid]?.totalViews ?? 0}</TableCell>
-              <TableCell className="text-right">
-                <UserTableRowActions user={user} onUpdateUser={onUpdateUser} />
-              </TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+                <TableCell className="text-center">{stats.postCount}</TableCell>
+                <TableCell className="text-center">{stats.totalViews}</TableCell>
+                <TableCell className="text-right">
+                  <UserTableRowActions user={user} onUpdateUser={onUpdateUser} stats={stats} />
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

@@ -12,19 +12,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit, ShieldOff, ShieldCheck, MessageSquareWarning, Eye, DollarSign, CheckCircle, XCircle } from 'lucide-react';
+import { MoreHorizontal, Edit, ShieldOff, ShieldCheck, MessageSquareWarning, Eye, DollarSign, CheckCircle, XCircle, Info } from 'lucide-react';
 import EditUserProfileDialog from './edit-user-profile-dialog';
 import RestrictPostingDialog from './restrict-posting-dialog';
 import { useRouter } from 'next/navigation';
+import UserInfoDialog from './user-info-dialog';
 
 interface UserTableRowActionsProps {
   user: UserProfile;
   onUpdateUser: (userId: string, updates: Partial<UserProfile>) => Promise<void>;
+  stats: { postCount: number, totalViews: number };
 }
 
-export default function UserTableRowActions({ user, onUpdateUser }: UserTableRowActionsProps) {
+export default function UserTableRowActions({ user, onUpdateUser, stats }: UserTableRowActionsProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isRestrictModalOpen, setIsRestrictModalOpen] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const router = useRouter();
 
   const handleBlockToggle = () => {
@@ -50,6 +53,10 @@ export default function UserTableRowActions({ user, onUpdateUser }: UserTableRow
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel>Actions for {user.displayName || user.email}</DropdownMenuLabel>
+          <DropdownMenuItem onClick={() => setIsInfoModalOpen(true)}>
+            <Info className="mr-2 h-4 w-4" />
+            User Info
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={handleViewPosts}>
             <Eye className="mr-2 h-4 w-4" />
             View User's Posts
@@ -92,6 +99,12 @@ export default function UserTableRowActions({ user, onUpdateUser }: UserTableRow
           await onUpdateUser(user.uid, updates);
           setIsRestrictModalOpen(false);
         }}
+      />
+      <UserInfoDialog
+        isOpen={isInfoModalOpen}
+        onClose={() => setIsInfoModalOpen(false)}
+        user={user}
+        stats={stats}
       />
     </>
   );
