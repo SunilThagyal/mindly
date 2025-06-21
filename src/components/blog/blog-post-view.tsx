@@ -32,6 +32,7 @@ import RelatedPosts from './related-posts';
 import CommentsSection from './comments-section';
 import SocialShareButtons from './social-share-buttons';
 import { cn } from '@/lib/utils';
+import { incrementViewCount } from '@/lib/actions';
 
 interface BlogPostViewProps {
   blog: Blog;
@@ -44,12 +45,26 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const { baseEarningPerView } = useEarningsSettings();
   const router = useRouter();
   const { toast } = useToast();
-  const contentRef = useRef<HTMLDivElement>(null);
-
+  
   const [blog, setBlog] = useState<Blog>(initialBlog);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
   const [processedContent, setProcessedContent] = useState<string | null>(null);
+  const viewTriggered = useRef(false);
+
+  useEffect(() => {
+    if (initialBlog.status === 'published' && !viewTriggered.current && user?.uid !== initialBlog.authorId) {
+      viewTriggered.current = true;
+      // Fire-and-forget server action to increment view count
+      incrementViewCount(initialBlog.id, initialBlog.authorId).then(result => {
+        if (result.success) {
+          // Optimistically update the view count on the client for immediate feedback
+          setBlog(prevBlog => ({...prevBlog, views: prevBlog.views + 1}));
+        }
+      });
+    }
+  }, [initialBlog.id, initialBlog.authorId, user?.uid, initialBlog.status]);
+
 
   const wrapMediaElements = useCallback((htmlContent: string) => {
     if (typeof window === 'undefined' || !htmlContent) return htmlContent;
@@ -395,7 +410,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
             </div>
 
             <div 
-              ref={contentRef}
               className="prose dark:prose-invert"
             >
                {renderContentWithAds()}

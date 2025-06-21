@@ -2,10 +2,10 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import BlogPostView from '@/components/blog/blog-post-view';
-import type { Blog, UserProfile, EarningsSettings } from '@/lib/types';
+import type { Blog, UserProfile } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, query, where, limit, getDocs, doc, getDoc, updateDoc, increment, Timestamp } from 'firebase/firestore';
-import { cookies } from 'next/headers';
+import { collection, query, where, limit, getDocs, doc, getDoc } from 'firebase/firestore';
+import { cache } from 'react';
 
 // Helper function to get the first 150 characters of plain text from HTML
 function getHtmlExcerpt(html: string, length: number = 150): string {
@@ -14,8 +14,7 @@ function getHtmlExcerpt(html: string, length: number = 150): string {
     return plainText.length > length ? plainText.substring(0, length) + '...' : plainText;
 }
 
-
-async function getBlogBySlug(slug: string): Promise<Blog | null> {
+const getBlogBySlug = cache(async (slug: string): Promise<Blog | null> => {
   const blogsCol = collection(db, 'blogs');
   const q = query(blogsCol, where('slug', '==', slug), limit(1));
   const snapshot = await getDocs(q);
@@ -26,62 +25,8 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
 
   const blogDoc = snapshot.docs[0];
   const blogData = blogDoc.data();
-  let currentViews = blogData.views || 0;
 
-  // New cookie-based view counting logic
-  if (blogData.status === 'published') {
-    const cookieStore = cookies();
-    const viewedCookie = cookieStore.get('viewedBlogs');
-    let viewedBlogs: string[] = [];
-
-    if (viewedCookie) {
-      try {
-        const parsed = JSON.parse(viewedCookie.value);
-        if (Array.isArray(parsed)) {
-          viewedBlogs = parsed;
-        }
-      } catch (e) {
-        console.error("Failed to parse viewedBlogs cookie:", e);
-        viewedBlogs = [];
-      }
-    }
-
-    if (!viewedBlogs.includes(blogDoc.id)) {
-      const blogRef = doc(db, 'blogs', blogDoc.id);
-      await updateDoc(blogRef, { views: increment(1) });
-      currentViews++;
-
-      if (blogData.authorId) {
-        const authorRef = doc(db, 'users', blogData.authorId);
-        const authorSnap = await getDoc(authorRef);
-        if (authorSnap.exists()) {
-          const authorProfile = authorSnap.data() as UserProfile;
-          if (authorProfile.isMonetizationApproved) {
-            const earningsSettingsRef = doc(db, 'settings', 'earnings');
-            const earningsSettingsSnap = await getDoc(earningsSettingsRef);
-            let baseEarning = 0.01;
-            if (earningsSettingsSnap.exists()) {
-              baseEarning = (earningsSettingsSnap.data() as EarningsSettings).baseEarningPerView || 0.01;
-            }
-            if (baseEarning > 0) {
-              await updateDoc(authorRef, { virtualEarnings: increment(baseEarning) });
-            }
-          }
-        }
-      }
-      
-      // Update cookie
-      viewedBlogs.push(blogDoc.id);
-      cookieStore.set('viewedBlogs', JSON.stringify(viewedBlogs), {
-        maxAge: 12 * 60 * 60, // 12 hours
-        path: '/',
-        httpOnly: true,
-        sameSite: 'lax',
-      });
-    }
-  }
-
-
+  // This function is now READ-ONLY. All view counting and cookie logic is moved to a Server Action.
   return {
     id: blogDoc.id,
     ...blogData,
@@ -92,7 +37,7 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
     authorDisplayName: blogData.authorDisplayName || null,
     authorPhotoURL: blogData.authorPhotoURL || null,
     tags: blogData.tags || [],
-    views: currentViews,
+    views: blogData.views || 0,
     readingTime: blogData.readingTime || 0,
     status: blogData.status || 'draft',
     createdAt: blogData.createdAt,
@@ -101,7 +46,7 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
     likes: blogData.likes || 0,
     likedBy: blogData.likedBy || [],
   } as Blog;
-}
+});
 
 async function getAuthorProfile(authorId: string): Promise<UserProfile | null> {
   if (!authorId) return null;
