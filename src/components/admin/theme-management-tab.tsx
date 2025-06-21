@@ -8,9 +8,10 @@ import type { ThemeSettings } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, AlertTriangle, Palette, Type, List, Info, Droplets, RotateCcw } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, Palette, Type, List, Info, Droplets, RotateCcw, Sparkles } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { HexColorPicker } from 'react-colorful';
@@ -24,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { generateTheme } from '@/ai/flows/generate-theme';
 
 
 const FONT_OPTIONS = {
@@ -85,6 +87,8 @@ export default function ThemeManagementTab() {
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [aiThemePrompt, setAiThemePrompt] = useState('');
+  const [isGeneratingTheme, setIsGeneratingTheme] = useState(false);
   const { toast } = useToast();
 
   const settingsDocRef = useMemo(() => doc(db, 'settings', 'theme'), []);
@@ -143,6 +147,38 @@ export default function ThemeManagementTab() {
             <p className="text-xs text-muted-foreground mt-1">{hint}</p>
         </div>
     );
+  };
+
+  const handleGenerateThemeWithAI = async () => {
+    if (!aiThemePrompt.trim()) {
+        toast({ title: 'Prompt needed', description: 'Please describe the theme you want to generate.', variant: 'destructive' });
+        return;
+    }
+    setIsGeneratingTheme(true);
+    try {
+        const result = await generateTheme({ prompt: aiThemePrompt });
+        if (result) {
+            // Merge AI result with existing settings to not lose itemsPerPage etc.
+            setSettings(prev => ({ ...prev, ...result }));
+            toast({
+                title: 'Theme Generated!',
+                description: 'AI has populated the theme settings. Review and save them below.',
+                action: <CheckCircle className="text-green-500" />,
+            });
+        } else {
+            throw new Error("AI returned no result.");
+        }
+    } catch (error: any) {
+        console.error("Error generating theme with AI:", error);
+        toast({
+            title: 'AI Generation Error',
+            description: error.message || 'Failed to generate theme.',
+            variant: 'destructive',
+            action: <AlertTriangle className="text-red-500" />,
+        });
+    } finally {
+        setIsGeneratingTheme(false);
+    }
   };
 
 
@@ -210,6 +246,38 @@ export default function ThemeManagementTab() {
   return (
     <>
     <form onSubmit={handleSubmit} className="space-y-8">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center"><Sparkles className="mr-2 text-primary" /> AI Theme Generator</CardTitle>
+          <CardDescription>
+            Describe the look and feel you want, and let AI create a theme for you. The generated values will populate the fields below for you to review and save.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <div>
+                <Label htmlFor="aiThemePrompt">Describe your theme</Label>
+                <Textarea 
+                    id="aiThemePrompt"
+                    placeholder="e.g., a dark, futuristic theme with neon green accents"
+                    value={aiThemePrompt}
+                    onChange={(e) => setAiThemePrompt(e.target.value)}
+                    rows={3}
+                    disabled={isGeneratingTheme}
+                />
+            </div>
+            <Button
+                type="button"
+                onClick={handleGenerateThemeWithAI}
+                disabled={isGeneratingTheme || !aiThemePrompt.trim()}
+                variant="outline"
+                className="border-primary text-primary hover:bg-primary/10"
+            >
+                {isGeneratingTheme ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                Generate with AI
+            </Button>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center"><Palette className="mr-2" />Site-wide Colors</CardTitle>
