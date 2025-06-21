@@ -5,7 +5,7 @@ import BlogPostView from '@/components/blog/blog-post-view';
 import type { Blog, UserProfile, EarningsSettings } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, query, where, limit, getDocs, doc, getDoc, updateDoc, increment, Timestamp } from 'firebase/firestore';
-import { useAuth } from '@/context/auth-context'; // Keep for potential server-side auth checks in future
+import { cookies } from 'next/headers';
 
 // Helper function to get the first 150 characters of plain text from HTML
 function getHtmlExcerpt(html: string, length: number = 150): string {
@@ -28,34 +28,59 @@ async function getBlogBySlug(slug: string): Promise<Blog | null> {
   const blogData = blogDoc.data();
   let currentViews = blogData.views || 0;
 
-  // This logic now runs on the server during the request for the page.
-  // It's a good practice to avoid incrementing for every single server render,
-  // especially by bots. A more robust solution might involve a separate API endpoint
-  // called from the client, but for now, we'll keep the server-side increment.
-  if (process.env.NODE_ENV === 'production' && blogData.status === 'published') {
-    const blogRef = doc(db, 'blogs', blogDoc.id);
-    await updateDoc(blogRef, { views: increment(1) });
-    currentViews++; 
+  // New cookie-based view counting logic
+  if (blogData.status === 'published') {
+    const cookieStore = cookies();
+    const viewedCookie = cookieStore.get('viewedBlogs');
+    let viewedBlogs: string[] = [];
 
-    if (blogData.authorId) {
-      const authorRef = doc(db, 'users', blogData.authorId);
-      const authorSnap = await getDoc(authorRef);
-      if (authorSnap.exists()) {
-        const authorProfile = authorSnap.data() as UserProfile;
-        if (authorProfile.isMonetizationApproved) {
-          const earningsSettingsRef = doc(db, 'settings', 'earnings');
-          const earningsSettingsSnap = await getDoc(earningsSettingsRef);
-          let baseEarning = 0.01; 
-          if (earningsSettingsSnap.exists()) {
-            baseEarning = (earningsSettingsSnap.data() as EarningsSettings).baseEarningPerView || 0.01;
-          }
-          if (baseEarning > 0) { 
-            await updateDoc(authorRef, { virtualEarnings: increment(baseEarning) });
+    if (viewedCookie) {
+      try {
+        const parsed = JSON.parse(viewedCookie.value);
+        if (Array.isArray(parsed)) {
+          viewedBlogs = parsed;
+        }
+      } catch (e) {
+        console.error("Failed to parse viewedBlogs cookie:", e);
+        viewedBlogs = [];
+      }
+    }
+
+    if (!viewedBlogs.includes(blogDoc.id)) {
+      const blogRef = doc(db, 'blogs', blogDoc.id);
+      await updateDoc(blogRef, { views: increment(1) });
+      currentViews++;
+
+      if (blogData.authorId) {
+        const authorRef = doc(db, 'users', blogData.authorId);
+        const authorSnap = await getDoc(authorRef);
+        if (authorSnap.exists()) {
+          const authorProfile = authorSnap.data() as UserProfile;
+          if (authorProfile.isMonetizationApproved) {
+            const earningsSettingsRef = doc(db, 'settings', 'earnings');
+            const earningsSettingsSnap = await getDoc(earningsSettingsRef);
+            let baseEarning = 0.01;
+            if (earningsSettingsSnap.exists()) {
+              baseEarning = (earningsSettingsSnap.data() as EarningsSettings).baseEarningPerView || 0.01;
+            }
+            if (baseEarning > 0) {
+              await updateDoc(authorRef, { virtualEarnings: increment(baseEarning) });
+            }
           }
         }
       }
+      
+      // Update cookie
+      viewedBlogs.push(blogDoc.id);
+      cookieStore.set('viewedBlogs', JSON.stringify(viewedBlogs), {
+        maxAge: 12 * 60 * 60, // 12 hours
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+      });
     }
   }
+
 
   return {
     id: blogDoc.id,
