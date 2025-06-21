@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent } from 'react';
@@ -8,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Send } from 'lucide-react';
+import { siteConfig } from '@/config/site';
 
 export default function ContactForm() {
   const [name, setName] = useState('');
@@ -34,7 +36,7 @@ export default function ContactForm() {
       `Message:\n${message}`
     );
 
-    const mailtoLink = `mailto:Mindly@devifyo.com?subject=${subject}&body=${body}`;
+    const mailtoLink = `mailto:${siteConfig.contactEmail}?subject=${subject}&body=${body}`;
     
     // Open the user's default email client
     window.location.href = mailtoLink;

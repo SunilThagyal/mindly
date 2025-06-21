@@ -3,12 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PenSquare, Eye, ShieldCheck, HandCoins } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { siteConfig } from '@/config/site';
 
 export default function HowItWorksPage() {
   return (
     <div className="max-w-4xl mx-auto py-12 px-4">
       <div className="text-center mb-12">
-        <h1 className="text-4xl sm:text-5xl font-headline font-bold text-primary">How Mindly Works</h1>
+        <h1 className="text-4xl sm:text-5xl font-headline font-bold text-primary">How {siteConfig.name} Works</h1>
         <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">
           We believe in rewarding creativity. Learn how to meet the eligibility criteria and turn your engaging stories into tangible earnings.
         </p>

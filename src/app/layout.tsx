@@ -12,12 +12,14 @@ import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import ConditionalFooterAd from '@/components/layout/conditional-footer-ad'; // NEW
 import { cn } from '@/lib/utils';
-// Font imports are now handled dynamically by ThemeSettingsProvider
-// import { Montserrat, Merriweather, Lora } from 'next/font/google';
+import { siteConfig } from '@/config/site';
 
-export const metadata: Metadata = { // This is now valid
-  title: 'Mindly',
-  description: 'A decentralized blogging platform where your thoughts have value.',
+export const metadata: Metadata = {
+  title: {
+    default: siteConfig.name,
+    template: `%s | ${siteConfig.name}`,
+  },
+  description: siteConfig.description,
 };
 
 export default function RootLayout({

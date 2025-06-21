@@ -20,6 +20,7 @@ import type { Notification } from '@/lib/types';
 import React, { useEffect, useState, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
+import { siteConfig } from '@/config/site';
 
 export default function Header() {
   const { user, userProfile, signOut, loading: authLoading, isAdmin } = useAuth(); 
@@ -140,7 +141,7 @@ export default function Header() {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <BookText className="h-8 w-8 text-primary" />
-          <h1 className="text-2xl font-headline font-semibold text-foreground">Mindly</h1>
+          <h1 className="text-2xl font-headline font-semibold text-foreground">{siteConfig.name}</h1>
         </Link>
         
         <nav className="flex items-center gap-1 sm:gap-2">

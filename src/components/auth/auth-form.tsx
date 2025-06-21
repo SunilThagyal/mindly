@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import type { UserProfile } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+import { siteConfig } from '@/config/site';
 
 interface AuthFormProps {
   mode: 'signup' | 'login';
@@ -180,7 +181,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           </CardTitle>
           <CardDescription>
             {mode === 'signup'
-              ? 'Enter your details to join Mindly.'
+              ? `Enter your details to join ${siteConfig.name}.`
               : 'Log in to continue your journey.'}
           </CardDescription>
         </CardHeader>

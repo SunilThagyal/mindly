@@ -1,5 +1,7 @@
+
 import Link from 'next/link';
 import { BookText } from 'lucide-react';
+import { siteConfig } from '@/config/site';
 
 export default function Footer() {
   return (
@@ -9,9 +11,9 @@ export default function Footer() {
           <div className="md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
               <BookText className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-headline font-semibold text-foreground">Mindly</h1>
+              <h1 className="text-2xl font-headline font-semibold text-foreground">{siteConfig.name}</h1>
             </Link>
-            <p className="text-sm">Where your thoughts have value.</p>
+            <p className="text-sm">{siteConfig.description}</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 md:col-span-3 gap-8">
             <div>
@@ -38,7 +40,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="mt-8 border-t border-border pt-6 text-center text-xs">
-          <p>&copy; {new Date().getFullYear()} Mindly. All Rights Reserved.</p>
+          <p>&copy; {new Date().getFullYear()} {siteConfig.name}. All Rights Reserved.</p>
         </div>
       </div>
     </footer>
