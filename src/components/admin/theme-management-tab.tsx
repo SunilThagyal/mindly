@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, FormEvent, useMemo } from 'react';
@@ -7,12 +8,23 @@ import type { ThemeSettings } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, AlertTriangle, Palette, Type, List, Info, Droplets } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, Palette, Type, List, Info, Droplets, RotateCcw } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { HexColorPicker } from 'react-colorful';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
 
 const FONT_OPTIONS = {
     "System": ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica", "Arial", "sans-serif"],
@@ -20,6 +32,20 @@ const FONT_OPTIONS = {
     "Monospace": ["Courier New", "monospace"],
     "Google Fonts": ["Inter", "Poppins", "Roboto", "Open Sans", "Lato", "Montserrat", "Merriweather", "Lora"],
 };
+
+const defaultThemeSettings: ThemeSettings = {
+    primaryColor: '48 100% 50%',
+    backgroundColor: '0 0% 98%',
+    foregroundColor: '0 0% 20%',
+    cardColor: '0 0% 100%',
+    cardForegroundColor: '0 0% 13%',
+    secondaryColor: '0 0% 93%',
+    accentColor: '18 100% 50%',
+    fontBody: 'Merriweather',
+    fontHeadline: 'Montserrat',
+    itemsPerPage: 9,
+};
+
 
 // Helper function to convert hex to HSL string
 function hexToHsl(hex: string): string {
@@ -57,6 +83,8 @@ export default function ThemeManagementTab() {
   const [settings, setSettings] = useState<Partial<ThemeSettings>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const { toast } = useToast();
 
   const settingsDocRef = useMemo(() => doc(db, 'settings', 'theme'), []);
@@ -68,6 +96,8 @@ export default function ThemeManagementTab() {
         const docSnap = await getDoc(settingsDocRef);
         if (docSnap.exists()) {
           setSettings(docSnap.data());
+        } else {
+          setSettings(defaultThemeSettings);
         }
       } catch (error) {
         console.error("Error fetching theme settings:", error);
@@ -139,6 +169,30 @@ export default function ThemeManagementTab() {
     }
   };
 
+  const handleResetToDefaults = async () => {
+    setIsResetting(true);
+    try {
+      await setDoc(settingsDocRef, defaultThemeSettings);
+      setSettings(defaultThemeSettings);
+      toast({
+        title: 'Theme Reset!',
+        description: 'The theme has been reset to its default settings.',
+        action: <RotateCcw className="text-green-500" />,
+      });
+    } catch (error: any) {
+      console.error("Error resetting theme settings:", error);
+      toast({
+        title: 'Reset Error',
+        description: error.message || 'Failed to reset theme settings.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsResetting(false);
+      setShowResetConfirm(false);
+    }
+  };
+
+
   if (isLoading) {
     return (
       <Card>
@@ -154,6 +208,7 @@ export default function ThemeManagementTab() {
   }
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="space-y-8">
       <Card>
         <CardHeader>
@@ -241,10 +296,46 @@ export default function ThemeManagementTab() {
         </CardContent>
       </Card>
       
-      <Button type="submit" disabled={isSaving || isLoading} size="lg" className="w-full sm:w-auto">
-        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-        Save Theme Settings
-      </Button>
+      <div className="flex flex-col sm:flex-row gap-4">
+        <Button type="submit" disabled={isSaving || isLoading || isResetting} size="lg" className="w-full sm:w-auto">
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Save Theme Settings
+        </Button>
+        <Button
+            type="button"
+            variant="destructive"
+            onClick={() => setShowResetConfirm(true)}
+            disabled={isSaving || isLoading || isResetting}
+            size="lg"
+            className="w-full sm:w-auto"
+        >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Reset to Defaults
+        </Button>
+      </div>
     </form>
+
+    <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently reset all theme settings to their original defaults.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isResetting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetToDefaults}
+              disabled={isResetting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isResetting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+              Yes, reset theme
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
