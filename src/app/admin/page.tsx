@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShieldAlert, Settings, Loader2, LayoutDashboard, Users, FileText, Annoyed, DollarSign, SendToBack, BellDot } from 'lucide-react';
+import { ShieldAlert, Settings, Loader2, LayoutDashboard, Users, FileText, Annoyed, DollarSign, SendToBack, BellDot, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import AdSettingsForm from '@/components/admin/ad-settings-form';
@@ -13,11 +13,12 @@ import UserManagementTab from '@/components/admin/user-management-tab';
 import PostManagementTab from '@/components/admin/post-management-tab';
 import EarningsSettingsForm from '@/components/admin/earnings-settings-form';
 import WithdrawalManagementTab from '@/components/admin/withdrawal-management-tab';
+import ThemeManagementTab from '@/components/admin/theme-management-tab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { collection, query, where, getCountFromServer } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-const ADMIN_TABS = ['dashboard', 'ads', 'earnings', 'users', 'posts', 'withdrawals'] as const;
+const ADMIN_TABS = ['dashboard', 'ads', 'earnings', 'users', 'posts', 'withdrawals', 'theme'] as const;
 type AdminTab = typeof ADMIN_TABS[number];
 
 function isValidTab(tab: string | null): tab is AdminTab {
@@ -125,8 +126,9 @@ export default function AdminPage() {
       </header>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 rounded-md bg-muted p-1 sm:grid-cols-3 md:grid-cols-6 mb-6 h-auto">
+        <TabsList className="grid w-full grid-cols-2 rounded-md bg-muted p-1 sm:grid-cols-4 md:grid-cols-7 mb-6 h-auto">
           <TabsTrigger value="dashboard"><LayoutDashboard className="mr-1.5 h-4 w-4" />Dashboard</TabsTrigger>
+          <TabsTrigger value="theme"><Palette className="mr-1.5 h-4 w-4" />Theme</TabsTrigger>
           <TabsTrigger value="ads"><Annoyed className="mr-1.5 h-4 w-4" />Ads</TabsTrigger>
           <TabsTrigger value="earnings"><DollarSign className="mr-1.5 h-4 w-4" />Earnings</TabsTrigger>
           <TabsTrigger value="users"><Users className="mr-1.5 h-4 w-4" />Users</TabsTrigger>
@@ -182,6 +184,10 @@ export default function AdminPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="theme">
+          <ThemeManagementTab />
+        </TabsContent>
+
         <TabsContent value="ads">
           <AdSettingsForm />
         </TabsContent>
@@ -219,4 +225,3 @@ export default function AdminPage() {
     </div>
   );
 }
-

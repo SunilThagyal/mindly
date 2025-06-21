@@ -7,30 +7,12 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 import { AdSettingsProvider } from '@/context/ad-settings-context';
 import { EarningsSettingsProvider } from '@/context/earnings-settings-context'; 
+import { ThemeSettingsProvider } from '@/context/theme-settings-context';
 import Header from '@/components/layout/header';
 import ConditionalFooterAd from '@/components/layout/conditional-footer-ad'; // NEW
 import { cn } from '@/lib/utils';
-import { Montserrat, Merriweather, Lora } from 'next/font/google';
-// REMOVED: import { usePathname } from 'next/navigation'; 
-
-const montserrat = Montserrat({
-  subsets: ['latin'],
-  variable: '--font-montserrat',
-  weight: ['400', '500', '600', '700', '800', '900'],
-});
-
-const merriweather = Merriweather({
-  subsets: ['latin'],
-  variable: '--font-merriweather',
-  weight: ['300', '400', '700', '900'],
-});
-
-const lora = Lora({
-  subsets: ['latin'],
-  variable: '--font-lora',
-  weight: ['400', '500', '600', '700'],
-  style: ['normal', 'italic'],
-});
+// Font imports are now handled dynamically by ThemeSettingsProvider
+// import { Montserrat, Merriweather, Lora } from 'next/font/google';
 
 export const metadata: Metadata = { // This is now valid
   title: 'Blogchain',
@@ -42,26 +24,24 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // REMOVED: const pathname = usePathname();
-  // REMOVED: const isAdminPage = pathname.startsWith('/admin');
-
+  
   return (
-    <html lang="en" suppressHydrationWarning className={cn(montserrat.variable, merriweather.variable, lora.variable)}>
+    <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Google Fonts preconnect - Next/font handles optimal loading */}
-        {/* Consider adding AdSense script here if using AdSense */}
-        {/* <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=YOUR_ADSENSE_CLIENT_ID" crossOrigin="anonymous"></script> */}
+        {/* Dynamic fonts and styles will be injected here by ThemeSettingsProvider */}
       </head>
       <body className={cn("font-body antialiased flex flex-col min-h-screen")}>
         <AuthProvider>
           <AdSettingsProvider>
-            <EarningsSettingsProvider> 
-              <Header />
-              <main className="flex-grow container mx-auto px-4 py-8">
-                {children}
-              </main>
-              <ConditionalFooterAd /> {/* MODIFIED: Use new component */}
-              <Toaster />
+            <EarningsSettingsProvider>
+              <ThemeSettingsProvider>
+                <Header />
+                <main className="flex-grow container mx-auto px-4 py-8">
+                  {children}
+                </main>
+                <ConditionalFooterAd />
+                <Toaster />
+              </ThemeSettingsProvider>
             </EarningsSettingsProvider>
           </AdSettingsProvider>
         </AuthProvider>

@@ -125,3 +125,17 @@ export interface Notification {
   isRead: boolean;
   link: string;
 }
+
+export interface ThemeSettings {
+  id?: string;
+  primaryColor?: string; // HSL format string e.g., "210 40% 98%"
+  backgroundColor?: string;
+  foregroundColor?: string;
+  cardColor?: string;
+  cardForegroundColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  fontBody?: string;
+  fontHeadline?: string;
+  itemsPerPage?: number;
+}

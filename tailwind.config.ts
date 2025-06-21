@@ -1,3 +1,4 @@
+
 import type {Config} from 'tailwindcss';
 
 export default {
@@ -10,8 +11,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['var(--font-merriweather)', 'serif'],
-        headline: ['var(--font-montserrat)', 'sans-serif'],
+        body: ['var(--font-body)', 'serif'],
+        headline: ['var(--font-headline)', 'sans-serif'],
         accent: ['var(--font-lora)', 'serif'], // For blockquotes or special text
         code: ['monospace'],
       },
@@ -79,94 +80,48 @@ export default {
       typography: (theme: (path: string) => string) => ({
         DEFAULT: {
           css: {
-            color: theme('colors.foreground'),
-            a: {
-              color: theme('colors.primary.DEFAULT'),
-              '&:hover': {
-                color: theme('colors.primary.DEFAULT'),
-                opacity: '0.8',
-              },
-            },
-            h1: {
-              fontFamily: theme('fontFamily.headline'),
-              fontWeight: theme('fontWeight.bold'),
-              color: theme('colors.foreground'),
-              lineHeight: theme('lineHeight.heading'),
+            '--tw-prose-body': 'hsl(var(--foreground))',
+            '--tw-prose-headings': 'hsl(var(--foreground))',
+            '--tw-prose-lead': 'hsl(var(--foreground))',
+            '--tw-prose-links': 'hsl(var(--primary))',
+            '--tw-prose-bold': 'hsl(var(--foreground))',
+            '--tw-prose-counters': 'hsl(var(--muted-foreground))',
+            '--tw-prose-bullets': 'hsl(var(--border))',
+            '--tw-prose-hr': 'hsl(var(--border))',
+            '--tw-prose-quotes': 'hsl(var(--foreground))',
+            '--tw-prose-quote-borders': 'hsl(var(--primary))',
+            '--tw-prose-captions': 'hsl(var(--muted-foreground))',
+            '--tw-prose-code': 'hsl(var(--foreground))',
+            '--tw-prose-pre-code': 'hsl(var(--muted-foreground))',
+            '--tw-prose-pre-bg': 'hsl(var(--muted))',
+            '--tw-prose-th-borders': 'hsl(var(--border))',
+            '--tw-prose-td-borders': 'hsl(var(--border))',
+             h1: {
+              fontFamily: 'var(--font-headline)',
             },
             h2: {
-              fontFamily: theme('fontFamily.headline'),
-              fontWeight: theme('fontWeight.semibold'),
-              color: theme('colors.foreground'),
-              lineHeight: theme('lineHeight.heading'),
+              fontFamily: 'var(--font-headline)',
             },
             h3: {
-              fontFamily: theme('fontFamily.headline'),
-              fontWeight: theme('fontWeight.medium'),
-              color: theme('colors.foreground'),
-              lineHeight: theme('lineHeight.heading'),
+              fontFamily: 'var(--font-headline)',
             },
             p: {
-              fontFamily: theme('fontFamily.body'),
-              lineHeight: theme('lineHeight.body'),
-              marginTop: '1em',
-              marginBottom: '1em',
+              fontFamily: 'var(--font-body)',
             },
             blockquote: {
-              fontFamily: theme('fontFamily.accent'),
-              fontStyle: 'italic',
-              color: theme('colors.muted.foreground'),
-              borderLeftColor: theme('colors.primary.DEFAULT'),
-              paddingLeft: '1em',
-              quotes: '"\\201C""\\201D""\\2018""\\2019"',
+               fontFamily: 'var(--font-accent)',
             },
-            'blockquote p:first-of-type::before': {
-              content: 'open-quote',
-            },
-            'blockquote p:last-of-type::after': {
-              content: 'close-quote',
-            },
-            ul: {
-              listStyleType: 'disc',
-              paddingLeft: '1.5em',
-              fontFamily: theme('fontFamily.body'),
-              lineHeight: theme('lineHeight.body'),
+             ul: {
+              fontFamily: 'var(--font-body)',
             },
             ol: {
-              listStyleType: 'decimal',
-              paddingLeft: '1.5em',
-              fontFamily: theme('fontFamily.body'),
-              lineHeight: theme('lineHeight.body'),
-            },
-            li: {
-              marginTop: '0.25em',
-              marginBottom: '0.25em',
+              fontFamily: 'var(--font-body)',
             },
             code: {
-              fontFamily: theme('fontFamily.code'),
-              backgroundColor: theme('colors.muted.DEFAULT'),
-              padding: '0.2em 0.4em',
-              borderRadius: theme('borderRadius.sm'),
-              color: theme('colors.muted.foreground'),
-            },
-            'code::before': {
-              content: 'none',
-            },
-            'code::after': {
-              content: 'none',
+              fontFamily: 'var(--font-code)',
             },
             pre: {
-               fontFamily: theme('fontFamily.code'),
-               backgroundColor: theme('colors.muted.DEFAULT'),
-               color: theme('colors.muted.foreground'),
-               padding: theme('spacing.4'),
-               borderRadius: theme('borderRadius.md'),
-               overflowX: 'auto',
-            },
-            // Ensure prose plugin styles for images, etc., are sensible
-            img: {
-              marginTop: '2em',
-              marginBottom: '2em',
-              borderRadius: theme('borderRadius.md'),
+               fontFamily: 'var(--font-code)',
             },
           },
         },

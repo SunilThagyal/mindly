@@ -12,8 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { useThemeSettings } from '@/context/theme-settings-context';
 
-const POSTS_PER_PAGE = 9;
+const POSTS_PER_PAGE_DEFAULT = 9;
 const TAG_SAMPLE_LIMIT = 100; // Fetch more posts to get a better sample for top tags
 const DISPLAY_TAG_COUNT = 10;
 
@@ -115,6 +116,9 @@ async function getTopUsedTagsFromSample(sampleLimit: number = TAG_SAMPLE_LIMIT):
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<string>("recent");
+  const { settings: themeSettings, loading: loadingTheme } = useThemeSettings();
+  const postsPerPage = themeSettings?.itemsPerPage || POSTS_PER_PAGE_DEFAULT;
+
 
   const [recentPosts, setRecentPosts] = useState<Blog[]>([]);
   const [trendingPosts, setTrendingPosts] = useState<Blog[]>([]);
@@ -208,11 +212,11 @@ export default function HomePage() {
 
     try {
       const lastDocToQueryWith = isLoadMoreOperation ? currentLastDoc : null;
-      const { blogs: newBlogs, newLastDoc: newCursor } = await getBlogs(fieldToOrderBy, sortDirection as "asc" | "desc", POSTS_PER_PAGE, lastDocToQueryWith, currentSelectedTag);
+      const { blogs: newBlogs, newLastDoc: newCursor } = await getBlogs(fieldToOrderBy, sortDirection as "asc" | "desc", postsPerPage, lastDocToQueryWith, currentSelectedTag);
       
       setPostsFunc(prev => isLoadMoreOperation ? [...prev, ...newBlogs] : newBlogs);
       setLastDocFunc(newCursor);
-      setHasMoreFunc(newBlogs.length === POSTS_PER_PAGE);
+      setHasMoreFunc(newBlogs.length === postsPerPage);
 
     } catch (error: any) {
       handleFetchError(error, setErrorFunc, tabKey);
@@ -220,9 +224,10 @@ export default function HomePage() {
     } finally {
       setLoadingFunc(false);
     }
-  }, [selectedTag, recentPosts, trendingPosts, mostReadPosts, explorePosts, lastDocRecent, lastDocTrending, lastDocMostRead, lastDocExplore]); 
+  }, [selectedTag, recentPosts, trendingPosts, mostReadPosts, explorePosts, lastDocRecent, lastDocTrending, lastDocMostRead, lastDocExplore, postsPerPage]); 
 
   useEffect(() => {
+    if (loadingTheme) return; // Wait for theme settings to load
     if (recentPosts.length === 0 && !loadingRecent && hasMoreRecent) {
         fetchPosts('recent');
     }
@@ -243,9 +248,10 @@ export default function HomePage() {
     if (allSampledTags.length === 0 && !loadingTags) {
         fetchInitialTagsData();
     }
-  }, []); 
+  }, [loadingTheme, fetchPosts, recentPosts.length, hasMoreRecent, loadingRecent, allSampledTags.length, loadingTags]); 
 
   useEffect(() => {
+    if (loadingTheme) return;
     if (activeTab === 'explore') {
       fetchPosts('explore');
     } else if (activeTab === 'recent') {
@@ -255,7 +261,7 @@ export default function HomePage() {
     } else if (activeTab === 'mostRead') {
       if (mostReadPosts.length === 0 && !loadingMostRead && hasMoreMostRead) fetchPosts('mostRead');
     }
-  }, [activeTab, selectedTag]); 
+  }, [activeTab, selectedTag, loadingTheme, fetchPosts, hasMoreMostRead, hasMoreRecent, hasMoreTrending, loadingMostRead, loadingRecent, loadingTrending, mostReadPosts.length, recentPosts.length, trendingPosts.length]); 
 
 
   useEffect(() => {
@@ -291,7 +297,7 @@ export default function HomePage() {
     if (isLoading && blogs.length === 0) { 
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-          {Array(POSTS_PER_PAGE).fill(0).map((_, index) => (
+          {Array(postsPerPage).fill(0).map((_, index) => (
             <div key={index} className="flex flex-col space-y-3">
               <Skeleton className="h-[200px] w-full rounded-xl" />
               <div className="space-y-2">
