@@ -56,7 +56,7 @@ export async function generateMetadata({ params }: { params: { userId: string } 
   }
 
   const displayName = profile.displayName || 'Anonymous User';
-  const description = profile.bio || `Check out the profile and blog posts by ${displayName} on Blogchain.`;
+  const description = profile.bio || `Check out the profile and blog posts by ${displayName} on Mindly.`;
 
   return {
     title: `${displayName}'s Profile`,

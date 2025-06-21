@@ -180,7 +180,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           </CardTitle>
           <CardDescription>
             {mode === 'signup'
-              ? 'Enter your details to join Blogchain.'
+              ? 'Enter your details to join Mindly.'
               : 'Log in to continue your journey.'}
           </CardDescription>
         </CardHeader>

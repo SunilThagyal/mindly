@@ -140,7 +140,7 @@ export default function Header() {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <BookText className="h-8 w-8 text-primary" />
-          <h1 className="text-2xl font-headline font-semibold text-foreground">Blogchain</h1>
+          <h1 className="text-2xl font-headline font-semibold text-foreground">Mindly</h1>
         </Link>
         
         <nav className="flex items-center gap-1 sm:gap-2">
