@@ -45,6 +45,18 @@ async function getUserBlogs(userId: string): Promise<Blog[]> {
   });
 }
 
+async function getTotalWithdrawnAmount(userId: string): Promise<number> {
+  const requestsCol = collection(db, 'withdrawalRequests');
+  const q = query(requestsCol, where('userId', '==', userId), where('status', '==', 'completed'));
+  const snapshot = await getDocs(q);
+  
+  if (snapshot.empty) {
+    return 0;
+  }
+
+  return snapshot.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+}
+
 
 export async function generateMetadata({ params }: { params: { userId: string } }): Promise<Metadata> {
   const profile = await getUserProfile(params.userId);
@@ -90,6 +102,7 @@ export default async function UserProfilePage({ params }: { params: { userId: st
   }
 
   const blogsFromDB = await getUserBlogs(userId);
+  const totalWithdrawn = await getTotalWithdrawnAmount(userId);
   
   // Serialize the blogs array to make it safe to pass to the client component
   const blogs = blogsFromDB.map(blog => ({
@@ -100,5 +113,5 @@ export default async function UserProfilePage({ params }: { params: { userId: st
   }));
 
 
-  return <UserProfileView profile={profile} blogs={blogs} />;
+  return <UserProfileView profile={profile} blogs={blogs} totalWithdrawn={totalWithdrawn} />;
 }

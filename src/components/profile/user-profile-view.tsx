@@ -5,8 +5,7 @@ import React, { useState } from 'react';
 import type { UserProfile, Blog } from '@/lib/types';
 import BlogCard from '@/components/blog/blog-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { UserCircle, Mail, BarChart3, Coins, Eye, Edit, FileText } from 'lucide-react';
-import { useEarningsSettings } from '@/context/earnings-settings-context';
+import { UserCircle, Mail, BarChart3, Coins, Eye, Edit, FileText, DollarSign } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
 import EditProfileDialog from './edit-profile-dialog'; 
@@ -15,10 +14,10 @@ import Link from 'next/link';
 interface UserProfileViewProps {
   profile: UserProfile;
   blogs: Blog[];
+  totalWithdrawn: number;
 }
 
-export default function UserProfileView({ profile, blogs }: UserProfileViewProps) {
-  const { baseEarningPerView } = useEarningsSettings();
+export default function UserProfileView({ profile, blogs, totalWithdrawn }: UserProfileViewProps) {
   const { user } = useAuth();
 
   // Local state to manage profile data and dialog visibility
@@ -31,7 +30,8 @@ export default function UserProfileView({ profile, blogs }: UserProfileViewProps
   };
 
   const totalViews = blogs.reduce((sum, blog) => sum + blog.views, 0);
-  const totalVirtualEarnings = blogs.reduce((sum, blog) => sum + (blog.views * baseEarningPerView), 0).toFixed(2);
+  const currentBalance = currentProfile.virtualEarnings || 0;
+  const lifetimeEarnings = currentBalance + totalWithdrawn;
 
   const isOwner = user?.uid === currentProfile.uid;
 
@@ -74,9 +74,16 @@ export default function UserProfileView({ profile, blogs }: UserProfileViewProps
               <span className="flex items-center">
                 <Eye className="h-4 w-4 mr-1.5 text-primary" /> {totalViews} Total Views
               </span>
-              <span className="flex items-center font-semibold text-foreground">
-                <Coins className="h-4 w-4 mr-1.5 text-yellow-500" /> ${totalVirtualEarnings} Virtual Earnings
-              </span>
+              {isOwner && (
+                <>
+                  <span className="flex items-center font-semibold text-foreground" title="The amount you can currently withdraw.">
+                    <Coins className="h-4 w-4 mr-1.5 text-yellow-500" /> Current Balance: ${currentBalance.toFixed(2)}
+                  </span>
+                   <span className="flex items-center font-semibold text-foreground" title="The total amount you have earned, including withdrawn funds.">
+                    <DollarSign className="h-4 w-4 mr-1.5 text-green-500" /> Lifetime Earnings: ${lifetimeEarnings.toFixed(2)}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </header>
