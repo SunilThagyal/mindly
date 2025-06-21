@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import BlogCard from '@/components/blog/blog-card';
 import type { Blog } from '@/lib/types';
 import { db } from '@/lib/firebase';
@@ -137,6 +137,16 @@ export default function HomePage() {
   const [lastDocMostRead, setLastDocMostRead] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [lastDocExplore, setLastDocExplore] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
 
+  const lastDocRecentRef = useRef(lastDocRecent);
+  const lastDocTrendingRef = useRef(lastDocTrending);
+  const lastDocMostReadRef = useRef(lastDocMostRead);
+  const lastDocExploreRef = useRef(lastDocExplore);
+
+  useEffect(() => { lastDocRecentRef.current = lastDocRecent; }, [lastDocRecent]);
+  useEffect(() => { lastDocTrendingRef.current = lastDocTrending; }, [lastDocTrending]);
+  useEffect(() => { lastDocMostReadRef.current = lastDocMostRead; }, [lastDocMostRead]);
+  useEffect(() => { lastDocExploreRef.current = lastDocExplore; }, [lastDocExplore]);
+
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [loadingTrending, setLoadingTrending] = useState(false);
   const [loadingMostRead, setLoadingMostRead] = useState(false);
@@ -172,29 +182,41 @@ export default function HomePage() {
     tabKey: string,
     isLoadMoreOperation: boolean = false
   ) => {
-    let setPostsFunc, setLastDocFunc, setLoadingFunc, setErrorFunc, fieldToOrderBy, sortDirection, currentPostList, currentLastDoc, setHasMoreFunc, currentSelectedTag = null;
+    let setPostsFunc: React.Dispatch<React.SetStateAction<Blog[]>>, 
+        setLastDocFunc: React.Dispatch<React.SetStateAction<QueryDocumentSnapshot<DocumentData> | null>>, 
+        setLoadingFunc: React.Dispatch<React.SetStateAction<boolean>>, 
+        setErrorFunc: React.Dispatch<React.SetStateAction<FetchErrorState>>, 
+        setHasMoreFunc: React.Dispatch<React.SetStateAction<boolean>>;
+    let fieldToOrderBy: string;
+    let sortDirection: "asc" | "desc";
+    let lastDocForQuery: QueryDocumentSnapshot<DocumentData> | null = null;
+    let currentSelectedTag: string | null = null;
 
     switch (tabKey) {
       case 'recent':
         setPostsFunc = setRecentPosts; setLastDocFunc = setLastDocRecent; setLoadingFunc = setLoadingRecent; setErrorFunc = setErrorRecent;
-        fieldToOrderBy = 'publishedAt'; sortDirection = 'desc'; currentPostList = recentPosts; currentLastDoc = lastDocRecent; setHasMoreFunc = setHasMoreRecent;
+        fieldToOrderBy = 'publishedAt'; sortDirection = 'desc'; setHasMoreFunc = setHasMoreRecent;
+        lastDocForQuery = lastDocRecentRef.current;
         break;
       case 'trending':
         setPostsFunc = setTrendingPosts; setLastDocFunc = setLastDocTrending; setLoadingFunc = setLoadingTrending; setErrorFunc = setErrorTrending;
-        fieldToOrderBy = 'views'; sortDirection = 'desc'; currentPostList = trendingPosts; currentLastDoc = lastDocTrending; setHasMoreFunc = setHasMoreTrending;
+        fieldToOrderBy = 'views'; sortDirection = 'desc'; setHasMoreFunc = setHasMoreTrending;
+        lastDocForQuery = lastDocTrendingRef.current;
         break;
       case 'mostRead':
         setPostsFunc = setMostReadPosts; setLastDocFunc = setLastDocMostRead; setLoadingFunc = setLoadingMostRead; setErrorFunc = setErrorMostRead;
-        fieldToOrderBy = 'readingTime'; sortDirection = 'desc'; currentPostList = mostReadPosts; currentLastDoc = lastDocMostRead; setHasMoreFunc = setHasMoreMostRead;
+        fieldToOrderBy = 'readingTime'; sortDirection = 'desc'; setHasMoreFunc = setHasMoreMostRead;
+        lastDocForQuery = lastDocMostReadRef.current;
         break;
       case 'explore':
         setPostsFunc = setExplorePosts; setLastDocFunc = setLastDocExplore; setLoadingFunc = setLoadingExplore; setErrorFunc = setErrorExplore;
-        fieldToOrderBy = 'publishedAt'; sortDirection = 'desc'; currentPostList = explorePosts; currentLastDoc = lastDocExplore; setHasMoreFunc = setHasMoreExplore;
+        fieldToOrderBy = 'publishedAt'; sortDirection = 'desc'; setHasMoreFunc = setHasMoreExplore;
+        lastDocForQuery = lastDocExploreRef.current;
         currentSelectedTag = selectedTag;
-        if (!currentSelectedTag) { // If no tag is selected for explore, don't fetch.
+        if (!currentSelectedTag) {
             setExplorePosts([]); 
             setLastDocExplore(null);
-            setHasMoreExplore(false); // No "load more" if no tag.
+            setHasMoreExplore(false); 
             setLoadingExplore(false);
             return;
         }
@@ -211,8 +233,8 @@ export default function HomePage() {
     }
 
     try {
-      const lastDocToQueryWith = isLoadMoreOperation ? currentLastDoc : null;
-      const { blogs: newBlogs, newLastDoc: newCursor } = await getBlogs(fieldToOrderBy, sortDirection as "asc" | "desc", postsPerPage, lastDocToQueryWith, currentSelectedTag);
+      const lastDocToQueryWith = isLoadMoreOperation ? lastDocForQuery : null;
+      const { blogs: newBlogs, newLastDoc: newCursor } = await getBlogs(fieldToOrderBy, sortDirection, postsPerPage, lastDocToQueryWith, currentSelectedTag);
       
       setPostsFunc(prev => isLoadMoreOperation ? [...prev, ...newBlogs] : newBlogs);
       setLastDocFunc(newCursor);
@@ -220,11 +242,11 @@ export default function HomePage() {
 
     } catch (error: any) {
       handleFetchError(error, setErrorFunc, tabKey);
-      setHasMoreFunc(false); // Stop load more on error
+      setHasMoreFunc(false);
     } finally {
       setLoadingFunc(false);
     }
-  }, [selectedTag, recentPosts, trendingPosts, mostReadPosts, explorePosts, lastDocRecent, lastDocTrending, lastDocMostRead, lastDocExplore, postsPerPage]); 
+  }, [postsPerPage, selectedTag]);
 
   useEffect(() => {
     if (loadingTheme) return; // Wait for theme settings to load
