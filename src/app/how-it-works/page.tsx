@@ -1,5 +1,6 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PenSquare, Eye, Coins, HandCoins } from 'lucide-react';
+import { PenSquare, Eye, ShieldCheck, HandCoins } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -9,7 +10,7 @@ export default function HowItWorksPage() {
       <div className="text-center mb-12">
         <h1 className="text-4xl sm:text-5xl font-headline font-bold text-primary">How Mindly Works</h1>
         <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">
-          We believe in rewarding creativity. Learn how your thoughts and stories can turn into tangible earnings on our platform.
+          We believe in rewarding creativity. Learn how to meet the eligibility criteria and turn your engaging stories into tangible earnings.
         </p>
       </div>
 
@@ -25,14 +26,14 @@ export default function HowItWorksPage() {
           description="Every time a user reads one of your published blog posts, your view count increases. Views are the primary metric for calculating your earnings. Share your posts on social media to maximize your reach."
         />
         <StepCard
-          icon={<Coins className="h-10 w-10 text-accent" />}
-          title="3. Earn Virtual Currency"
-          description="For each view your post receives, you earn a set amount of virtual currency. The exact rate per view is determined by the site administrator and can be viewed on our earnings configuration page (for admins)."
+          icon={<ShieldCheck className="h-10 w-10 text-accent" />}
+          title="3. Become Eligible for Monetization"
+          description="Before you can earn, your account must be approved. To qualify, you need to publish at least 10 high-quality posts and achieve a minimum of 200 views on each of them. This ensures a standard of quality on the platform."
         />
         <StepCard
           icon={<HandCoins className="h-10 w-10 text-accent" />}
-          title="4. Request Withdrawal"
-          description="Once your virtual earnings reach the minimum withdrawal threshold, you can request a payout. Go to your 'Monetization' page, ensure your payment details are correct, and submit a withdrawal request."
+          title="4. Earn & Withdraw"
+          description="Once approved, you'll earn virtual currency for your post views based on admin-set rates and the performance of ads on your pages. When your balance reaches the minimum threshold, request a withdrawal from your monetization dashboard."
         />
       </div>
 
