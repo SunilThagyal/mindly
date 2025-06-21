@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function PrivacyPolicyPage() {
@@ -5,48 +6,62 @@ export default function PrivacyPolicyPage() {
     <div className="max-w-4xl mx-auto py-12 px-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-3xl font-headline">Privacy Policy</CardTitle>
-          <p className="text-muted-foreground">Last updated: {new Date().toLocaleDateString()}</p>
+          <CardTitle className="text-3xl font-headline">Privacy Policy for Mindly</CardTitle>
+          <p className="text-muted-foreground">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </CardHeader>
         <CardContent className="prose dark:prose-invert max-w-none">
-          <h2>1. Introduction</h2>
-          <p>Welcome to Mindly. We respect your privacy and are committed to protecting your personal data. This privacy policy will inform you as to how we look after your personal data when you visit our website and tell you about your privacy rights and how the law protects you.</p>
+          <p>At Mindly, accessible from our website, one of our main priorities is the privacy of our visitors. This Privacy Policy document contains types of information that is collected and recorded by Mindly and how we use it.</p>
+          <p>If you have additional questions or require more information about our Privacy Policy, do not hesitate to contact us.</p>
           
-          <h2>2. Information We Collect</h2>
-          <p>We may collect, use, store and transfer different kinds of personal data about you which we have grouped together as follows:</p>
+          <h2>Consent</h2>
+          <p>By using our website, you hereby consent to our Privacy Policy and agree to its terms.</p>
+
+          <h2>Information We Collect</h2>
+          <p>The personal information that you are asked to provide, and the reasons why you are asked to provide it, will be made clear to you at the point we ask you to provide your personal information.</p>
+          <p>If you contact us directly, we may receive additional information about you such as your name, email address, phone number, the contents of the message and/or attachments you may send us, and any other information you may choose to provide.</p>
+          <p>When you register for an Account, we may ask for your contact information, including items such as name, email address, and telephone number.</p>
+
+          <h2>How We Use Your Information</h2>
+          <p>We use the information we collect in various ways, including to:</p>
           <ul>
-            <li><strong>Identity Data</strong> includes first name, last name, username or similar identifier.</li>
-            <li><strong>Contact Data</strong> includes email address and telephone numbers.</li>
-            <li><strong>Technical Data</strong> includes internet protocol (IP) address, your login data, browser type and version, time zone setting and location, browser plug-in types and versions, operating system and platform, and other technology on the devices you use to access this website.</li>
-            <li><strong>Profile Data</strong> includes your username and password, purchases or orders made by you, your interests, preferences, feedback and survey responses.</li>
-            <li><strong>Usage Data</strong> includes information about how you use our website, products and services.</li>
+            <li>Provide, operate, and maintain our website</li>
+            <li>Improve, personalize, and expand our website</li>
+            <li>Understand and analyze how you use our website</li>
+            <li>Develop new products, services, features, and functionality</li>
+            <li>Communicate with you, either directly or through one of our partners, including for customer service, to provide you with updates and other information relating to the website, and for marketing and promotional purposes</li>
+            <li>Send you emails</li>
+            <li>Find and prevent fraud</li>
           </ul>
 
-          <h2>3. How We Use Your Information</h2>
-          <p>We will only use your personal data when the law allows us to. Most commonly, we will use your personal data in the following circumstances:</p>
+          <h2>Log Files</h2>
+          <p>Mindly follows a standard procedure of using log files. These files log visitors when they visit websites. All hosting companies do this and a part of hosting services' analytics. The information collected by log files include internet protocol (IP) addresses, browser type, Internet Service Provider (ISP), date and time stamp, referring/exit pages, and possibly the number of clicks. These are not linked to any information that is personally identifiable. The purpose of the information is for analyzing trends, administering the site, tracking users' movement on the website, and gathering demographic information.</p>
+
+          <h2>Cookies and Web Beacons</h2>
+          <p>Like any other website, Mindly uses 'cookies'. These cookies are used to store information including visitors' preferences, and the pages on the website that the visitor accessed or visited. The information is used to optimize the users' experience by customizing our web page content based on visitors' browser type and/or other information.</p>
+
+          <h2>Google AdSense & DoubleClick DART Cookie</h2>
+          <p>Google is one of a third-party vendor on our site. It also uses cookies, known as DART cookies, to serve ads to our site visitors based upon their visit to our site and other sites on the internet. However, visitors may choose to decline the use of DART cookies by visiting the Google ad and content network Privacy Policy at the following URL – <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer">https://policies.google.com/technologies/ads</a></p>
+          <p>Some of advertisers on our site may use cookies and web beacons. Our advertising partners are listed below. Each of our advertising partners has their own Privacy Policy for their policies on user data. For easier access, we hyperlinked to their Privacy Policies below.</p>
           <ul>
-            <li>Where we need to perform the contract we are about to enter into or have entered into with you.</li>
-            <li>Where it is necessary for our legitimate interests (or those of a third party) and your interests and fundamental rights do not override those interests.</li>
-            <li>Where we need to comply with a legal obligation.</li>
+            <li>
+                <p>Google</p>
+                <p><a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer">https://policies.google.com/technologies/ads</a></p>
+            </li>
           </ul>
 
-          <h2>4. Data Security</h2>
-          <p>We have put in place appropriate security measures to prevent your personal data from being accidentally lost, used or accessed in an unauthorised way, altered or disclosed. In addition, we limit access to your personal data to those employees, agents, contractors and other third parties who have a business need to know.</p>
+          <h2>Third-Party Privacy Policies</h2>
+          <p>Mindly's Privacy Policy does not apply to other advertisers or websites. Thus, we are advising you to consult the respective Privacy Policies of these third-party ad servers for more detailed information. It may include their practices and instructions about how to opt-out of certain options. You can find a complete list of these Privacy Policies and their links here: Privacy Policy Links.</p>
+          <p>You can choose to disable cookies through your individual browser options. To know more detailed information about cookie management with specific web browsers, it can be found at the browsers' respective websites.</p>
+        
+          <h2>Children's Information</h2>
+          <p>Another part of our priority is adding protection for children while using the internet. We encourage parents and guardians to observe, participate in, and/or monitor and guide their online activity.</p>
+          <p>Mindly does not knowingly collect any Personal Identifiable Information from children under the age of 13. If you think that your child provided this kind of information on our website, we strongly encourage you to contact us immediately and we will do our best efforts to promptly remove such information from our records.</p>
+        
+          <h2>Changes to This Privacy Policy</h2>
+          <p>We may update our Privacy Policy from time to time. Thus, we advise you to review this page periodically for any changes. We will notify you of any changes by posting the new Privacy Policy on this page. These changes are effective immediately, after they are posted on this page.</p>
 
-          <h2>5. Your Legal Rights</h2>
-          <p>Under certain circumstances, you have rights under data protection laws in relation to your personal data. These include the right to:</p>
-          <ul>
-            <li>Request access to your personal data.</li>
-            <li>Request correction of your personal data.</li>
-            <li>Request erasure of your personal data.</li>
-            <li>Object to processing of your personal data.</li>
-            <li>Request restriction of processing your personal data.</li>
-            <li>Request the transfer of your personal data.</li>
-            <li>Right to withdraw consent.</li>
-          </ul>
-
-          <h2>6. Contact Us</h2>
-          <p>If you have any questions about this privacy policy, please contact us at Mindly@devifyo.com.</p>
+          <h2>Contact Us</h2>
+          <p>If you have any questions or suggestions about our Privacy Policy, do not hesitate to contact us at <a href="mailto:Mindly@devifyo.com">Mindly@devifyo.com</a>.</p>
         </CardContent>
       </Card>
     </div>
