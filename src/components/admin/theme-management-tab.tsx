@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, FormEvent, useMemo } from 'react';
@@ -11,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, AlertTriangle, Palette, Type, List, Info, Droplets } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { HexColorPicker } from 'react-colorful';
 
@@ -193,10 +192,10 @@ export default function ThemeManagementTab() {
                     <SelectTrigger id="fontBody"><SelectValue placeholder="Select body font" /></SelectTrigger>
                     <SelectContent>
                         {Object.entries(FONT_OPTIONS).map(([groupName, fonts]) => (
-                            <Select.Group key={groupName}>
-                                <Select.Label>{groupName}</Select.Label>
+                            <SelectGroup key={groupName}>
+                                <SelectLabel>{groupName}</SelectLabel>
                                 {fonts.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
-                            </Select.Group>
+                            </SelectGroup>
                         ))}
                     </SelectContent>
                 </Select>
@@ -207,10 +206,10 @@ export default function ThemeManagementTab() {
                     <SelectTrigger id="fontHeadline"><SelectValue placeholder="Select headline font" /></SelectTrigger>
                     <SelectContent>
                          {Object.entries(FONT_OPTIONS).map(([groupName, fonts]) => (
-                            <Select.Group key={groupName}>
-                                <Select.Label>{groupName}</Select.Label>
+                            <SelectGroup key={groupName}>
+                                <SelectLabel>{groupName}</SelectLabel>
                                 {fonts.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
-                            </Select.Group>
+                            </SelectGroup>
                         ))}
                     </SelectContent>
                 </Select>
