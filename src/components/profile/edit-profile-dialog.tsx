@@ -49,7 +49,9 @@ export default function EditProfileDialog({ isOpen, onClose, userProfile, onProf
       setPhotoPreview(userProfile.photoURL || null);
       setPhotoFile(null); // Reset file on open
     }
-  }, [isOpen, userProfile]);
+    // Only re-run the effect if the dialog is opened or the user's core data changes.
+    // This prevents loops if the parent `userProfile` object reference changes unnecessarily.
+  }, [isOpen, userProfile?.displayName, userProfile?.bio, userProfile?.photoURL]);
 
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
