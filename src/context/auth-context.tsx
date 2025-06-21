@@ -125,14 +125,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [router]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   const contextValue = useMemo(() => ({
     user,
     userProfile,
@@ -141,6 +133,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signOut,
   }), [user, userProfile, loading, isAdmin, signOut]);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={contextValue}>
