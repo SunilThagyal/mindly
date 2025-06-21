@@ -1,8 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import type { UserProfile, Blog } from '@/lib/types';
 import BlogCard from '@/components/blog/blog-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,7 +9,7 @@ import { UserCircle, Mail, BarChart3, Coins, Eye, Edit } from 'lucide-react';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
-import EditProfileDialog from './edit-profile-dialog'; // New import
+import EditProfileDialog from './edit-profile-dialog'; 
 
 interface UserProfileViewProps {
   profile: UserProfile;
@@ -20,24 +19,11 @@ interface UserProfileViewProps {
 export default function UserProfileView({ profile, blogs }: UserProfileViewProps) {
   const { baseEarningPerView } = useEarningsSettings();
   const { user } = useAuth();
-  const searchParams = useSearchParams();
-  const router = useRouter();
 
   // Local state to manage profile data and dialog visibility
   const [currentProfile, setCurrentProfile] = useState(profile);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   
-  // Effect to check for setup=true query param and open dialog for new users
-  useEffect(() => {
-    const isSetup = searchParams.get('setup') === 'true';
-    if (isSetup && user?.uid === currentProfile.uid) {
-      setIsEditDialogOpen(true);
-      // Optional: remove query param from URL without reloading
-      const newPath = `/profile/${user.uid}`;
-      router.replace(newPath, { scroll: false });
-    }
-  }, [searchParams, user, currentProfile.uid, router]);
-
   const handleProfileUpdate = (updates: Partial<UserProfile>) => {
     setCurrentProfile(prev => ({ ...prev, ...updates }));
     // This updates the UI instantly. The AuthContext will also update eventually on its own listener.
