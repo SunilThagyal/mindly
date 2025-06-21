@@ -15,6 +15,7 @@ import { Loader2, CheckCircle, AlertTriangle, Info, DollarSign } from 'lucide-re
 const defaultSettings: EarningsSettings = {
   baseEarningPerView: 0.01,
   minimumWithdrawalAmount: 10,
+  minimumViewDuration: 5,
 };
 
 export default function EarningsSettingsForm() {
@@ -33,6 +34,7 @@ export default function EarningsSettingsForm() {
         setSettings({
           baseEarningPerView: typeof data.baseEarningPerView === 'number' ? data.baseEarningPerView : defaultSettings.baseEarningPerView,
           minimumWithdrawalAmount: typeof data.minimumWithdrawalAmount === 'number' ? data.minimumWithdrawalAmount : defaultSettings.minimumWithdrawalAmount,
+          minimumViewDuration: typeof data.minimumViewDuration === 'number' ? data.minimumViewDuration : defaultSettings.minimumViewDuration,
         });
       } else {
         setSettings(defaultSettings);
@@ -63,6 +65,7 @@ export default function EarningsSettingsForm() {
 
     const parsedRate = parseFloat(String(settings.baseEarningPerView));
     const parsedMinWithdrawal = parseFloat(String(settings.minimumWithdrawalAmount));
+    const parsedMinDuration = parseInt(String(settings.minimumViewDuration), 10);
 
     if (isNaN(parsedRate) || parsedRate < 0) {
       toast({
@@ -82,6 +85,15 @@ export default function EarningsSettingsForm() {
       setIsSaving(false);
       return;
     }
+     if (isNaN(parsedMinDuration) || parsedMinDuration < 0) {
+      toast({
+        title: 'Invalid Duration',
+        description: 'Minimum View Duration must be a non-negative number.',
+        variant: 'destructive',
+      });
+      setIsSaving(false);
+      return;
+    }
 
 
     try {
@@ -89,6 +101,7 @@ export default function EarningsSettingsForm() {
       const dataToSave: EarningsSettings = {
         baseEarningPerView: parsedRate,
         minimumWithdrawalAmount: parsedMinWithdrawal,
+        minimumViewDuration: parsedMinDuration,
       };
 
       if (docSnap.exists()) {
@@ -167,6 +180,19 @@ export default function EarningsSettingsForm() {
               placeholder="e.g., 10"
             />
             <p className="text-xs text-muted-foreground mt-1">The minimum virtual currency a user must have to request a withdrawal.</p>
+          </div>
+           <div>
+            <Label htmlFor="minimumViewDuration">Minimum View Duration (seconds)</Label>
+            <Input
+              id="minimumViewDuration"
+              type="number"
+              step="1"
+              min="0"
+              value={settings.minimumViewDuration ?? 5}
+              onChange={(e) => handleInputChange('minimumViewDuration', e.target.value)}
+              placeholder="e.g., 5"
+            />
+            <p className="text-xs text-muted-foreground mt-1">The time a user must stay on a page for a view to be counted. Set to 0 for instant view count.</p>
           </div>
         </CardContent>
          <CardFooter>

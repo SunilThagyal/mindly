@@ -40,9 +40,9 @@ interface BlogPostViewProps {
 }
 
 export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogPostViewProps) {
-  const { user, userProfile: currentUserProfile } = useAuth();
+  const { user, userProfile: currentUserProfile, loading: authLoading } = useAuth();
   const { adsEnabled, adDensity } = useAdSettings();
-  const { baseEarningPerView } = useEarningsSettings();
+  const { baseEarningPerView, minimumViewDuration, loadingSettings: loadingEarnings } = useEarningsSettings();
   const router = useRouter();
   const { toast } = useToast();
   
@@ -53,17 +53,42 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const viewTriggered = useRef(false);
 
   useEffect(() => {
-    if (initialBlog.status === 'published' && !viewTriggered.current && user?.uid !== initialBlog.authorId) {
-      viewTriggered.current = true;
-      // Fire-and-forget server action to increment view count
+    // Ensure this effect runs only once per page load and all data is ready.
+    if (viewTriggered.current || authLoading || loadingEarnings) {
+      return;
+    }
+    
+    viewTriggered.current = true; // Prevent this from ever running again on this page load
+
+    // Don't count views for the author
+    if (user?.uid === initialBlog.authorId) {
+      return;
+    }
+
+    const viewedKey = `viewed-${initialBlog.id}`;
+    if (sessionStorage.getItem(viewedKey)) {
+      return;
+    }
+    
+    const duration = (minimumViewDuration ?? 5) * 1000;
+
+    const timer = setTimeout(() => {
+      // Mark as viewed in session storage inside the timer to ensure user stayed
+      sessionStorage.setItem(viewedKey, 'true');
+      
+      // Fire-and-forget server action
       incrementViewCount(initialBlog.id, initialBlog.authorId).then(result => {
         if (result.success) {
-          // Optimistically update the view count on the client for immediate feedback
-          setBlog(prevBlog => ({...prevBlog, views: prevBlog.views + 1}));
+          // Optimistically update the view count on the client
+          setBlog(prevBlog => ({...prevBlog, views: (prevBlog.views || 0) + 1}));
         }
       });
-    }
-  }, [initialBlog.id, initialBlog.authorId, user?.uid, initialBlog.status]);
+    }, duration);
+
+    // Cleanup function to clear the timer if the component unmounts
+    return () => clearTimeout(timer);
+
+  }, [initialBlog.id, initialBlog.authorId, user, authLoading, loadingEarnings, minimumViewDuration]);
 
 
   const wrapMediaElements = useCallback((htmlContent: string) => {

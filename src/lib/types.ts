@@ -82,6 +82,7 @@ export interface AdSettings {
 export interface EarningsSettings {
   baseEarningPerView: number;
   minimumWithdrawalAmount?: number;
+  minimumViewDuration?: number;
 }
 
 export interface WithdrawalRequest {
