@@ -317,7 +317,7 @@ export default function ThemeManagementTab() {
                         {Object.entries(FONT_OPTIONS).map(([groupName, fonts]) => (
                             <SelectGroup key={groupName}>
                                 <SelectLabel>{groupName}</SelectLabel>
-                                {fonts.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
+                                {fonts.map(font => <SelectItem key={`${groupName}-${font}`} value={font}>{font}</SelectItem>)}
                             </SelectGroup>
                         ))}
                     </SelectContent>
@@ -331,7 +331,7 @@ export default function ThemeManagementTab() {
                          {Object.entries(FONT_OPTIONS).map(([groupName, fonts]) => (
                             <SelectGroup key={groupName}>
                                 <SelectLabel>{groupName}</SelectLabel>
-                                {fonts.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
+                                {fonts.map(font => <SelectItem key={`${groupName}-${font}`} value={font}>{font}</SelectItem>)}
                             </SelectGroup>
                         ))}
                     </SelectContent>
@@ -407,3 +407,5 @@ export default function ThemeManagementTab() {
     </>
   );
 }
+
+    
