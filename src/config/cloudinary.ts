@@ -20,7 +20,7 @@ if (typeof window !== 'undefined') { // Only run this warning logic in the brows
       warningMessage += `- NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET environment variable is not set or is using a placeholder value. Current value: '${CLOUDINARY_UPLOAD_PRESET}'.\n`;
     }
 
-    warningMessage += "\nMedia uploads within the blog editor (cover image, in-content images, and in-content videos) will NOT work until these are correctly configured in your .env file (e.g., .env.local).\n" +
+    warningMessage += "\nMedia uploads within the blog editor (cover image, in-content images, and in-content videos) will NOT work until this is correctly configured in your .env file (e.g., .env.local).\n" +
       "1. Ensure NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is set to your Cloudinary cloud name.\n" +
       "2. Create an 'unsigned' upload preset in your Cloudinary dashboard (Media Library -> Settings (gear icon) -> Upload -> Upload presets -> Add upload preset).\n" +
       "3. Set NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET in your .env file to your chosen unsigned preset name (e.g., 'blogchain_unsigned_preset' or 'your_actual_unsigned_preset_name').\n\n" +
