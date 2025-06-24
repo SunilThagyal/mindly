@@ -50,6 +50,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const [blog, setBlog] = useState<Blog>(initialBlog);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [isAnimatingLike, setIsAnimatingLike] = useState(false);
   const [processedContent, setProcessedContent] = useState<string | null>(null);
   const viewTriggered = useRef(false);
 
@@ -187,13 +188,22 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
       return;
     }
-    
+
+    const isActionLike = !blog.likedBy?.includes(user.uid);
+
+    // Trigger animation only on "like"
+    if (isActionLike) {
+        setIsAnimatingLike(true);
+        setTimeout(() => setIsAnimatingLike(false), 400); // Animation duration
+    }
+
+    // Optimistic UI update
     setBlog(prevBlog => ({
       ...prevBlog,
-      likes: (prevBlog.likes || 0) + (isLikedByCurrentUser ? -1 : 1),
-      likedBy: isLikedByCurrentUser
-        ? (prevBlog.likedBy || []).filter(uid => uid !== user.uid)
-        : [...(prevBlog.likedBy || []), user.uid],
+      likes: (prevBlog.likes || 0) + (isActionLike ? 1 : -1),
+      likedBy: isActionLike
+        ? [...(prevBlog.likedBy || []), user.uid]
+        : (prevBlog.likedBy || []).filter(uid => uid !== user.uid),
     }));
     
     if (isLiking) return;
@@ -344,15 +354,15 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     onClick={handleLikePost}
                     disabled={isLiking}
                     variant="ghost"
-                    className="group relative p-0 h-auto rounded-xl focus:outline-none focus:ring-2 ring-offset-background focus:ring-red-400"
+                    className="group relative p-0 h-auto rounded-xl focus:outline-none focus:ring-2 ring-offset-background focus:ring-destructive"
                     aria-pressed={isLikedByCurrentUser}
                     title={isLikedByCurrentUser ? "Unlike post" : "Like post"}
                   >
                      <span className={cn(
                         "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 group-hover:scale-105",
                         isLikedByCurrentUser
-                          ? "bg-red-500 border-red-500 text-white" 
-                          : "border-muted-foreground/30 text-muted-foreground",
+                          ? "bg-destructive border-destructive text-destructive-foreground" 
+                          : "border-muted-foreground/30 text-muted-foreground hover:border-destructive/50 hover:text-destructive",
                         isLiking && "cursor-not-allowed"
                     )}>
                       {isLiking ? (
@@ -360,13 +370,11 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                       ) : (
                         <>
                           <Heart className={cn(
-                            "h-6 w-6 transition-all duration-150 ease-in-out group-active:scale-125",
-                             isLikedByCurrentUser ? "fill-white text-white" : "group-hover:fill-accent/20 group-hover:text-accent",
+                            "h-6 w-6 transition-all",
+                            isLikedByCurrentUser && "fill-current",
+                            isAnimatingLike && "animate-like-pop"
                           )} />
-                          <span className={cn(
-                            "text-sm tabular-nums",
-                            isLikedByCurrentUser ? "text-white" : "group-hover:text-accent"
-                          )}>
+                          <span className="text-sm tabular-nums">
                             {currentLikes > 0 ? currentLikes : (isLikedByCurrentUser ? 'Liked' : 'Like')}
                           </span>
                         </>

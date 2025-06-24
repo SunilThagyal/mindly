@@ -147,11 +147,18 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        'like-pop': {
+          '0%': { transform: 'scale(1)' },
+          '25%': { transform: 'scale(0.95)' },
+          '50%': { transform: 'scale(1.2)' },
+          '100%': { transform: 'scale(1)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-in': 'fadeIn 0.5s ease-out forwards',
+        'like-pop': 'like-pop 0.4s ease-out',
       },
     },
   },
