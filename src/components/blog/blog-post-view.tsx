@@ -33,6 +33,7 @@ import CommentsSection from './comments-section';
 import SocialShareButtons from './social-share-buttons';
 import { cn } from '@/lib/utils';
 import { incrementViewCount } from '@/lib/actions';
+import ReadingProgressBar from './reading-progress-bar';
 
 interface BlogPostViewProps {
   blog: Blog;
@@ -294,6 +295,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
   return (
     <>
+      <ReadingProgressBar />
       <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto py-8 px-4 animate-fade-in">
         <main className="flex-1 w-full lg:max-w-3xl xl:max-w-4xl">
           <AdPlaceholder type="leaderboard-header" className="mb-6" />
