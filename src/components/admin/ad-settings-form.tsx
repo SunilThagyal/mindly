@@ -92,7 +92,7 @@ export default function AdSettingsForm() {
       toast({
         title: 'Settings Saved!',
         description: 'Ad settings have been updated successfully.',
-        action: <CheckCircle className="text-green-500" />,
+        variant: 'success',
       });
     } catch (error: any) {
       console.error("Error saving ad settings:", error);
@@ -100,7 +100,6 @@ export default function AdSettingsForm() {
         title: 'Save Error',
         description: error.message || 'Failed to save ad settings.',
         variant: 'destructive',
-        action: <AlertTriangle className="text-red-500" />,
       });
     } finally {
       setIsSaving(false);

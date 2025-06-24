@@ -121,7 +121,7 @@ export default function EditProfileDialog({ isOpen, onClose, userProfile, onProf
         const userDocRef = doc(db, 'users', user.uid);
         await updateDoc(userDocRef, updates);
 
-        toast({ title: 'Profile Updated!', description: 'Your profile has been saved successfully.' });
+        toast({ title: 'Profile Updated!', description: 'Your profile has been saved successfully.', variant: 'success' });
         onProfileUpdate(updates);
         onClose();
     } catch (error: any) {

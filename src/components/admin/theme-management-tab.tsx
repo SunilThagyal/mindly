@@ -163,7 +163,7 @@ export default function ThemeManagementTab() {
             toast({
                 title: 'Theme Generated!',
                 description: 'AI has populated the theme settings. Review and save them below.',
-                action: <CheckCircle className="text-green-500" />,
+                variant: 'success',
             });
         } else {
             throw new Error("AI returned no result.");
@@ -174,7 +174,6 @@ export default function ThemeManagementTab() {
             title: 'AI Generation Error',
             description: error.message || 'Failed to generate theme.',
             variant: 'destructive',
-            action: <AlertTriangle className="text-red-500" />,
         });
     } finally {
         setIsGeneratingTheme(false);
@@ -190,7 +189,7 @@ export default function ThemeManagementTab() {
       toast({
         title: 'Theme Saved!',
         description: 'Your new theme settings have been applied.',
-        action: <CheckCircle className="text-green-500" />,
+        variant: 'success',
       });
     } catch (error: any) {
       console.error("Error saving theme settings:", error);
@@ -198,7 +197,6 @@ export default function ThemeManagementTab() {
         title: 'Save Error',
         description: error.message || 'Failed to save theme settings.',
         variant: 'destructive',
-        action: <AlertTriangle className="text-red-500" />,
       });
     } finally {
       setIsSaving(false);
@@ -213,7 +211,7 @@ export default function ThemeManagementTab() {
       toast({
         title: 'Theme Reset!',
         description: 'The theme has been reset to its default settings.',
-        action: <RotateCcw className="text-green-500" />,
+        variant: 'success',
       });
     } catch (error: any) {
       console.error("Error resetting theme settings:", error);

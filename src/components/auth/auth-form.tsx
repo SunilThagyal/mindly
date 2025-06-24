@@ -61,7 +61,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
             await sendEmailVerification(userCredential.user);
             toast({
               title: 'Account Created & Verification Email Sent!',
-              description: `IMPORTANT: A verification email has been sent to ${userCredential.user.email}. Please check your inbox (and especially your spam/junk folder) to verify your account before logging in.`,
+              description: `A verification email has been sent to ${userCredential.user.email}. Please check your inbox and spam folder to verify your account.`,
+              variant: 'success',
               duration: 10000, 
             });
         } catch (verificationError: any) {
@@ -113,7 +114,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
            setIsLoading(false);
            return;
         }
-        toast({ title: 'Logged In!', description: `Welcome back, ${loggedInUser.displayName || 'User'}!` });
+        toast({ title: 'Logged In!', description: `Welcome back, ${loggedInUser.displayName || 'User'}!`, variant: 'success' });
         router.push(redirectUrl || '/');
       }
     } catch (error: any) {
@@ -155,7 +156,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
         await setDoc(userDocRef, newUserProfile);
       }
       
-      toast({ title: 'Logged In!', description: `Welcome, ${user.displayName || 'User'}!` });
+      toast({ title: 'Logged In!', description: `Welcome, ${user.displayName || 'User'}!`, variant: 'success' });
       router.push(redirectUrl || '/');
     } catch (error: any) {
       toast({

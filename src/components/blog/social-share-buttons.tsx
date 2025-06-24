@@ -17,7 +17,7 @@ export default function SocialShareButtons({ blogUrl, blogTitle }: SocialShareBu
   const copyLink = () => {
     navigator.clipboard.writeText(fullUrl)
       .then(() => {
-        toast({ title: "Link Copied!", description: "Blog post URL copied to clipboard." });
+        toast({ title: "Link Copied!", description: "Blog post URL copied to clipboard.", variant: 'success' });
       })
       .catch(err => {
         console.error("Failed to copy link: ", err);

@@ -106,7 +106,7 @@ export default function MonetizationForm({ userProfile, userId }: MonetizationFo
       toast({
         title: 'Payment Details Saved!',
         description: 'Your payment information has been updated.',
-        action: <CheckCircle className="text-green-500" />,
+        variant: 'success',
       });
     } catch (error: any) {
       console.error("Error saving payment details:", error);
@@ -200,7 +200,7 @@ export default function MonetizationForm({ userProfile, userId }: MonetizationFo
       toast({
         title: 'Withdrawal Requested!',
         description: `Your request for $${amount.toFixed(2)} has been submitted.`,
-        action: <CheckCircle className="text-green-500" />,
+        variant: 'success',
       });
       setWithdrawalAmount('');
       // userProfile.virtualEarnings will update via AuthContext listener, or force refresh if needed

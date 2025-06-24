@@ -131,7 +131,7 @@ export default function WithdrawalManagementTab() {
       }
       
       await updateDoc(requestDocRef, updateData);
-      toast({ title: 'Status Updated', description: `Request status changed to ${newStatus}.` });
+      toast({ title: 'Status Updated', description: `Request status changed to ${newStatus}.`, variant: 'success' });
       loadRequests(); // Reload all requests to reflect changes
     } catch (err: any) {
       toast({ title: 'Update Error', description: err.message || 'Failed to update status.', variant: 'destructive' });

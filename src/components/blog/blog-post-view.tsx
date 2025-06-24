@@ -170,7 +170,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     setIsDeleting(true);
     try {
       await deleteDoc(doc(db, "blogs", blog.id));
-      toast({ title: "Success", description: "Blog post deleted successfully." });
+      toast({ title: "Success", description: "Blog post deleted successfully.", variant: 'success' });
       router.push("/my-blogs");
     } catch (error) {
       console.error("Error deleting blog: ", error);

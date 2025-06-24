@@ -106,7 +106,7 @@ export default function PostManagementTab() {
     setIsDeleting(true);
     try {
       await deleteDoc(doc(db, 'blogs', postToDelete.id));
-      toast({ title: 'Post Deleted', description: `"${postToDelete.title}" has been deleted.` });
+      toast({ title: 'Post Deleted', description: `"${postToDelete.title}" has been deleted.`, variant: 'success' });
       setAllPosts(prevPosts => prevPosts.filter(p => p.id !== postToDelete.id));
     } catch (err: any)
 {

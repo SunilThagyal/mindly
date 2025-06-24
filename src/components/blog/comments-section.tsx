@@ -125,7 +125,7 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
         likes: [],
       });
       setNewCommentText('');
-      toast({ title: "Comment Posted!", description: "Your comment has been added." });
+      toast({ title: "Comment Posted!", description: "Your comment has been added.", variant: 'success' });
 
       if (user.uid !== blogAuthorId) {
         const notificationRef = collection(db, 'users', blogAuthorId, 'notifications');
@@ -177,7 +177,7 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
         });
         setReplyText('');
         setReplyingToCommentId(null); 
-        toast({ title: "Reply Posted!", description: "Your reply has been added." });
+        toast({ title: "Reply Posted!", description: "Your reply has been added.", variant: 'success' });
         setExpandedReplies(prev => ({ ...prev, [parentId]: true })); 
 
         if (user.uid !== parentComment.userId) {
@@ -220,7 +220,7 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
       await updateDoc(commentRef, { text: editingText.trim() });
       setEditingCommentId(null);
       setEditingText('');
-      toast({ title: "Comment Updated", description: "Your comment has been updated." });
+      toast({ title: "Comment Updated", description: "Your comment has been updated.", variant: 'success' });
     } catch (error) {
       console.error("Error updating comment: ", error);
       toast({ title: "Error", description: "Could not update comment.", variant: "destructive" });
@@ -242,7 +242,7 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
       
       await batchOp.commit();
 
-      toast({ title: "Comment Deleted", description: "The comment and its replies have been removed." });
+      toast({ title: "Comment Deleted", description: "The comment and its replies have been removed.", variant: 'success' });
     } catch (error) {
       console.error("Error deleting comment: ", error);
       toast({ title: "Error", description: "Could not delete comment.", variant: "destructive" });
@@ -542,4 +542,3 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
     </section>
   );
 }
-

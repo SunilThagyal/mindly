@@ -80,7 +80,7 @@ export default function UserManagementTab() {
     try {
       const userDocRef = doc(db, 'users', userId);
       await updateDoc(userDocRef, updates);
-      toast({ title: 'User Updated', description: 'User details have been successfully updated.' });
+      toast({ title: 'User Updated', description: 'User details have been successfully updated.', variant: 'success' });
       // Re-fetch users to reflect changes, or update local state for faster UI update
       setAllUsers(prevUsers => prevUsers.map(u => u.uid === userId ? {...u, ...updates} : u));
     } catch (err: any) {

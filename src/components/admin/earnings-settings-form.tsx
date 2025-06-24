@@ -112,7 +112,7 @@ export default function EarningsSettingsForm() {
       toast({
         title: 'Settings Saved!',
         description: 'Earnings settings have been updated successfully.',
-        action: <CheckCircle className="text-green-500" />,
+        variant: 'success',
       });
     } catch (error: any) {
       console.error("Error saving earnings settings:", error);
@@ -120,7 +120,6 @@ export default function EarningsSettingsForm() {
         title: 'Save Error',
         description: error.message || 'Failed to save earnings settings.',
         variant: 'destructive',
-        action: <AlertTriangle className="text-red-500" />,
       });
     } finally {
       setIsSaving(false);
