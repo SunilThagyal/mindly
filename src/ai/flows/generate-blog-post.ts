@@ -61,14 +61,24 @@ const generateBlogPostFlow = ai.defineFlow(
     }
 
     // Sanitize the title to ensure it's plain text without any Markdown formatting.
-    // This is a failsafe in case the model doesn't follow the prompt instructions perfectly.
     const sanitizedTitle = output.title
-      .replace(/\*/g, '') // Remove all asterisks
-      .replace(/_/g, '');   // Remove all underscores
+      .replace(/\*/g, '')
+      .replace(/_/g, '');
+
+    // Sanitize the HTML content to convert stray Markdown into proper HTML tags.
+    // This handles cases where the AI mistakenly uses Markdown instead of HTML.
+    let sanitizedHtmlContent = output.htmlContent;
+    // Note: Order is important. Process bold first, then italic, to handle nesting correctly.
+    // Bold: **text** or __text__ -> <strong>text</strong>
+    sanitizedHtmlContent = sanitizedHtmlContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    sanitizedHtmlContent = sanitizedHtmlContent.replace(/__(.*?)__/g, '<strong>$1</strong>');
+    // Italic: *text* or _text_ -> <em>text</em>
+    sanitizedHtmlContent = sanitizedHtmlContent.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    sanitizedHtmlContent = sanitizedHtmlContent.replace(/_(.*?)_/g, '<em>$1</em>');
 
     return {
-      ...output,
-      title: sanitizedTitle.trim(), // Also trim whitespace
+      title: sanitizedTitle.trim(),
+      htmlContent: sanitizedHtmlContent, // Return the sanitized HTML
     };
   }
 );
