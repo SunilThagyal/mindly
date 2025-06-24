@@ -1,9 +1,19 @@
 
+import type { Metadata } from 'next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PenSquare, Eye, ShieldCheck, HandCoins } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { siteConfig } from '@/config/site';
+
+export const metadata: Metadata = {
+  title: 'How It Works',
+  description: `Learn how ${siteConfig.name} rewards creativity and how you can turn your engaging stories into tangible earnings.`,
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
 export default function HowItWorksPage() {
   return (

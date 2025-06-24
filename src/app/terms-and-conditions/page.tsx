@@ -1,6 +1,16 @@
 
+import type { Metadata } from 'next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { siteConfig } from '@/config/site';
+
+export const metadata: Metadata = {
+  title: 'Terms and Conditions',
+  description: `Read the terms and conditions for using ${siteConfig.name}.`,
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
 export default function TermsAndConditionsPage() {
   return (

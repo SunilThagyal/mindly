@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import type { Metadata } from 'next';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import BlogCard from '@/components/blog/blog-card';
@@ -13,6 +14,14 @@ import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlusCircle, FileText, AlertTriangle, ExternalLink } from 'lucide-react';
+
+export const metadata: Metadata = {
+  title: 'My Blogs',
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 async function getUserBlogs(userId: string, status?: 'published' | 'draft'): Promise<Blog[]> {
   const blogsCol = collection(db, 'blogs');
@@ -65,6 +74,10 @@ export default function MyBlogsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [firestoreIndexErrorLink, setFirestoreIndexErrorLink] = useState<string | null>(null);
+
+  useEffect(() => {
+    document.title = metadata.title as string;
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;

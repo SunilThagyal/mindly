@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import type { Metadata } from 'next';
 import { useAuth } from '@/context/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { collection, query, where, getCountFromServer, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { UserProfile } from '@/lib/types';
+
+export const metadata: Metadata = {
+  title: 'Admin Panel',
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 const ADMIN_TABS = ['dashboard', 'ads', 'earnings', 'users', 'posts', 'withdrawals', 'theme'] as const;
 type AdminTab = typeof ADMIN_TABS[number];
@@ -82,6 +91,10 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [pendingWithdrawalCount, setPendingWithdrawalCount] = useState(0);
   const [eligibleUserCount, setEligibleUserCount] = useState(0);
+
+  useEffect(() => {
+    document.title = metadata.title as string;
+  }, []);
 
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');

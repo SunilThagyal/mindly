@@ -1,0 +1,14 @@
+# See https://www.robotstxt.org/robotstxt.html for documentation
+User-agent: *
+Allow: /
+
+# Disallow admin and user-specific areas
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /my-blogs/
+Disallow: /monetization/
+Disallow: /blog/create/
+Disallow: /blog/edit/
+
+# Point to the sitemap (replace with your actual domain)
+Sitemap: https://blogchain-your-domain.com/sitemap.xml

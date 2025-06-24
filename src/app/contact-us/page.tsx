@@ -1,4 +1,14 @@
 import ContactForm from '@/components/legal/contact-form';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Contact Us',
+  description: 'Have a question or feedback? Fill out the form to get in touch with us.',
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
 export default function ContactUsPage() {
   return (

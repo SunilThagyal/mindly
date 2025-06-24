@@ -1,6 +1,16 @@
 
+import type { Metadata } from 'next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { siteConfig } from '@/config/site';
+
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+  description: `Read the privacy policy for ${siteConfig.name} to understand how we collect, use, and protect your data.`,
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
 export default function PrivacyPolicyPage() {
   return (

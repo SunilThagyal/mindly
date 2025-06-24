@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import BlogCard from '@/components/blog/blog-card';
 import type { Blog } from '@/lib/types';
 import { db } from '@/lib/firebase';
@@ -123,46 +124,38 @@ export default function HomePage() {
   const [recentPosts, setRecentPosts] = useState<Blog[]>([]);
   const [trendingPosts, setTrendingPosts] = useState<Blog[]>([]);
   const [mostReadPosts, setMostReadPosts] = useState<Blog[]>([]);
-  const [explorePosts, setExplorePosts] = useState<Blog[]>([]);
   
   const [allSampledTags, setAllSampledTags] = useState<string[]>([]);
   const [topDisplayTags, setTopDisplayTags] = useState<string[]>([]);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
   const [filteredSearchTags, setFilteredSearchTags] = useState<string[]>([]);
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
 
   const [lastDocRecent, setLastDocRecent] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [lastDocTrending, setLastDocTrending] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [lastDocMostRead, setLastDocMostRead] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [lastDocExplore, setLastDocExplore] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
 
   const lastDocRecentRef = useRef(lastDocRecent);
   const lastDocTrendingRef = useRef(lastDocTrending);
   const lastDocMostReadRef = useRef(lastDocMostRead);
-  const lastDocExploreRef = useRef(lastDocExplore);
 
   useEffect(() => { lastDocRecentRef.current = lastDocRecent; }, [lastDocRecent]);
   useEffect(() => { lastDocTrendingRef.current = lastDocTrending; }, [lastDocTrending]);
   useEffect(() => { lastDocMostReadRef.current = lastDocMostRead; }, [lastDocMostRead]);
-  useEffect(() => { lastDocExploreRef.current = lastDocExplore; }, [lastDocExplore]);
 
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [loadingTrending, setLoadingTrending] = useState(false);
   const [loadingMostRead, setLoadingMostRead] = useState(false);
-  const [loadingExplore, setLoadingExplore] = useState(false);
   const [loadingTags, setLoadingTags] = useState(false);
 
   const [errorRecent, setErrorRecent] = useState<FetchErrorState>({ message: null, indexLink: null });
   const [errorTrending, setErrorTrending] = useState<FetchErrorState>({ message: null, indexLink: null });
   const [errorMostRead, setErrorMostRead] = useState<FetchErrorState>({ message: null, indexLink: null });
-  const [errorExplore, setErrorExplore] = useState<FetchErrorState>({ message: null, indexLink: null });
   const [errorTags, setErrorTags] = useState<FetchErrorState>({ message: null, indexLink: null });
 
   const [hasMoreRecent, setHasMoreRecent] = useState(true);
   const [hasMoreTrending, setHasMoreTrending] = useState(true);
   const [hasMoreMostRead, setHasMoreMostRead] = useState(true);
-  const [hasMoreExplore, setHasMoreExplore] = useState(true);
 
   const handleFetchError = (error: any, setErrorState: React.Dispatch<React.SetStateAction<FetchErrorState>>, tabName: string) => {
     const errorMessage = error.message || `An unknown error occurred while fetching ${tabName} blogs.`;
@@ -190,7 +183,6 @@ export default function HomePage() {
     let fieldToOrderBy: string;
     let sortDirection: "asc" | "desc";
     let lastDocForQuery: QueryDocumentSnapshot<DocumentData> | null = null;
-    let currentSelectedTag: string | null = null;
 
     switch (tabKey) {
       case 'recent':
@@ -208,19 +200,6 @@ export default function HomePage() {
         fieldToOrderBy = 'readingTime'; sortDirection = 'desc'; setHasMoreFunc = setHasMoreMostRead;
         lastDocForQuery = lastDocMostReadRef.current;
         break;
-      case 'explore':
-        setPostsFunc = setExplorePosts; setLastDocFunc = setLastDocExplore; setLoadingFunc = setLoadingExplore; setErrorFunc = setErrorExplore;
-        fieldToOrderBy = 'publishedAt'; sortDirection = 'desc'; setHasMoreFunc = setHasMoreExplore;
-        lastDocForQuery = lastDocExploreRef.current;
-        currentSelectedTag = selectedTag;
-        if (!currentSelectedTag) {
-            setExplorePosts([]); 
-            setLastDocExplore(null);
-            setHasMoreExplore(false); 
-            setLoadingExplore(false);
-            return;
-        }
-        break;
       default: return;
     }
 
@@ -234,7 +213,7 @@ export default function HomePage() {
 
     try {
       const lastDocToQueryWith = isLoadMoreOperation ? lastDocForQuery : null;
-      const { blogs: newBlogs, newLastDoc: newCursor } = await getBlogs(fieldToOrderBy, sortDirection, postsPerPage, lastDocToQueryWith, currentSelectedTag);
+      const { blogs: newBlogs, newLastDoc: newCursor } = await getBlogs(fieldToOrderBy, sortDirection, postsPerPage, lastDocToQueryWith, null);
       
       setPostsFunc(prev => isLoadMoreOperation ? [...prev, ...newBlogs] : newBlogs);
       setLastDocFunc(newCursor);
@@ -246,7 +225,7 @@ export default function HomePage() {
     } finally {
       setLoadingFunc(false);
     }
-  }, [postsPerPage, selectedTag]);
+  }, [postsPerPage]);
 
   useEffect(() => {
     if (loadingTheme) return; // Wait for theme settings to load
@@ -274,16 +253,14 @@ export default function HomePage() {
 
   useEffect(() => {
     if (loadingTheme) return;
-    if (activeTab === 'explore') {
-      fetchPosts('explore');
-    } else if (activeTab === 'recent') {
+    if (activeTab === 'recent') {
       if (recentPosts.length === 0 && !loadingRecent && hasMoreRecent) fetchPosts('recent');
     } else if (activeTab === 'trending') {
       if (trendingPosts.length === 0 && !loadingTrending && hasMoreTrending) fetchPosts('trending');
     } else if (activeTab === 'mostRead') {
       if (mostReadPosts.length === 0 && !loadingMostRead && hasMoreMostRead) fetchPosts('mostRead');
     }
-  }, [activeTab, selectedTag, loadingTheme, fetchPosts, hasMoreMostRead, hasMoreRecent, hasMoreTrending, loadingMostRead, loadingRecent, loadingTrending, mostReadPosts.length, recentPosts.length, trendingPosts.length]); 
+  }, [activeTab, loadingTheme, fetchPosts, hasMoreMostRead, hasMoreRecent, hasMoreTrending, loadingMostRead, loadingRecent, loadingTrending, mostReadPosts.length, recentPosts.length, trendingPosts.length]); 
 
 
   useEffect(() => {
@@ -299,13 +276,6 @@ export default function HomePage() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-  };
-
-  const handleTagSelect = (tag: string) => {
-    setSelectedTag(prev => prev === tag ? null : tag); 
-    if (activeTab !== 'explore') {
-        setActiveTab('explore'); 
-    }
   };
   
   const renderBlogList = (
@@ -356,7 +326,7 @@ export default function HomePage() {
       return (
           <div className="text-center text-muted-foreground py-10 text-lg min-h-[200px] flex flex-col justify-center items-center">
             <SearchIcon className="h-16 w-16 mb-4 opacity-50" />
-            <p>{activeTab === 'explore' && !selectedTag ? "Select or search a category to explore stories." : "No blogs found here yet."}</p>
+            <p>No blogs found here yet.</p>
           </div>
       );
     }
@@ -437,24 +407,25 @@ export default function HomePage() {
                 {filteredSearchTags.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                     {filteredSearchTags.map(tag => (
-                        <Badge
-                        key={tag}
-                        variant={selectedTag === tag ? "default" : "secondary"}
-                        onClick={() => handleTagSelect(tag)}
-                        className="cursor-pointer text-sm px-3 py-1 hover:bg-primary/20 transition-colors duration-200"
-                        >
-                        {tag}
-                        </Badge>
+                        <Link key={tag} href={`/tags/${encodeURIComponent(tag.toLowerCase())}`} passHref>
+                           <Badge
+                                variant={"secondary"}
+                                className="cursor-pointer text-sm px-3 py-1 hover:bg-primary hover:text-primary-foreground transition-colors duration-200"
+                                >
+                                {tag}
+                            </Badge>
+                        </Link>
                     ))}
                     </div>
                 ) : (
                     !loadingTags && <p className="text-sm text-muted-foreground">{tagSearchQuery ? "No categories match your search." : "No top categories found."}</p>
                 )}
             </div>
-            
           </div>
-          {selectedTag && <h4 className="text-2xl font-headline font-semibold my-6 text-foreground">Showing posts for: <span className="text-primary">{selectedTag}</span></h4>}
-          {renderBlogList(explorePosts, loadingExplore, errorExplore, hasMoreExplore, () => fetchPosts('explore', true), 'explore')}
+          <div className="text-center text-muted-foreground py-10 text-lg min-h-[200px] flex flex-col justify-center items-center">
+            <SearchIcon className="h-16 w-16 mb-4 opacity-50" />
+            <p>Select or search a category above to explore stories.</p>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
