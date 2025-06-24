@@ -1,7 +1,6 @@
 
 'use server';
 
-import { cookies } from 'next/headers';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import type { UserProfile, EarningsSettings } from '@/lib/types';
@@ -12,24 +11,8 @@ export async function incrementViewCount(blogId: string, authorId: string) {
     return { success: false, message: 'Missing blogId or authorId.' };
   }
 
-  const cookieStore = cookies();
-  const viewedCookie = cookieStore.get('viewedBlogs');
-  let viewedBlogs: string[] = [];
-
-  if (viewedCookie) {
-    try {
-      const parsed = JSON.parse(viewedCookie.value);
-      if (Array.isArray(parsed)) {
-        viewedBlogs = parsed;
-      }
-    } catch (e) {
-      console.error("Failed to parse viewedBlogs cookie:", e);
-    }
-  }
-
-  if (viewedBlogs.includes(blogId)) {
-    return { success: false, message: 'View already counted for this session.' };
-  }
+  // The client-side logic in BlogPostView now handles view de-duplication per session using sessionStorage.
+  // This server action is now simplified to just perform the database increment.
 
   try {
     const blogRef = doc(db, 'blogs', blogId);
@@ -51,16 +34,8 @@ export async function incrementViewCount(blogId: string, authorId: string) {
         }
       }
     }
-    
-    viewedBlogs.push(blogId);
-    cookieStore.set('viewedBlogs', JSON.stringify(viewedBlogs), {
-      maxAge: 12 * 60 * 60, // 12 hours
-      path: '/',
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-    });
 
+    // Revalidate the path to ensure the new view count is shown on subsequent navigation.
     revalidatePath(`/blog/${blogId}`);
     return { success: true, message: 'View counted.' };
   } catch (error) {
