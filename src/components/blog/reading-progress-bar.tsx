@@ -10,7 +10,7 @@ export default function ReadingProgressBar() {
   useEffect(() => {
     const handleScroll = () => {
       // The target element is the article content wrapper
-      const articleElement = document.getElementById('blog-article-content');
+      const articleElement = document.getElementById('reading-content-container');
       
       // If we're on a page without the article, don't show the bar
       if (!articleElement) {
