@@ -362,7 +362,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                         "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 group-hover:scale-105",
                         isLikedByCurrentUser
                           ? "bg-destructive border-destructive text-destructive-foreground" 
-                          : "border-muted-foreground/30 text-muted-foreground hover:border-destructive/50 hover:text-destructive",
+                          : "border-muted-foreground/30 hover:border-destructive/50",
                         isLiking && "cursor-not-allowed"
                     )}>
                       {isLiking ? (
