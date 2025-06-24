@@ -27,8 +27,8 @@
     --muted-foreground: 0 0% 40%; /* #666666 - Muted text */
     
     /* A lighter, more accessible accent color */
-    --accent: 43 74% 66%; /* #E9C46A - A pleasant golden-yellow */
-    --accent-foreground: 0 0% 13%; /* #212121 - Dark text for high contrast */
+    --accent: 43 74% 90%; /* A very light, soft yellow */
+    --accent-foreground: 0 0% 13%; /* Dark text for high contrast */
     
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
@@ -70,9 +70,9 @@
     --primary: 48 100% 50%; 
     --primary-foreground: 0 0% 9%;
     
-    /* Accent is the same light color, which contrasts well on dark backgrounds. Foreground is also the same dark color. */
-    --accent: 43 74% 66%;
-    --accent-foreground: 0 0% 13%;
+    /* Accent is a muted gold, which contrasts well on dark backgrounds. Foreground is light. */
+    --accent: 43 74% 20%; /* Muted gold for dark mode hover */
+    --accent-foreground: 0 0% 90%; /* Light text for high contrast on dark accent */
 
     --secondary: 0 0% 20%; /* #333333 */
     --secondary-foreground: 0 0% 90%;
