@@ -70,8 +70,8 @@
     --primary: 48 100% 50%; 
     --primary-foreground: 0 0% 9%;
     
-    /* Accent is a muted gold, which contrasts well on dark backgrounds. Foreground is light. */
-    --accent: 43 74% 20%; /* Muted gold for dark mode hover */
+    /* Accent is now a lighter gray for a more subtle hover effect */
+    --accent: 0 0% 22%; /* Softer gray for dark mode hover */
     --accent-foreground: 0 0% 90%; /* Light text for high contrast on dark accent */
 
     --secondary: 0 0% 20%; /* #333333 */
@@ -410,4 +410,15 @@
   /* This class itself might not need styles if it's immediately replaced by JS */
   /* However, if there's a flash of unwrapped content, you could hide it: */
   /* display: none !important; */ 
+}
+
+.animate-like-pop {
+  animation: like-pop 0.4s ease-out;
+}
+
+@keyframes like-pop {
+  0% { transform: scale(1); }
+  25% { transform: scale(0.95); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
 }
