@@ -299,7 +299,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto py-8 px-4 animate-fade-in">
         <main className="flex-1 w-full lg:max-w-3xl xl:max-w-4xl">
           <AdPlaceholder type="leaderboard-header" className="mb-6" />
-          <article>
+          <article id="blog-article-content">
             {blog.coverImageUrl && (
               <div className="relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg">
                 <Image
