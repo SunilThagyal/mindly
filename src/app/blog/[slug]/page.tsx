@@ -71,6 +71,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   return {
     title: blog.title,
     description: excerpt,
+    alternates: {
+      canonical: `/blog/${blog.slug}`,
+    },
     openGraph: {
       title: blog.title,
       description: excerpt,

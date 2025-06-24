@@ -73,6 +73,9 @@ export async function generateMetadata({ params }: { params: { userId: string } 
   return {
     title: `${displayName}'s Profile`,
     description: description,
+    alternates: {
+      canonical: `/profile/${params.userId}`,
+    },
     openGraph: {
       title: `${displayName}'s Profile`,
       description: description,

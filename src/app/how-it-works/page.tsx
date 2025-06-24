@@ -1,6 +1,6 @@
 
 import type { Metadata } from 'next';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { PenSquare, Eye, ShieldCheck, HandCoins } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,10 @@ import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
   title: 'How It Works',
-  description: `Learn how ${siteConfig.name} rewards creativity and how you can turn your engaging stories into tangible earnings.`,
+  description: `Learn how ${siteConfig.name} rewards creativity and how you can turn your engaging stories into tangible earnings through views and engagement.`,
+  alternates: {
+    canonical: '/how-it-works',
+  },
   robots: {
     index: true,
     follow: true,
@@ -29,7 +32,11 @@ export default function HowItWorksPage() {
         <StepCard
           icon={<PenSquare className="h-10 w-10 text-accent" />}
           title="1. Write & Publish"
-          description="Craft high-quality, engaging blog posts that people want to read. The better your content, the more views you'll attract. Use our intuitive editor to bring your ideas to life and publish them to the world."
+          description={
+            <>
+              Craft high-quality, engaging blog posts that people want to read. Use our intuitive <Link href="/blog/create" className="text-primary hover:underline">editor</Link> to bring your ideas to life and publish them to the world.
+            </>
+          }
         />
         <StepCard
           icon={<Eye className="h-10 w-10 text-accent" />}
@@ -44,7 +51,11 @@ export default function HowItWorksPage() {
         <StepCard
           icon={<HandCoins className="h-10 w-10 text-accent" />}
           title="4. Earn & Withdraw"
-          description="Once approved, you'll earn virtual currency for your post views based on admin-set rates and the performance of ads on your pages. When your balance reaches the minimum threshold, request a withdrawal from your monetization dashboard."
+          description={
+            <>
+              Once approved, you'll earn virtual currency for your post views based on admin-set rates and the performance of ads on your pages. When your balance reaches the minimum threshold, request a withdrawal from your monetization dashboard.
+            </>
+          }
         />
       </div>
 
@@ -57,15 +68,15 @@ export default function HowItWorksPage() {
   );
 }
 
-function StepCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
+function StepCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: React.ReactNode }) {
   return (
     <Card className="h-full shadow-lg hover:shadow-xl transition-shadow">
       <CardHeader className="flex flex-row items-center gap-4">
         {icon}
-        <CardTitle className="font-headline text-2xl">{title}</CardTitle>
+        <h2 className="font-headline text-2xl text-card-foreground">{title}</h2>
       </CardHeader>
       <CardContent>
-        <p className="text-muted-foreground">{description}</p>
+        <div className="text-muted-foreground">{description}</div>
       </CardContent>
     </Card>
   );

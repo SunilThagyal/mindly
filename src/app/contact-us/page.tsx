@@ -4,6 +4,9 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Contact Us',
   description: 'Have a question or feedback? Fill out the form to get in touch with us.',
+  alternates: {
+    canonical: '/contact-us',
+  },
   robots: {
     index: true,
     follow: true,

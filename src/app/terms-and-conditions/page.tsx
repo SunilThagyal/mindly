@@ -2,10 +2,14 @@
 import type { Metadata } from 'next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { siteConfig } from '@/config/site';
+import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Terms and Conditions',
   description: `Read the terms and conditions for using ${siteConfig.name}.`,
+  alternates: {
+    canonical: '/terms-and-conditions',
+  },
   robots: {
     index: true,
     follow: true,
@@ -22,7 +26,7 @@ export default function TermsAndConditionsPage() {
         </CardHeader>
         <CardContent className="prose dark:prose-invert max-w-none">
             <h2>1. Agreement to Terms</h2>
-            <p>By accessing or using our services, website, and platform ("Service"), you agree to be bound by these Terms and Conditions ("Terms") and our Privacy Policy. If you disagree with any part of the terms, then you do not have permission to access the Service. These Terms apply to all visitors, users, and others who access or use the Service.</p>
+            <p>By accessing or using our services, website, and platform ("Service"), you agree to be bound by these Terms and Conditions ("Terms") and our <Link href="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link>. If you disagree with any part of the terms, then you do not have permission to access the Service. These Terms apply to all visitors, users, and others who access or use the Service.</p>
 
             <h2>2. User Accounts</h2>
             <p>When you create an account with us, you must provide us with information that is accurate, complete, and current at all times. Failure to do so constitutes a breach of the Terms, which may result in immediate termination of your account on our Service.</p>

@@ -65,6 +65,9 @@ export async function generateMetadata({ params }: TagPageProps): Promise<Metada
   return {
     title: `Posts tagged with "${capitalizedTag}"`,
     description: `Explore all blog posts tagged with "${capitalizedTag}" on ${siteConfig.name}.`,
+    alternates: {
+      canonical: `/tags/${params.tag}`,
+    },
     robots: { index: true, follow: true },
   };
 }
