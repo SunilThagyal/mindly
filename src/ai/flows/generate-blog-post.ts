@@ -60,26 +60,28 @@ const generateBlogPostFlow = ai.defineFlow(
         throw new Error("AI failed to generate blog post content. The prompt might have been too vague or complex.");
     }
 
-    // --- Sanitize HTML Content ---
-    // Convert any stray Markdown formatting from the AI into proper HTML tags.
-    // The order of replacement is important to prevent conflicts.
-    let sanitizedHtmlContent = output.htmlContent;
-    
-    // BOLD + ITALIC: ***text*** or ___text___
-    sanitizedHtmlContent = sanitizedHtmlContent.replace(/(\*\*\*|___)(.*?)\1/g, '<strong><em>$2</em></strong>');
+    // --- Sanitize HTML Content & Title ---
+    // The AI can sometimes mistakenly include markdown. This function cleans it up.
 
+    // 1. Sanitize the title first - it should be plain text.
+    const sanitizedTitle = (output.title || '')
+      .replace(/<[^>]+>/g, '') // Strip any HTML tags
+      .replace(/(\*\*|__|\*|_|#)/g, ''); // Strip markdown characters
+
+    // 2. Sanitize the HTML content
+    let sanitizedHtmlContent = output.htmlContent || '';
+    
+    // The order of replacement is critical to avoid conflicts.
+    // Replace from most specific (***) to least specific (*).
+
+    // BOLD + ITALIC: ***text*** or ___text___
+    sanitizedHtmlContent = sanitizedHtmlContent.replace(/(\*\*\*|___)(.+?)\1/g, '<strong><em>$2</em></strong>');
+    
     // BOLD: **text** or __text__
-    sanitizedHtmlContent = sanitizedHtmlContent.replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>');
+    sanitizedHtmlContent = sanitizedHtmlContent.replace(/(\*\*|__)(.+?)\1/g, '<strong>$2</strong>');
 
     // ITALIC: *text* or _text_
-    sanitizedHtmlContent = sanitizedHtmlContent.replace(/(\*|_)(.*?)\1/g, '<em>$2</em>');
-
-
-    // --- Sanitize Title ---
-    // The title should be plain text. We strip any potential HTML tags and markdown characters.
-    const sanitizedTitle = output.title
-      .replace(/<[^>]+>/g, '') // Strip HTML tags
-      .replace(/[*_#]/g, '');   // Remove markdown characters
+    sanitizedHtmlContent = sanitizedHtmlContent.replace(/(\*|_)(.+?)\1/g, '<em>$2</em>');
 
     return {
       title: sanitizedTitle.trim(),
