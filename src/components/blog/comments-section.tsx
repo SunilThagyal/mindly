@@ -370,7 +370,7 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
               onClick={() => handleLikeComment(comment.id, comment.userId)}
               size="sm"
               variant="ghost"
-              className={`text-xs p-1 h-auto ${isLikedByCurrentUser ? 'text-red-500 hover:text-red-600' : 'text-muted-foreground hover:text-primary'}`}
+              className={`text-xs p-1 h-auto ${isLikedByCurrentUser ? 'text-red-500' : 'text-muted-foreground'}`}
               disabled={!user || likingCommentId === comment.id}
             >
               {likingCommentId === comment.id ? <Loader2 className="animate-spin h-3 w-3" /> : <Heart className={`mr-1 h-3 w-3 ${isLikedByCurrentUser ? 'fill-red-500' : ''}`} />}
@@ -382,7 +382,7 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
                     onClick={() => { setReplyingToCommentId(comment.id); setReplyText(''); setEditingCommentId(null);}} 
                     size="sm" 
                     variant="ghost" 
-                    className="text-xs p-1 h-auto text-muted-foreground hover:text-primary"
+                    className="text-xs p-1 h-auto text-muted-foreground"
                     disabled={submittingReply === comment.id}
                 >
                     <CornerDownRight className="mr-1 h-3 w-3" /> Reply
@@ -391,7 +391,7 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
             {(user?.uid === comment.userId || isAdmin) && editingCommentId !== comment.id && (
                 <>
                 {user?.uid === comment.userId && (
-                    <Button onClick={() => handleEditComment(comment)} size="sm" variant="ghost" className="text-xs p-1 h-auto text-muted-foreground hover:text-primary">
+                    <Button onClick={() => handleEditComment(comment)} size="sm" variant="ghost" className="text-xs p-1 h-auto text-muted-foreground">
                         <Edit3 className="mr-1 h-3 w-3" /> Edit
                     </Button>
                 )}
@@ -460,7 +460,7 @@ export default function CommentsSection({ blogId, blogAuthorId, blogTitle, blogS
               onClick={() => toggleRepliesVisibility(comment.id)}
               variant="ghost"
               size="sm"
-              className="mt-2 text-xs p-1 h-auto text-primary hover:text-primary/80"
+              className="mt-2 text-xs p-1 h-auto text-primary"
             >
               {areRepliesExpanded ? <ChevronUp className="mr-1 h-3.5 w-3.5" /> : <ChevronDown className="mr-1 h-3.5 w-3.5" />}
               {areRepliesExpanded ? 'Hide Replies' : `View ${commentReplies.length} ${commentReplies.length === 1 ? 'Reply' : 'Replies'}`}
