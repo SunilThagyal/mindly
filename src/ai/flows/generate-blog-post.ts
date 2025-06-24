@@ -38,7 +38,7 @@ Key requirements for your writing:
 - **Structure**: Ensure the blog post is well-organized with a clear introduction that hooks the reader, a body with logical paragraph breaks and potentially 2-3 subheadings (using <h2> or <h3>), and a natural-sounding conclusion that summarizes key takeaways or offers a final thought.
 - **Formatting**: Generate the blog content in HTML. Use appropriate HTML tags such as <p> for paragraphs, <h2> and <h3> for subheadings, <strong> for bold text, and <em> for italic text. Do NOT include <html>, <head>, or <body> tags. The HTML should be clean and ready for direct use in a rich text editor.
 - **Markdown**: Strictly avoid using any Markdown syntax (e.g., # for headings, * or _ for emphasis). All formatting must be done exclusively with the specified HTML tags.
-- **Title**: Create a compelling, concise, and SEO-friendly title for the blog post. The title should be captivating and accurately reflect the content. The title must be plain text and must NOT contain any Markdown formatting (like asterisks or underscores).
+- **Title**: Create a compelling, concise, and SEO-friendly title. The title MUST be plain text and should NOT contain any markdown characters (like *, _, #) or HTML tags.
 - **Content Quality**: Ensure the content is original, insightful, and provides real value to the reader. Be creative and think outside the box.
 
 Based on the user-provided topic below, generate a complete blog post (title and HTML content) that meets all these requirements.
@@ -60,25 +60,30 @@ const generateBlogPostFlow = ai.defineFlow(
         throw new Error("AI failed to generate blog post content. The prompt might have been too vague or complex.");
     }
 
-    // Sanitize the title to ensure it's plain text without any Markdown formatting.
-    const sanitizedTitle = output.title
-      .replace(/\*/g, '')
-      .replace(/_/g, '');
-
-    // Sanitize the HTML content to convert stray Markdown into proper HTML tags.
-    // This handles cases where the AI mistakenly uses Markdown instead of HTML.
+    // --- Sanitize HTML Content ---
+    // Convert any stray Markdown formatting from the AI into proper HTML tags.
+    // The order of replacement is important to prevent conflicts.
     let sanitizedHtmlContent = output.htmlContent;
-    // Note: Order is important. Process bold first, then italic, to handle nesting correctly.
-    // Bold: **text** or __text__ -> <strong>text</strong>
-    sanitizedHtmlContent = sanitizedHtmlContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    sanitizedHtmlContent = sanitizedHtmlContent.replace(/__(.*?)__/g, '<strong>$1</strong>');
-    // Italic: *text* or _text_ -> <em>text</em>
-    sanitizedHtmlContent = sanitizedHtmlContent.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    sanitizedHtmlContent = sanitizedHtmlContent.replace(/_(.*?)_/g, '<em>$1</em>');
+    
+    // BOLD + ITALIC: ***text*** or ___text___
+    sanitizedHtmlContent = sanitizedHtmlContent.replace(/(\*\*\*|___)(.*?)\1/g, '<strong><em>$2</em></strong>');
+
+    // BOLD: **text** or __text__
+    sanitizedHtmlContent = sanitizedHtmlContent.replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>');
+
+    // ITALIC: *text* or _text_
+    sanitizedHtmlContent = sanitizedHtmlContent.replace(/(\*|_)(.*?)\1/g, '<em>$2</em>');
+
+
+    // --- Sanitize Title ---
+    // The title should be plain text. We strip any potential HTML tags and markdown characters.
+    const sanitizedTitle = output.title
+      .replace(/<[^>]+>/g, '') // Strip HTML tags
+      .replace(/[*_#]/g, '');   // Remove markdown characters
 
     return {
       title: sanitizedTitle.trim(),
-      htmlContent: sanitizedHtmlContent, // Return the sanitized HTML
+      htmlContent: sanitizedHtmlContent,
     };
   }
 );
