@@ -45,6 +45,7 @@ const getBlogBySlug = cache(async (slug: string): Promise<Blog | null> => {
     publishedAt: blogData.publishedAt,
     coverImageUrl: blogData.coverImageUrl || null,
     metaDescription: blogData.metaDescription || null,
+    keywords: blogData.keywords || [],
     likes: blogData.likes || 0,
     likedBy: blogData.likedBy || [],
   } as Blog;
@@ -74,6 +75,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   return {
     title: blog.title,
     description: excerpt,
+    keywords: blog.keywords && blog.keywords.length > 0 ? blog.keywords : undefined,
     alternates: {
       canonical: `/blog/${blog.slug}`,
     },

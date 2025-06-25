@@ -70,6 +70,7 @@ async function getBlogs(
       authorDisplayName: data.authorDisplayName || null,
       authorPhotoURL: data.authorPhotoURL || null,
       tags: data.tags || [],
+      keywords: data.keywords || [],
       views: data.views || 0,
       readingTime: data.readingTime || 0,
       status: data.status || 'draft',

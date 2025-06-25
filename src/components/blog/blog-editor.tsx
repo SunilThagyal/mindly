@@ -37,6 +37,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
   const [metaDescription, setMetaDescription] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  const [keywords, setKeywords] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState('');
   const [currentStatus, setCurrentStatus] = useState<'draft' | 'published'>('draft');
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
@@ -75,6 +76,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             setTitle(blogData.title);
             setContent(blogData.content);
             setTags(blogData.tags || []);
+            setKeywords(blogData.keywords || []);
             setCurrentStatus(blogData.status);
             setCoverImageUrl(blogData.coverImageUrl || null); 
             setMetaDescription(blogData.metaDescription || '');
@@ -171,6 +173,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
       if (result && typeof result.title === 'string') {
         setTitle(result.title);
         setMetaDescription(result.metaDescription || '');
+        setKeywords(result.keywords || []);
         let contentGenerated = false;
         if (typeof result.htmlContent === 'string' && result.htmlContent.trim() !== '') {
           const sanitizedContent = sanitizeHtml(result.htmlContent, { 
@@ -301,6 +304,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
       content: content, 
       slug: slugify(title.trim()),
       tags: tags,
+      keywords: keywords,
       status: newSaveStatus,
       readingTime: estimateReadingTime(content),
       coverImageUrl: finalUploadedCoverImageUrl,

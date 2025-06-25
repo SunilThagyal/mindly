@@ -20,6 +20,7 @@ const GenerateBlogPostOutputSchema = z.object({
   title: z.string().describe('A compelling and SEO-friendly title for the blog post.'),
   htmlContent: z.string().describe('The full content of the blog post, formatted in HTML (e.g., using <p>, <h2>, <h3>, <strong>, <em> tags). This HTML should be ready to be displayed in a rich text editor or browser.'),
   metaDescription: z.string().describe('A compelling, SEO-optimized meta description (between 150-160 characters) for the blog post, designed to maximize click-through rates from search results.'),
+  keywords: z.array(z.string()).describe('A list of 5-10 relevant, SEO-optimized keywords or search terms for the blog post.'),
 });
 export type GenerateBlogPostOutput = z.infer<typeof GenerateBlogPostOutputSchema>;
 
@@ -42,8 +43,9 @@ Key requirements for your writing:
 - **Title**: Create a compelling, concise, and SEO-friendly title. The title MUST be plain text and should NOT contain any markdown characters (like *, _, #) or HTML tags.
 - **Content Quality**: Ensure the content is original, insightful, and provides real value to the reader. Be creative and think outside the box.
 - **Meta Description**: Generate a compelling, SEO-optimized meta description between 150 and 160 characters. This description is critical for search engine click-through rates.
+- **SEO Keywords**: Generate a list of 5 to 10 highly relevant, SEO-optimized keywords. These should be search terms a user might enter to find this article.
 
-Based on the user-provided topic below, generate a complete blog post (title, HTML content, and meta description) that meets all these requirements.
+Based on the user-provided topic below, generate a complete blog post (title, HTML content, meta description, and keywords) that meets all these requirements.
 
 Topic/Prompt:
 {{{topic}}}
@@ -89,6 +91,7 @@ const generateBlogPostFlow = ai.defineFlow(
       title: sanitizedTitle.trim(),
       htmlContent: sanitizedHtmlContent,
       metaDescription: output.metaDescription || '',
+      keywords: output.keywords || [],
     };
   }
 );

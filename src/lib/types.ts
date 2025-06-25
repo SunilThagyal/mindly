@@ -44,6 +44,7 @@ export interface Blog {
   publishedAt: any;
   coverImageUrl: string | null;
   metaDescription?: string | null;
+  keywords?: string[];
   likes?: number; // Added for post likes count
   likedBy?: string[]; // Added for list of user UIDs who liked the post
 }
