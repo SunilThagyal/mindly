@@ -45,7 +45,7 @@ export default function MonetizationForm({ userProfile, userId, withdrawalHistor
   const [isRequestingWithdrawal, setIsRequestingWithdrawal] = useState(false);
 
   const hasActiveRequest = withdrawalHistory.some(
-    req => ['pending', 'approved', 'processing'].includes(req.status)
+    req => ['pending', 'processing'].includes(req.status)
   );
 
   // Determine initial India payment method selection
