@@ -9,7 +9,7 @@ const PageTransitionLoader = () => {
 
   return (
     <ProgressBar
-      height="3px"
+      height="4px"
       color={primaryColor}
       options={{ showSpinner: false }}
       shallowRouting
