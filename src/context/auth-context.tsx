@@ -4,27 +4,23 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-// Admin UID will be read from environment variable, passed via next.config.js
 const ADMIN_ENV_UID = process.env.ADMIN_USER_UID;
-console.log('[Auth Context - Top Level] Raw ADMIN_USER_UID from env:', process.env.ADMIN_USER_UID);
-
 
 if (!ADMIN_ENV_UID || ADMIN_ENV_UID === "YOUR_ACTUAL_ADMIN_FIREBASE_UID_HERE") {
   console.warn(
     "********************************************************************\n" +
     "WARNING: Admin User UID is not configured or is using placeholder. \n" +
     "Please ensure ADMIN_USER_UID is set in your .env file and next.config.ts correctly exposes it.\n" +
-    "The value currently read from process.env.ADMIN_USER_UID is: ", ADMIN_ENV_UID + "\n" +
+    `The value currently read from process.env.ADMIN_USER_UID is: ${ADMIN_ENV_UID}\n` +
     "Admin functionality will be limited until this is set correctly.\n" +
     "********************************************************************"
   );
 }
-
 
 interface AuthContextType {
   user: User | null;
@@ -44,14 +40,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('[Auth Context - useEffect] Initializing. ADMIN_ENV_UID from process.env:', ADMIN_ENV_UID);
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        console.log('[Auth Context - useEffect] User state changed. Current firebaseUser.uid:', firebaseUser.uid);
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        
+    // This effect runs once to set up the auth state listener.
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      setLoading(false);
+    });
+
+    // Cleanup the auth listener when the provider unmounts.
+    return () => unsubscribeAuth();
+  }, []);
+
+  useEffect(() => {
+    // This effect runs whenever the user logs in or out.
+    if (user) {
+      // User is logged in, set up a real-time listener for their profile document.
+      const userDocRef = doc(db, 'users', user.uid);
+      const unsubscribeProfile = onSnapshot(userDocRef, async (docSnap) => {
+        // This callback runs immediately and whenever the user's document changes.
         const defaultProfileValues: Omit<UserProfile, 'uid' | 'email' | 'displayName' | 'photoURL'> = {
             bio: '',
             virtualEarnings: 0,
@@ -65,63 +70,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             paymentContactDetails: null,
             paymentAddress: null,
             paymentUpiId: null,
-            paymentBankAccountHolderName: null, // Added default
+            paymentBankAccountHolderName: null,
             paymentAccountNumber: null,
             paymentBankName: null,
             paymentIfscCode: null,
             paymentPaypalEmail: null,
         };
 
-        if (userDocSnap.exists()) {
-          const existingData = userDocSnap.data() as UserProfile;
+        if (docSnap.exists()) {
+          const existingData = docSnap.data() as UserProfile;
           setUserProfile({ 
             ...defaultProfileValues, 
             ...existingData,
-            uid: firebaseUser.uid, // ensure core fields are from firebaseUser
-            email: firebaseUser.email,
-            displayName: existingData.displayName || firebaseUser.displayName, // Prefer existing displayName
-            photoURL: existingData.photoURL || firebaseUser.photoURL, // Prefer existing photoURL
+            uid: user.uid,
+            email: user.email,
+            displayName: existingData.displayName || user.displayName,
+            photoURL: existingData.photoURL || user.photoURL,
           });
         } else {
+          // This case handles first-time social logins where an auth entry exists
+          // but a Firestore document has not been created yet.
           const newProfile: UserProfile = {
             ...defaultProfileValues, 
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
           };
           await setDoc(userDocRef, newProfile);
           setUserProfile(newProfile);
-          console.log('[Auth Context - useEffect] New user profile created in Firestore with defaults.');
         }
-        
-        const isAdminCheck = !!ADMIN_ENV_UID && firebaseUser.uid === ADMIN_ENV_UID;
-        setIsAdmin(isAdminCheck);
-        console.log('[Auth Context - useEffect] isAdmin determined as:', isAdminCheck, `(ADMIN_ENV_UID: ${ADMIN_ENV_UID}, User UID: ${firebaseUser.uid})`);
-      } else {
-        setUser(null);
+        setIsAdmin(!!ADMIN_ENV_UID && user.uid === ADMIN_ENV_UID);
+      }, (error) => {
+        console.error("Error listening to user profile:", error);
         setUserProfile(null);
         setIsAdmin(false);
-        console.log('[Auth Context - useEffect] No user logged in, isAdmin set to false.');
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const signOut = useCallback(async () => {
-    setLoading(true);
-    try {
-      await firebaseSignOut(auth);
-      setUser(null);
+      });
+      
+      // Cleanup this listener when the user logs out (when `user` becomes null).
+      return () => unsubscribeProfile();
+    } else {
+      // User is logged out, clear all user-specific data.
       setUserProfile(null);
       setIsAdmin(false);
+    }
+  }, [user]);
+
+  const signOut = useCallback(async () => {
+    try {
+      await firebaseSignOut(auth);
       router.push('/');
     } catch (error) {
       console.error("Error signing out: ", error);
-    } finally {
-      setLoading(false);
     }
   }, [router]);
 
