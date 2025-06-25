@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, Timestamp, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, Timestamp, updateDoc, doc, runTransaction, increment, addDoc, serverTimestamp } from 'firebase/firestore';
 import type { WithdrawalRequest } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, AlertTriangle, SendToBack, CheckCircle, XCircle, Hourglass, Info, MessageSquare } from 'lucide-react';
@@ -101,42 +101,112 @@ export default function WithdrawalManagementTab() {
 
   const handleStatusUpdate = async (requestId: string, newStatus: WithdrawalRequest['status']) => {
     setUpdatingStatus(requestId);
-    let adminRejectionNotes: string | null = null;
 
-    if (newStatus === 'rejected') {
-      const reason = window.prompt("Please enter the reason for rejecting this withdrawal request:");
-      if (reason === null) { // User clicked cancel
+    const request = requests.find(r => r.id === requestId);
+    if (!request) {
+        toast({ title: 'Error', description: 'Request not found.', variant: 'destructive' });
         setUpdatingStatus(null);
-        toast({ title: 'Action Cancelled', description: 'Rejection reason was not provided. Status not changed.', variant: 'default' });
         return;
-      }
-      adminRejectionNotes = reason.trim() || "No reason provided."; // Store empty string or default if no reason
     }
 
-    try {
-      const requestDocRef = doc(db, 'withdrawalRequests', requestId);
-      const updateData: Partial<WithdrawalRequest> = { status: newStatus };
-      
-      if (newStatus === 'rejected') {
-        updateData.adminNotes = adminRejectionNotes;
-      } else {
-        // If changing from rejected to something else, clear notes, or keep them. For now, let's keep them.
-        // If you want to clear notes when moving away from rejected:
-        // const currentRequest = requests.find(r => r.id === requestId);
-        // if (currentRequest?.status === 'rejected') updateData.adminNotes = null;
-      }
+    if (request.status === newStatus) {
+        setUpdatingStatus(null);
+        return;
+    }
 
-      if (['completed', 'rejected'].includes(newStatus) && newStatus !== 'pending' && newStatus !== 'approved' && newStatus !== 'processing') {
-        updateData.processedAt = Timestamp.now();
-      }
-      
-      await updateDoc(requestDocRef, updateData);
-      toast({ title: 'Status Updated', description: `Request status changed to ${newStatus}.`, variant: 'success' });
-      loadRequests(); // Reload all requests to reflect changes
+    // --- Rejection Logic ---
+    if (newStatus === 'rejected') {
+        const reason = window.prompt("Please enter the reason for rejecting this withdrawal request (this will be shown to the user):");
+        if (reason === null) {
+            setUpdatingStatus(null);
+            return; 
+        }
+        const adminRejectionNotes = reason.trim() || "No specific reason provided.";
+
+        if (request.status !== 'rejected') {
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const requestDocRef = doc(db, 'withdrawalRequests', requestId);
+                    const userDocRef = doc(db, 'users', request.userId);
+
+                    transaction.update(userDocRef, {
+                        virtualEarnings: increment(request.amount)
+                    });
+                    
+                    transaction.update(requestDocRef, {
+                        status: 'rejected',
+                        processedAt: Timestamp.now(),
+                        adminNotes: adminRejectionNotes,
+                    });
+                });
+
+                const notificationRef = collection(db, 'users', request.userId, 'notifications');
+                await addDoc(notificationRef, {
+                    type: 'withdrawal_rejected',
+                    withdrawalAmount: request.amount,
+                    adminNotes: adminRejectionNotes,
+                    createdAt: serverTimestamp(),
+                    isRead: false,
+                    link: '/monetization',
+                });
+
+                toast({ title: 'Request Rejected', description: `Amount of $${request.amount.toFixed(2)} refunded.`, variant: 'success' });
+                loadRequests();
+            } catch (err: any) {
+                console.error("Error rejecting withdrawal:", err);
+                toast({ title: 'Transaction Error', description: err.message || 'Failed to reject request.', variant: 'destructive' });
+            } finally {
+                setUpdatingStatus(null);
+            }
+        } else {
+            const requestDocRef = doc(db, 'withdrawalRequests', requestId);
+            await updateDoc(requestDocRef, { adminNotes: adminRejectionNotes });
+            toast({ title: 'Notes Updated', description: 'Rejection reason has been updated.', variant: 'success' });
+            loadRequests();
+            setUpdatingStatus(null);
+        }
+        return;
+    }
+
+    // --- Approval Logic ---
+    if (newStatus === 'approved' && request.status !== 'approved') {
+        try {
+            const notificationRef = collection(db, 'users', request.userId, 'notifications');
+            await addDoc(notificationRef, {
+                type: 'withdrawal_approved',
+                withdrawalAmount: request.amount,
+                createdAt: serverTimestamp(),
+                isRead: false,
+                link: '/monetization',
+            });
+        } catch(err) {
+            console.error("Error sending approval notification", err);
+            toast({title: 'Notification Error', description: 'Could not send approval notification.', variant: 'destructive'})
+        }
+    }
+    
+    // --- Generic Status Update for non-rejection cases ---
+    try {
+        const requestDocRef = doc(db, 'withdrawalRequests', requestId);
+        const updateData: Partial<WithdrawalRequest> = { status: newStatus };
+
+        if (request.status === 'rejected' && newStatus !== 'rejected') {
+            toast({ title: 'Warning', description: 'This request was previously rejected and funds refunded. Changing status now will NOT deduct funds. Handle balance manually.', variant: 'destructive', duration: 15000});
+        }
+        
+        if (['completed', 'rejected'].includes(newStatus)) {
+            updateData.processedAt = Timestamp.now();
+        } else {
+            updateData.processedAt = null;
+        }
+        
+        await updateDoc(requestDocRef, updateData);
+        toast({ title: 'Status Updated', description: `Request status changed to ${newStatus}.`, variant: 'success' });
+        loadRequests();
     } catch (err: any) {
-      toast({ title: 'Update Error', description: err.message || 'Failed to update status.', variant: 'destructive' });
+        toast({ title: 'Update Error', description: err.message || 'Failed to update status.', variant: 'destructive' });
     } finally {
-      setUpdatingStatus(null);
+        setUpdatingStatus(null);
     }
   };
 

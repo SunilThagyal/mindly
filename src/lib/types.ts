@@ -113,21 +113,30 @@ export interface WithdrawalRequest {
 
 export interface Notification {
   id: string;
-  type: 'new_comment' | 'new_reply' | 'new_like' | 'new_post_like'; // Added 'new_post_like'
-  blogId: string;
-  blogSlug: string;
-  blogTitle: string;
-  commenterName?: string | null; 
-  replierName?: string | null;   
-  likerName?: string | null; 
+  type: 'new_comment' | 'new_reply' | 'new_like' | 'new_post_like' | 'withdrawal_approved' | 'withdrawal_rejected';
+  
+  // For blog-related notifications
+  blogId?: string;
+  blogSlug?: string;
+  blogTitle?: string;
+  commenterName?: string | null;
+  replierName?: string | null;
+  likerName?: string | null;
   likedCommentTextSnippet?: string | null;
-  commentId?: string | null; // Optional for post likes
-  parentCommentId?: string | null; 
-  parentCommentAuthorId?: string | null; 
+  commentId?: string | null;
+  parentCommentId?: string | null;
+  parentCommentAuthorId?: string | null;
+  
+  // For withdrawal notifications
+  withdrawalAmount?: number;
+  adminNotes?: string | null;
+
+  // Common fields
   createdAt: Timestamp;
   isRead: boolean;
   link: string;
 }
+
 
 export interface ThemeSettings {
   id?: string;

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/context/auth-context';
-import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings, DollarSign, Bell, Loader2, MessageSquare, CornerDownRight, Heart as HeartIcon, ThumbsUp } from 'lucide-react'; 
+import { BookText, Home, LogOut, PlusCircle, UserCircle, FileText, Settings, DollarSign, Bell, Loader2, MessageSquare, CornerDownRight, Heart as HeartIcon, ThumbsUp, CheckCircle, XCircle } from 'lucide-react'; 
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -115,6 +115,8 @@ export default function Header() {
     if (type === 'new_reply') return <CornerDownRight className="mt-0.5 h-4 w-4 shrink-0" />;
     if (type === 'new_like') return <HeartIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />;
     if (type === 'new_post_like') return <ThumbsUp className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />;
+    if (type === 'withdrawal_approved') return <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />;
+    if (type === 'withdrawal_rejected') return <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />;
     return <MessageSquare className="mt-0.5 h-4 w-4 shrink-0" />;
   };
   
@@ -131,6 +133,12 @@ export default function Header() {
     }
     if (notif.type === 'new_post_like') {
         return <><span className="font-semibold">{notif.likerName}</span> liked your post:</>;
+    }
+    if (notif.type === 'withdrawal_approved') {
+        return <>Your withdrawal for <span className="font-semibold">${notif.withdrawalAmount?.toFixed(2)}</span> was approved.</>;
+    }
+    if (notif.type === 'withdrawal_rejected') {
+        return <>Your withdrawal for <span className="font-semibold">${notif.withdrawalAmount?.toFixed(2)}</span> was rejected.</>;
     }
     return <><span className="font-semibold">{notif.commenterName}</span> commented on:</>;
   };
@@ -204,14 +212,21 @@ export default function Header() {
                         <p className={`text-xs ${!notif.isRead ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
                            {getNotificationText(notif)}
                         </p>
-                        <p
-                          className={`text-xs truncate ${
-                            !notif.isRead ? 'text-primary' : 'text-foreground/80'
-                          }`}
-                          title={notif.blogTitle}
-                        >
-                          {notif.blogTitle}
-                        </p>
+                        {notif.blogTitle && (
+                          <p
+                            className={`text-xs truncate ${
+                              !notif.isRead ? 'text-primary' : 'text-foreground/80'
+                            }`}
+                            title={notif.blogTitle}
+                          >
+                            {notif.blogTitle}
+                          </p>
+                        )}
+                        {notif.type === 'withdrawal_rejected' && notif.adminNotes && (
+                           <p className="text-xs text-muted-foreground italic truncate">
+                             Reason: "{notif.adminNotes}"
+                           </p>
+                        )}
                       </div>
                       <p className="ml-2 text-xs text-muted-foreground self-start whitespace-nowrap">
                         {formatCompactDistanceToNow(notif.createdAt)}

@@ -2,6 +2,7 @@
 "use client";
 
 import type { WithdrawalRequest } from '@/lib/types';
+import React from 'react';
 import {
   Table,
   TableBody,
@@ -12,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { CheckCircle, XCircle, Hourglass, RefreshCw, AlertTriangle } from 'lucide-react'; // Added more icons
+import { CheckCircle, XCircle, Hourglass, RefreshCw, AlertTriangle, Info } from 'lucide-react'; 
 
 interface PaymentHistoryTableProps {
   requests: WithdrawalRequest[];
@@ -77,22 +78,37 @@ export default function PaymentHistoryTable({ requests }: PaymentHistoryTablePro
         </TableHeader>
         <TableBody>
           {requests.map((req) => (
-            <TableRow key={req.id}>
-              <TableCell>
-                {req.requestedAt ? format(req.requestedAt.toDate(), 'MMM d, yyyy, h:mm a') : 'N/A'}
-              </TableCell>
-              <TableCell className="text-right font-medium">${req.amount.toFixed(2)}</TableCell>
-              <TableCell>
-                <Badge className={getStatusColorClass(req.status)}>
-                  {getStatusIcon(req.status)}
-                  {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-                </Badge>
-              </TableCell>
-              <TableCell>{formatPaymentMethod(req.paymentDetailsSnapshot)}</TableCell>
-              <TableCell>
-                {req.processedAt ? format(req.processedAt.toDate(), 'MMM d, yyyy, h:mm a') : 'N/A'}
-              </TableCell>
-            </TableRow>
+            <React.Fragment key={req.id}>
+              <TableRow>
+                <TableCell>
+                  {req.requestedAt ? format(req.requestedAt.toDate(), 'MMM d, yyyy, h:mm a') : 'N/A'}
+                </TableCell>
+                <TableCell className="text-right font-medium">${req.amount.toFixed(2)}</TableCell>
+                <TableCell>
+                  <Badge className={getStatusColorClass(req.status)}>
+                    {getStatusIcon(req.status)}
+                    {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                  </Badge>
+                </TableCell>
+                <TableCell>{formatPaymentMethod(req.paymentDetailsSnapshot)}</TableCell>
+                <TableCell>
+                  {req.processedAt ? format(req.processedAt.toDate(), 'MMM d, yyyy, h:mm a') : 'N/A'}
+                </TableCell>
+              </TableRow>
+              {req.status === 'rejected' && req.adminNotes && (
+                <TableRow>
+                    <TableCell colSpan={5} className="p-0 border-t-0">
+                        <div className="bg-destructive/10 text-destructive p-3 text-xs flex items-start gap-2">
+                            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                            <div>
+                                <span className="font-semibold text-destructive/80">Rejection Reason:</span>
+                                <p className="whitespace-pre-wrap">{req.adminNotes}</p>
+                            </div>
+                        </div>
+                    </TableCell>
+                </TableRow>
+              )}
+            </React.Fragment>
           ))}
         </TableBody>
       </Table>
