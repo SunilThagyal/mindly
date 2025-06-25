@@ -151,7 +151,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
             button.setAttribute('data-lightbox-button', 'true');
             button.setAttribute('title', 'View fullscreen');
             button.setAttribute('aria-label', 'View fullscreen');
-            button.className = "absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-20 h-10 w-10 flex items-center justify-center rounded-full";
+            button.className = "absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-30 h-10 w-10 flex items-center justify-center rounded-full";
             button.innerHTML = maximizeIconSvg;
             container.appendChild(button);
         }
@@ -611,7 +611,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-20"
+                        className="absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-30"
                         onClick={() => setLightboxMedia({ src: blog.coverImageUrl!, type: blog.coverMediaType || 'image'})}
                         title="View fullscreen"
                         aria-label="View fullscreen"
