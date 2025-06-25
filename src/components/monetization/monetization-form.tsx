@@ -13,17 +13,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
-import { Loader2, Send, CheckCircle, AlertTriangle, Landmark, CreditCard, Mail, ArrowRight } from 'lucide-react';
+import { Loader2, Send, CheckCircle, AlertTriangle, Landmark, CreditCard, Mail, ArrowRight, Hourglass } from 'lucide-react';
 
 interface MonetizationFormProps {
   userProfile: UserProfile;
   userId: string;
-  onWithdrawal: () => void; // Add this callback prop
+  onWithdrawal: () => void;
+  withdrawalHistory: WithdrawalRequest[];
 }
 
 type PaymentMethodIndia = 'upi' | 'bank' | 'paypal_india';
 
-export default function MonetizationForm({ userProfile, userId, onWithdrawal }: MonetizationFormProps) {
+export default function MonetizationForm({ userProfile, userId, onWithdrawal, withdrawalHistory }: MonetizationFormProps) {
   const { toast } = useToast();
   const earningsSettings = useEarningsSettings(); // Get full settings object
 
@@ -43,6 +44,10 @@ export default function MonetizationForm({ userProfile, userId, onWithdrawal }: 
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [isRequestingWithdrawal, setIsRequestingWithdrawal] = useState(false);
+
+  const hasActiveRequest = withdrawalHistory.some(
+    req => ['pending', 'approved', 'processing'].includes(req.status)
+  );
 
   // Determine initial India payment method selection
   useEffect(() => {
@@ -322,34 +327,46 @@ export default function MonetizationForm({ userProfile, userId, onWithdrawal }: 
         </Button>
       </form>
 
-      <form onSubmit={handleWithdrawalRequest} className="space-y-6 p-6 border rounded-lg shadow-sm bg-background">
+      <div className="space-y-6 p-6 border rounded-lg shadow-sm bg-background">
         <h3 className="text-xl font-semibold text-foreground border-b pb-3 mb-4">Request Withdrawal</h3>
-        <div className="p-4 bg-primary/10 rounded-md text-center">
-            <p className="text-sm text-primary-foreground/80">Available Earnings:</p>
-            <p className="text-3xl font-bold text-primary">${(userProfile.virtualEarnings || 0).toFixed(2)}</p>
-        </div>
-        
-        <div>
-            <Label htmlFor="withdrawalAmount">Amount to Withdraw ($)</Label>
-            <Input 
-                id="withdrawalAmount" 
-                type="number" 
-                step="0.01"
-                min="0"
-                value={withdrawalAmount}
-                onChange={(e) => setWithdrawalAmount(e.target.value)}
-                placeholder={`Min $${(earningsSettings.minimumWithdrawalAmount || 0).toFixed(2)}`}
-                disabled={isRequestingWithdrawal} 
-            />
-            <p className="text-xs text-muted-foreground mt-1">Minimum withdrawal amount: ${ (earningsSettings.minimumWithdrawalAmount || 0).toFixed(2)}</p>
-        </div>
-        
-        <Button type="submit" disabled={isRequestingWithdrawal || !withdrawalAmount} className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground">
-          {isRequestingWithdrawal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-          Submit Withdrawal Request
-        </Button>
-         <p className="text-xs text-muted-foreground">Withdrawals are processed manually by admins. Ensure your payment details above are correct and saved before requesting.</p>
-      </form>
+        {hasActiveRequest ? (
+          <div className="p-4 bg-yellow-500/10 rounded-md text-center border border-yellow-500/30 text-yellow-700 dark:text-yellow-300 flex flex-col items-center">
+            <Hourglass className="h-8 w-8 mb-2" />
+            <p className="font-semibold">Active Request Pending</p>
+            <p className="text-sm mt-1">
+              You already have a withdrawal request being processed. Please wait until it is completed or rejected before submitting a new one.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleWithdrawalRequest} className="space-y-6">
+            <div className="p-4 bg-primary/10 rounded-md text-center">
+                <p className="text-sm text-primary-foreground/80">Available Earnings:</p>
+                <p className="text-3xl font-bold text-primary">${(userProfile.virtualEarnings || 0).toFixed(2)}</p>
+            </div>
+            
+            <div>
+                <Label htmlFor="withdrawalAmount">Amount to Withdraw ($)</Label>
+                <Input 
+                    id="withdrawalAmount" 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    value={withdrawalAmount}
+                    onChange={(e) => setWithdrawalAmount(e.target.value)}
+                    placeholder={`Min $${(earningsSettings.minimumWithdrawalAmount || 0).toFixed(2)}`}
+                    disabled={isRequestingWithdrawal} 
+                />
+                <p className="text-xs text-muted-foreground mt-1">Minimum withdrawal amount: ${ (earningsSettings.minimumWithdrawalAmount || 0).toFixed(2)}</p>
+            </div>
+            
+            <Button type="submit" disabled={isRequestingWithdrawal || !withdrawalAmount} className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground">
+              {isRequestingWithdrawal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              Submit Withdrawal Request
+            </Button>
+            <p className="text-xs text-muted-foreground">Withdrawals are processed manually by admins. Ensure your payment details above are correct and saved before requesting.</p>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

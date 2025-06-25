@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import MonetizationForm from '@/components/monetization/monetization-form';
@@ -24,7 +24,7 @@ export default function MonetizationPage() {
     document.title = 'Monetization';
   }, []);
 
-  const refreshHistory = () => {
+  const refreshHistory = useCallback(() => {
     if (user && userProfile?.isMonetizationApproved) {
        setLoadingHistory(true);
        const requestsCol = collection(db, 'withdrawalRequests');
@@ -48,7 +48,8 @@ export default function MonetizationPage() {
        });
        return unsubscribe;
     }
-  };
+    return () => {};
+  }, [user, userProfile?.isMonetizationApproved, toast]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -68,7 +69,7 @@ export default function MonetizationPage() {
         setLoadingHistory(false);
       }
     }
-  }, [user, userProfile, authLoading, router]);
+  }, [user, userProfile, authLoading, router, refreshHistory]);
 
   if (authLoading || (!userProfile && user)) {
     return (
@@ -128,7 +129,12 @@ export default function MonetizationPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <MonetizationForm userProfile={userProfile} userId={user.uid} onWithdrawal={refreshHistory} />
+          <MonetizationForm
+            userProfile={userProfile}
+            userId={user.uid}
+            onWithdrawal={refreshHistory}
+            withdrawalHistory={withdrawalHistory}
+          />
         </CardContent>
       </Card>
 
