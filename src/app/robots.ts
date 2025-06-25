@@ -1,2 +1,21 @@
-// This file is intentionally left empty to resolve a conflict with /public/robots.txt.
-// The contents have been moved to the static file.
+
+import { MetadataRoute } from 'next'
+import { siteConfig } from '@/config/site'
+ 
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      disallow: [
+        '/admin/',
+        '/my-blogs/',
+        '/monetization/',
+        '/auth/',
+        '/blog/create/',
+        '/blog/edit/',
+      ],
+    },
+    sitemap: `${siteConfig.url}/sitemap.xml`,
+  }
+}
