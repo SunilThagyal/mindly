@@ -49,7 +49,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const { toast } = useToast();
   
   const articleContentRef = useRef<HTMLDivElement>(null);
-  const coverVideoContainerRef = useRef<HTMLDivElement>(null);
+  const articleRef = useRef<HTMLElement>(null);
   const [blog, setBlog] = useState<Blog>(initialBlog);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
@@ -105,69 +105,54 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     const doc = parser.parseFromString(htmlContent, 'text/html');
     const body = doc.body;
 
-    const mediaSelectors = 'img, video, iframe';
+    const mediaSelectors = 'img, iframe'; // Only look for img and iframe initially
     const mediaElements = Array.from(body.querySelectorAll(mediaSelectors));
 
     const maximizeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>`;
 
     mediaElements.forEach(mediaEl => {
-      if (mediaEl.closest('.media-container')) {
-        return;
-      }
-      
-      const container = doc.createElement('div');
-      container.classList.add('media-container', 'group/videocontainer');
-      
-      const mediaSrc = mediaEl.getAttribute('src') || '';
-      const isVideoFile = /\.(mp4|webm|ogg)$/i.test(mediaSrc);
+        if (mediaEl.closest('.media-container')) return;
 
-      let elementToAppend: HTMLElement;
-      let mediaTypeForContainer = mediaEl.tagName.toLowerCase();
+        const mediaSrc = mediaEl.getAttribute('src') || '';
+        let finalMediaElement;
+        let finalMediaType: 'image' | 'video' | 'iframe' = mediaEl.tagName.toLowerCase() as 'image' | 'iframe';
 
-      if (mediaEl.tagName.toLowerCase() === 'iframe' && isVideoFile) {
-        // This is a video file embedded as an iframe. Transform it into a <video> tag.
-        mediaTypeForContainer = 'video';
-        const videoEl = doc.createElement('video');
-        videoEl.src = mediaSrc;
-        videoEl.classList.add('media-item');
-        videoEl.setAttribute('playsinline', 'true');
-        elementToAppend = videoEl;
-      } else {
-        // Handle normal images, real videos, and non-video iframes
-        elementToAppend = mediaEl.cloneNode(true) as HTMLElement;
-        elementToAppend.classList.add('media-item');
-      }
+        // Detect if an iframe source is a direct video link and convert it to a video element
+        if (mediaEl.tagName.toLowerCase() === 'iframe' && /\.(mp4|webm|ogg)$/i.test(mediaSrc)) {
+            finalMediaType = 'video';
+            const videoEl = doc.createElement('video');
+            videoEl.src = mediaSrc;
+            finalMediaElement = videoEl;
+        } else {
+            finalMediaElement = mediaEl.cloneNode(true) as HTMLElement;
+        }
 
-      // Add container classes based on the final media type
-      if (mediaTypeForContainer === 'img') {
-        container.style.setProperty('--bg-image', `url("${mediaSrc}")`);
-      } else if (mediaTypeForContainer === 'video') {
-        container.classList.add('video-container');
-      } else if (mediaTypeForContainer === 'iframe') {
-        container.classList.add('iframe-container');
-      }
+        const container = doc.createElement('div');
+        container.classList.add('media-container', 'group/videocontainer');
 
-      // Add fullscreen button for images and videos only
-      if (mediaTypeForContainer === 'img' || mediaTypeForContainer === 'video') {
-          const button = doc.createElement('button');
-          button.setAttribute('data-lightbox-button', 'true');
-          button.setAttribute('title', 'View fullscreen');
-          button.setAttribute('aria-label', 'View fullscreen');
-          button.className = "absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-20 h-10 w-10 flex items-center justify-center rounded-full";
-          button.innerHTML = maximizeIconSvg;
-          container.appendChild(button);
-      }
-      
-      if (elementToAppend instanceof HTMLVideoElement) {
-        elementToAppend.removeAttribute('controls');
-      } else if (elementToAppend instanceof HTMLIFrameElement) {
-        elementToAppend.setAttribute('frameborder', '0');
-        elementToAppend.setAttribute('allowfullscreen', 'true');
-        elementToAppend.title = mediaEl.getAttribute('title') || "Embedded content";
-      }
+        if (finalMediaType === 'image') {
+            container.style.setProperty('--bg-image', `url("${mediaSrc}")`);
+        } else if (finalMediaType === 'video') {
+            container.classList.add('video-container');
+            (finalMediaElement as HTMLVideoElement).playsInline = true;
+        } else { // iframe
+            container.classList.add('iframe-container');
+        }
 
-      container.appendChild(elementToAppend);
-      mediaEl.parentNode?.replaceChild(container, mediaEl);
+        finalMediaElement.classList.add('media-item');
+
+        if (finalMediaType === 'image' || finalMediaType === 'video') {
+            const button = doc.createElement('button');
+            button.setAttribute('data-lightbox-button', 'true');
+            button.setAttribute('title', 'View fullscreen');
+            button.setAttribute('aria-label', 'View fullscreen');
+            button.className = "absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-20 h-10 w-10 flex items-center justify-center rounded-full";
+            button.innerHTML = maximizeIconSvg;
+            container.appendChild(button);
+        }
+
+        container.appendChild(finalMediaElement);
+        mediaEl.parentNode?.replaceChild(container, mediaEl);
     });
 
     return body.innerHTML;
@@ -184,7 +169,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   }, [initialBlog, wrapMediaElements]);
 
   useEffect(() => {
-    const container = articleContentRef.current;
+    const container = articleRef.current; // Observe the whole article
     if (!container) return;
 
     const handleClick = (event: MouseEvent) => {
@@ -227,7 +212,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     const enhanceVideoPlayer = (container: HTMLElement) => {
         if (container.dataset.videoEnhanced) return;
 
-        const video = container.querySelector('video.media-item');
+        const video = container.querySelector('video.media-item, video'); // Target both types
         if (!video) return;
 
         video.removeAttribute('controls');
@@ -279,7 +264,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         };
 
         playPauseBtn.onclick = (e) => { e.stopPropagation(); togglePlay(); };
-        container.onclick = (e) => { if (!(e.target as HTMLElement).closest('button')) { togglePlay(); } };
+        container.onclick = (e) => { if (!(e.target as HTMLElement).closest('button, a')) { togglePlay(); } };
         muteBtn.onclick = (e) => { e.stopPropagation(); video.muted = !video.muted; };
         progressBarContainer.onclick = (e) => { e.stopPropagation(); seek(e); };
         
@@ -293,16 +278,14 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     };
     
     const enhanceAllVideos = () => {
-        const rootElement = document.getElementById('blog-article-content');
+        const rootElement = articleRef.current;
         if (rootElement) {
            rootElement.querySelectorAll<HTMLElement>('.media-container.video-container').forEach(enhanceVideoPlayer);
         }
     };
     
-    // Initial enhancement run after a slight delay to ensure content is rendered
     const initialTimeout = setTimeout(enhanceAllVideos, 100);
 
-    // Use MutationObserver to catch videos added dynamically by dangerouslySetInnerHTML
     const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
             if (mutation.type === 'childList') {
@@ -318,7 +301,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         }
     });
 
-    const containerToObserve = articleContentRef.current;
+    const containerToObserve = articleRef.current;
     if (containerToObserve) {
         observer.observe(containerToObserve, { childList: true, subtree: true });
     }
@@ -329,8 +312,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
             observer.disconnect();
         }
     };
-
-  }, [processedContent]);
+  }, [initialBlog.id, processedContent]);
 
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -508,10 +490,13 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto py-8 px-4 animate-fade-in">
         <main className="flex-1 w-full lg:max-w-3xl xl:max-w-4xl">
           <AdPlaceholder type="leaderboard-header" className="mb-6" />
-          <article id="blog-article-content">
+          <article ref={articleRef} id="blog-article-content">
             <div id="reading-content-container">
               {blog.coverImageUrl && (
-                <div ref={coverVideoContainerRef} className="relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black group/videocontainer">
+                <div className={cn(
+                    "relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black group/videocontainer",
+                    blog.coverMediaType === 'video' && 'media-container video-container'
+                )}>
                   {blog.coverMediaType === 'video' ? (
                      <>
                       {/* Background Blurred Video */}
@@ -578,6 +563,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                         onClick={() => setLightboxMedia({ src: blog.coverImageUrl!, type: blog.coverMediaType || 'image'})}
                         title="View fullscreen"
                         aria-label="View fullscreen"
+                        data-lightbox-button="true"
                     >
                         <Maximize className="h-6 w-6" />
                     </Button>
