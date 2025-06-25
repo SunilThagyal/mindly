@@ -213,19 +213,16 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     };
 
     const enhanceVideoPlayer = (container: HTMLElement) => {
-        if (container.dataset.videoEnhanced) return; // Already enhanced
+        if (container.dataset.videoEnhanced) return;
 
         const video = container.querySelector('video.media-item');
         if (!video) return;
 
-        // --- State & Cleanup ---
         video.removeAttribute('controls');
         video.muted = true;
         
-        // Remove old controls if they exist to prevent duplication on re-renders
         container.querySelector('.video-controls-overlay')?.remove();
 
-        // --- Create Controls ---
         const controlsOverlay = document.createElement('div');
         controlsOverlay.className = 'video-controls-overlay is-paused';
 
@@ -246,7 +243,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         const progressBarFill = document.createElement('div');
         progressBarFill.className = 'video-progress-bar-fill';
         
-        // --- Assemble ---
         topControls.appendChild(playPauseBtn);
         topControls.appendChild(muteBtn);
         progressBarContainer.appendChild(progressBarFill);
@@ -254,33 +250,16 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         controlsOverlay.appendChild(progressBarContainer);
         container.appendChild(controlsOverlay);
 
-        // --- Event Listeners ---
-        const togglePlay = () => {
-            if (video.paused) {
-                video.play();
-            } else {
-                video.pause();
-            }
-        };
-
+        const togglePlay = () => { video.paused ? video.play() : video.pause(); };
         const updatePlayButton = () => {
             playPauseBtn.innerHTML = video.paused ? iconSvgs.play : iconSvgs.pause;
-            if (video.paused) {
-                controlsOverlay.classList.add('is-paused');
-            } else {
-                controlsOverlay.classList.remove('is-paused');
-            }
+            controlsOverlay.classList.toggle('is-paused', video.paused);
         };
-
-        const updateMuteButton = () => {
-            muteBtn.innerHTML = video.muted ? iconSvgs.mute : iconSvgs.volume;
-        };
-
+        const updateMuteButton = () => { muteBtn.innerHTML = video.muted ? iconSvgs.mute : iconSvgs.volume; };
         const updateProgress = () => {
             const progress = (video.currentTime / video.duration) * 100;
             progressBarFill.style.width = `${progress}%`;
         };
-
         const seek = (e: MouseEvent) => {
             const rect = progressBarContainer.getBoundingClientRect();
             const pos = (e.pageX - rect.left) / rect.width;
@@ -288,11 +267,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         };
 
         playPauseBtn.onclick = (e) => { e.stopPropagation(); togglePlay(); };
-        container.onclick = (e) => {
-          // Don't toggle play if a button was clicked
-          if ((e.target as HTMLElement).closest('button')) return;
-          togglePlay();
-        };
+        container.onclick = (e) => { if (!(e.target as HTMLElement).closest('button')) { togglePlay(); } };
         muteBtn.onclick = (e) => { e.stopPropagation(); video.muted = !video.muted; };
         progressBarContainer.onclick = (e) => { e.stopPropagation(); seek(e); };
         
@@ -300,23 +275,41 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         video.onpause = updatePlayButton;
         video.onvolumechange = updateMuteButton;
         video.ontimeupdate = updateProgress;
-        video.onloadeddata = () => {
-          updateMuteButton();
-          updatePlayButton();
-        }
+        video.onloadeddata = () => { updateMuteButton(); updatePlayButton(); };
 
-        container.dataset.videoEnhanced = 'true'; // Mark as enhanced
+        container.dataset.videoEnhanced = 'true';
     };
     
-    // Use a short timeout to ensure the DOM from dangerouslySetInnerHTML is ready.
-    const timeoutId = setTimeout(() => {
-        const allVideoContainers = document.querySelectorAll<HTMLElement>('.media-container.video-container');
-        allVideoContainers.forEach(enhanceVideoPlayer);
-    }, 100); // 100ms delay is usually sufficient
+    const enhanceAllVideos = () => {
+        // Enhance cover video
+        if (coverVideoContainerRef.current) {
+            enhanceVideoPlayer(coverVideoContainerRef.current);
+        }
+        // Enhance content videos
+        const contentContainer = articleContentRef.current;
+        if (contentContainer) {
+            contentContainer.querySelectorAll<HTMLElement>('.media-container.video-container').forEach(enhanceVideoPlayer);
+        }
+    };
+    
+    // Initial enhancement run
+    enhanceAllVideos();
 
-    return () => clearTimeout(timeoutId);
+    // Use MutationObserver to catch videos added dynamically by dangerouslySetInnerHTML
+    const observer = new MutationObserver(enhanceAllVideos);
+    const containerToObserve = articleContentRef.current;
 
-  }, [processedContent]); // Rerun when content changes
+    if (containerToObserve) {
+        observer.observe(containerToObserve, { childList: true, subtree: true });
+    }
+
+    return () => {
+        if (containerToObserve) {
+            observer.disconnect();
+        }
+    };
+
+  }, [processedContent]);
 
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
