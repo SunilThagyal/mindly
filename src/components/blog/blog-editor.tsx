@@ -209,7 +209,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             allowedSchemes: [ 'http', 'https', 'ftp', 'mailto', 'tel', 'data' ],
             allowedClasses: {
               '*': [ 
-                'ql-*', 'blog-media-container', 'blog-media-background-content', 'blog-media-main-content', 'requires-media-wrap'
+                'ql-*', 'media-container', 'video-container', 'iframe-container', 'media-item'
               ] 
             },
              selfClosing: [ 'img', 'br', 'hr', 'area', 'base', 'basefont', 'input', 'link', 'meta' ],

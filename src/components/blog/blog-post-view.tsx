@@ -448,7 +448,11 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               <div 
                 className="prose dark:prose-invert"
               >
-                 {renderContentWithAds()}
+                 {processedContent === null ? (
+                    <div className="flex justify-center items-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                ) : (
+                    renderContentWithAds()
+                )}
               </div>
 
               {blog.tags && blog.tags.length > 0 && (
