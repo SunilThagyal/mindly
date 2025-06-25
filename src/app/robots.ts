@@ -1,21 +1,2 @@
-
-import { MetadataRoute } from 'next'
-import { siteConfig } from '@/config/site'
- 
-export default function robots(): MetadataRoute.Robots {
-  return {
-    rules: {
-      userAgent: '*',
-      allow: '/',
-      disallow: [
-        '/admin/',
-        '/my-blogs/',
-        '/monetization/',
-        '/auth/',
-        '/blog/create/',
-        '/blog/edit/',
-      ],
-    },
-    sitemap: `${siteConfig.url}/sitemap.xml`,
-  }
-}
+// This file is intentionally left blank to resolve a conflict with the static
+// public/robots.txt file. The rules for crawlers are defined in public/robots.txt.
