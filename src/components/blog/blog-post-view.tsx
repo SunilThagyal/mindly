@@ -53,6 +53,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const [isAnimatingLike, setIsAnimatingLike] = useState(false);
   const [processedContent, setProcessedContent] = useState<string | null>(null);
   const viewTriggered = useRef(false);
+  const [isCoverLoaded, setIsCoverLoaded] = useState(false);
 
   useEffect(() => {
     // Ensure this effect runs only once per page load and all data is ready.
@@ -319,7 +320,10 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     alt="" // Decorative
                     layout="fill"
                     objectFit="cover"
-                    className="filter blur-xl scale-110"
+                    className={cn(
+                        "filter blur-xl scale-110 transition-opacity duration-500",
+                        isCoverLoaded ? "opacity-70" : "opacity-0"
+                    )}
                     aria-hidden="true"
                     priority
                   />
@@ -329,8 +333,12 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     alt={blog.title}
                     layout="fill"
                     objectFit="contain"
-                    className="relative z-10 drop-shadow-lg"
+                    className={cn(
+                        "relative z-10 drop-shadow-lg transition-opacity duration-500",
+                        isCoverLoaded ? "opacity-100" : "opacity-0"
+                    )}
                     priority
+                    onLoad={() => setIsCoverLoaded(true)}
                     data-ai-hint={isGeneratedCover ? "generated banner" : "blog hero"}
                   />
                 </div>

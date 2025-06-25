@@ -9,7 +9,8 @@ import type { Blog } from '@/lib/types';
 import { Eye, Clock, UserCircle, Coins } from 'lucide-react';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
 import { useAuth } from '@/context/auth-context'; // Import useAuth
-import React from 'react';
+import React, { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 interface BlogCardProps {
   blog: Blog;
@@ -18,6 +19,7 @@ interface BlogCardProps {
 const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
   const { baseEarningPerView } = useEarningsSettings();
   const { user, userProfile } = useAuth(); // Get current user and profile
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
 
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString()
@@ -39,7 +41,10 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
                 alt="" // Decorative
                 layout="fill"
                 objectFit="cover"
-                className="filter blur-lg scale-110 opacity-70"
+                className={cn(
+                    "filter blur-lg scale-110 transition-opacity duration-500",
+                    isImageLoaded ? "opacity-70" : "opacity-0"
+                )}
                 aria-hidden="true"
             />
             {/* Main, contained image */}
@@ -48,8 +53,12 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
                 alt={blog.title}
                 layout="fill"
                 objectFit="contain"
-                className="relative z-10 drop-shadow-lg"
+                className={cn(
+                    "relative z-10 drop-shadow-lg transition-opacity duration-500",
+                    isImageLoaded ? "opacity-100" : "opacity-0"
+                )}
                 data-ai-hint={isGeneratedCover ? "generated banner" : (blog.coverImageUrl ? "article cover" : "placeholder")}
+                onLoad={() => setIsImageLoaded(true)}
             />
         </div>
       </Link>
