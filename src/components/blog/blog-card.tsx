@@ -35,16 +35,31 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
       <Link href={`/blog/${blog.slug}`} className="block">
         <div className="relative w-full h-48 sm:h-56 bg-black overflow-hidden">
            {blog.coverMediaType === 'video' ? (
+             <>
+              {/* Blurred background video */}
               <video
+                key={`${blog.id}-bg`}
                 src={blog.coverImageUrl!}
                 autoPlay loop muted playsInline
                 onLoadedData={() => setIsMediaLoaded(true)}
                 className={cn(
-                  "absolute inset-0 w-full h-full object-cover transition-opacity duration-500",
-                  isMediaLoaded ? "opacity-100" : "opacity-0"
+                  "absolute inset-0 w-full h-full object-cover filter blur-lg scale-110 transition-opacity duration-500",
+                  isMediaLoaded ? "opacity-70" : "opacity-0"
+                )}
+                aria-hidden="true"
+              />
+              {/* Contained foreground video */}
+               <video
+                key={`${blog.id}-fg`}
+                src={blog.coverImageUrl!}
+                autoPlay loop muted playsInline
+                className={cn(
+                  "relative z-10 w-full h-full object-contain drop-shadow-lg transition-opacity duration-500",
+                   isMediaLoaded ? "opacity-100" : "opacity-0"
                 )}
                 data-ai-hint="video cover"
               />
+             </>
            ) : (
              <>
                 {/* Blurred background image */}

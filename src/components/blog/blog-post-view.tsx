@@ -382,16 +382,31 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               {blog.coverImageUrl && (
                 <div className="relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black group">
                   {blog.coverMediaType === 'video' ? (
-                     <video
-                      src={blog.coverImageUrl}
-                      autoPlay loop muted playsInline
-                      onLoadedData={() => setIsCoverLoaded(true)}
-                      className={cn(
-                        "absolute inset-0 w-full h-full object-cover transition-opacity duration-500",
-                        isCoverLoaded ? "opacity-100" : "opacity-0"
-                      )}
-                      data-ai-hint="video cover"
-                    />
+                     <>
+                      {/* Background Blurred Video */}
+                      <video
+                        key={`${blog.id}-bg-video`}
+                        src={blog.coverImageUrl}
+                        autoPlay loop muted playsInline
+                        onLoadedData={() => setIsCoverLoaded(true)}
+                        className={cn(
+                          "absolute inset-0 w-full h-full object-cover filter blur-xl scale-110 transition-opacity duration-500",
+                          isCoverLoaded ? "opacity-70" : "opacity-0"
+                        )}
+                        aria-hidden="true"
+                      />
+                      {/* Foreground Contained Video */}
+                      <video
+                        key={`${blog.id}-fg-video`}
+                        src={blog.coverImageUrl}
+                        autoPlay loop muted playsInline
+                        className={cn(
+                          "relative z-10 w-full h-full object-contain drop-shadow-lg transition-opacity duration-500",
+                          isCoverLoaded ? "opacity-100" : "opacity-0"
+                        )}
+                        data-ai-hint="video cover"
+                      />
+                    </>
                   ) : (
                     <>
                       {/* Background Blurred Image */}
