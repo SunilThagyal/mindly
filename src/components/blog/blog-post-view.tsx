@@ -5,7 +5,7 @@ import type { Blog, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart, Loader2, AlertTriangle } from 'lucide-react';
+import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart, Loader2, Maximize } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useAdSettings } from '@/context/ad-settings-context';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, collection, FieldValue } from 'firebase/firestore';
+import { deleteDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -34,6 +34,7 @@ import SocialShareButtons from './social-share-buttons';
 import { cn } from '@/lib/utils';
 import { incrementViewCount } from '@/lib/actions';
 import ReadingProgressBar from './reading-progress-bar';
+import MediaLightbox from '@/components/media/media-lightbox';
 
 interface BlogPostViewProps {
   blog: Blog;
@@ -54,6 +55,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const [processedContent, setProcessedContent] = useState<string | null>(null);
   const viewTriggered = useRef(false);
   const [isCoverLoaded, setIsCoverLoaded] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     // Ensure this effect runs only once per page load and all data is ready.
@@ -300,15 +302,12 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     return renderedElements;
   };
   
-  // Helper function to create a plain text excerpt from HTML content
   const createExcerpt = (html: string, length: number = 120): string => {
     if (!html) return '';
-    // A simple way to strip HTML tags for this purpose
     const plainText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     if (plainText.length <= length) {
       return plainText;
     }
-    // Try to break at a word boundary
     const trimmed = plainText.substring(0, length);
     return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
   };
@@ -322,41 +321,75 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   return (
     <>
       <ReadingProgressBar />
+      {lightboxOpen && blog.coverImageUrl && (
+        <MediaLightbox
+            src={blog.coverImageUrl}
+            type={blog.coverMediaType || 'image'}
+            onClose={() => setLightboxOpen(false)}
+        />
+      )}
       <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto py-8 px-4 animate-fade-in">
         <main className="flex-1 w-full lg:max-w-3xl xl:max-w-4xl">
           <AdPlaceholder type="leaderboard-header" className="mb-6" />
           <article id="blog-article-content">
             <div id="reading-content-container">
               {blog.coverImageUrl && (
-                <div className="relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black">
-                  {/* Background Blurred Image */}
-                  <Image
-                    src={blog.coverImageUrl}
-                    alt="" // Decorative
-                    layout="fill"
-                    objectFit="cover"
-                    className={cn(
-                        "filter blur-xl scale-110 transition-opacity duration-500",
-                        isCoverLoaded ? "opacity-70" : "opacity-0"
-                    )}
-                    aria-hidden="true"
-                    priority
-                  />
-                  {/* Foreground Contained Image */}
-                  <Image
-                    src={blog.coverImageUrl}
-                    alt={blog.title}
-                    layout="fill"
-                    objectFit="contain"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 896px"
-                    className={cn(
-                        "relative z-10 drop-shadow-lg transition-opacity duration-500",
+                <div className="relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black group">
+                  {blog.coverMediaType === 'video' ? (
+                     <video
+                      src={blog.coverImageUrl}
+                      autoPlay loop muted playsInline
+                      onLoadedData={() => setIsCoverLoaded(true)}
+                      className={cn(
+                        "absolute inset-0 w-full h-full object-cover transition-opacity duration-500",
                         isCoverLoaded ? "opacity-100" : "opacity-0"
-                    )}
-                    priority
-                    onLoad={() => setIsCoverLoaded(true)}
-                    data-ai-hint={isGeneratedCover ? "generated banner" : "blog hero"}
-                  />
+                      )}
+                      data-ai-hint="video cover"
+                    />
+                  ) : (
+                    <>
+                      {/* Background Blurred Image */}
+                      <Image
+                        src={blog.coverImageUrl}
+                        alt="" // Decorative
+                        layout="fill"
+                        objectFit="cover"
+                        className={cn(
+                            "filter blur-xl scale-110 transition-opacity duration-500",
+                            isCoverLoaded ? "opacity-70" : "opacity-0"
+                        )}
+                        aria-hidden="true"
+                        priority
+                      />
+                      {/* Foreground Contained Image */}
+                      <Image
+                        src={blog.coverImageUrl}
+                        alt={blog.title}
+                        layout="fill"
+                        objectFit="contain"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 896px"
+                        className={cn(
+                            "relative z-10 drop-shadow-lg transition-opacity duration-500",
+                            isCoverLoaded ? "opacity-100" : "opacity-0"
+                        )}
+                        priority
+                        onLoad={() => setIsCoverLoaded(true)}
+                        data-ai-hint={isGeneratedCover ? "generated banner" : "blog hero"}
+                      />
+                    </>
+                  )}
+                  {isCoverLoaded && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                        onClick={() => setLightboxOpen(true)}
+                        title="View fullscreen"
+                        aria-label="View fullscreen"
+                    >
+                        <Maximize className="h-6 w-6" />
+                    </Button>
+                  )}
                 </div>
               )}
 

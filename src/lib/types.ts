@@ -43,6 +43,7 @@ export interface Blog {
   createdAt: any;
   publishedAt: any;
   coverImageUrl: string | null;
+  coverMediaType?: 'image' | 'video' | null;
   metaDescription?: string | null;
   keywords?: string[];
   likes?: number; // Added for post likes count
@@ -56,6 +57,7 @@ export interface BlogInput {
   status: 'draft' | 'published';
   coverImageFile?: File | null;
   coverImageUrl: string | null;
+  coverMediaType?: 'image' | 'video' | null;
 }
 
 export interface Comment {

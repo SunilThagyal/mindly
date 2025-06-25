@@ -19,7 +19,7 @@ interface BlogCardProps {
 const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
   const { baseEarningPerView } = useEarningsSettings();
   const { user, userProfile } = useAuth(); // Get current user and profile
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [isMediaLoaded, setIsMediaLoaded] = useState(false);
 
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString()
@@ -27,7 +27,6 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
   
   const earnings = (blog.views * baseEarningPerView).toFixed(2);
 
-  // Check if the current user is the author and is approved for monetization
   const canShowEarnings = user?.uid === blog.authorId && userProfile?.isMonetizationApproved;
   const isGeneratedCover = blog.coverImageUrl?.includes('api.a0.dev');
 
@@ -35,32 +34,47 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
     <Card className="w-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full animate-fade-in">
       <Link href={`/blog/${blog.slug}`} className="block">
         <div className="relative w-full h-48 sm:h-56 bg-black overflow-hidden">
-           {/* Blurred background image */}
-            <Image
-                src={blog.coverImageUrl || `https://placehold.co/600x400.png`}
-                alt="" // Decorative
-                layout="fill"
-                objectFit="cover"
+           {blog.coverMediaType === 'video' ? (
+              <video
+                src={blog.coverImageUrl!}
+                autoPlay loop muted playsInline
+                onLoadedData={() => setIsMediaLoaded(true)}
                 className={cn(
-                    "filter blur-lg scale-110 transition-opacity duration-500",
-                    isImageLoaded ? "opacity-70" : "opacity-0"
+                  "absolute inset-0 w-full h-full object-cover transition-opacity duration-500",
+                  isMediaLoaded ? "opacity-100" : "opacity-0"
                 )}
-                aria-hidden="true"
-            />
-            {/* Main, contained image */}
-            <Image
-                src={blog.coverImageUrl || `https://placehold.co/600x400.png`}
-                alt={blog.title}
-                layout="fill"
-                objectFit="contain"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                className={cn(
-                    "relative z-10 drop-shadow-lg transition-opacity duration-500",
-                    isImageLoaded ? "opacity-100" : "opacity-0"
-                )}
-                data-ai-hint={isGeneratedCover ? "generated banner" : (blog.coverImageUrl ? "article cover" : "placeholder")}
-                onLoad={() => setIsImageLoaded(true)}
-            />
+                data-ai-hint="video cover"
+              />
+           ) : (
+             <>
+                {/* Blurred background image */}
+                <Image
+                    src={blog.coverImageUrl || `https://placehold.co/600x400.png`}
+                    alt="" // Decorative
+                    layout="fill"
+                    objectFit="cover"
+                    className={cn(
+                        "filter blur-lg scale-110 transition-opacity duration-500",
+                        isMediaLoaded ? "opacity-70" : "opacity-0"
+                    )}
+                    aria-hidden="true"
+                />
+                {/* Main, contained image */}
+                <Image
+                    src={blog.coverImageUrl || `https://placehold.co/600x400.png`}
+                    alt={blog.title}
+                    layout="fill"
+                    objectFit="contain"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className={cn(
+                        "relative z-10 drop-shadow-lg transition-opacity duration-500",
+                        isMediaLoaded ? "opacity-100" : "opacity-0"
+                    )}
+                    data-ai-hint={isGeneratedCover ? "generated banner" : (blog.coverImageUrl ? "article cover" : "placeholder")}
+                    onLoad={() => setIsMediaLoaded(true)}
+                />
+             </>
+           )}
         </div>
       </Link>
       <CardHeader className="p-4 pb-2">

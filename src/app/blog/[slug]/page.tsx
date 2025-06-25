@@ -44,6 +44,7 @@ const getBlogBySlug = cache(async (slug: string): Promise<Blog | null> => {
     createdAt: blogData.createdAt,
     publishedAt: blogData.publishedAt,
     coverImageUrl: blogData.coverImageUrl || null,
+    coverMediaType: blogData.coverMediaType || null,
     metaDescription: blogData.metaDescription || null,
     keywords: blogData.keywords || [],
     likes: blogData.likes || 0,

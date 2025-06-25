@@ -77,6 +77,7 @@ async function getBlogs(
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
       publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt : null,
       coverImageUrl: data.coverImageUrl || null,
+      coverMediaType: data.coverMediaType || null,
       metaDescription: data.metaDescription || null,
       likes: data.likes || 0,
       likedBy: data.likedBy || [],

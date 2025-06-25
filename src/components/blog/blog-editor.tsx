@@ -42,6 +42,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
   const [currentStatus, setCurrentStatus] = useState<'draft' | 'published'>('draft');
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null); 
+  const [coverMediaType, setCoverMediaType] = useState<'image' | 'video' | null>(null);
   
   const [aiBlogTopic, setAiBlogTopic] = useState('');
   const [isGeneratingBlog, setIsGeneratingBlog] = useState(false);
@@ -79,6 +80,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
             setKeywords(blogData.keywords || []);
             setCurrentStatus(blogData.status);
             setCoverImageUrl(blogData.coverImageUrl || null); 
+            setCoverMediaType(blogData.coverMediaType || null);
             setMetaDescription(blogData.metaDescription || '');
           } else {
             toast({ title: 'Not Found', description: 'Blog post not found.', variant: 'destructive' });
@@ -114,11 +116,15 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) { 
-        toast({ title: 'Image too large', description: 'Please upload an image smaller than 10MB.', variant: 'destructive'});
+      const fileType = file.type.startsWith('video/') ? 'video' : 'image';
+      const maxSize = fileType === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024; // 50MB for video, 10MB for image
+
+      if (file.size > maxSize) { 
+        toast({ title: 'File too large', description: `Please upload a ${fileType} smaller than ${maxSize / (1024*1024)}MB.`, variant: 'destructive'});
         return;
       }
       setCoverImageFile(file);
+      setCoverMediaType(fileType);
       setCoverImageUrl(URL.createObjectURL(file)); 
     }
   };
@@ -267,7 +273,8 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
     const newSaveStatus = attemptPublish ? 'published' : 'draft';
     setCurrentStatus(newSaveStatus); 
 
-    let finalUploadedCoverImageUrl: string | null = coverImageUrl; 
+    let finalUploadedCoverImageUrl: string | null = coverImageUrl;
+    let finalCoverMediaType: 'image' | 'video' | null = coverMediaType; 
 
     if (coverImageFile) {
       if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET === 'blogchain_unsigned_preset' || CLOUDINARY_UPLOAD_PRESET === 'your_unsigned_upload_preset_name') {
@@ -275,28 +282,31 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         setIsSubmitting(false);
         return;
       }
+      const resourceType = coverImageFile.type.startsWith('video/') ? 'video' : 'image';
       const formData = new FormData();
       formData.append('file', coverImageFile);
       formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
       formData.append('folder', 'blog_covers'); 
       try {
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`, {
           method: 'POST',
           body: formData,
         });
         const data = await response.json();
         if (data.secure_url) {
           finalUploadedCoverImageUrl = data.secure_url;
+          finalCoverMediaType = resourceType;
         } else {
-          throw new Error(data.error?.message || 'Cloudinary cover image upload failed.');
+          throw new Error(data.error?.message || 'Cloudinary cover media upload failed.');
         }
       } catch (error) {
-        toast({ title: 'Cover Image Upload Error', description: (error as Error).message, variant: 'destructive' });
+        toast({ title: 'Cover Media Upload Error', description: (error as Error).message, variant: 'destructive' });
         setIsSubmitting(false);
         return;
       }
     } else if (!finalUploadedCoverImageUrl && title.trim()) { 
-        finalUploadedCoverImageUrl = `https://api.a0.dev/assets/image?text=${encodeURIComponent(title.trim().substring(0, 100))}`; 
+        finalUploadedCoverImageUrl = `https://api.a0.dev/assets/image?text=${encodeURIComponent(title.trim().substring(0, 100))}`;
+        finalCoverMediaType = 'image';
     }
     
     const blogDataPayload = {
@@ -308,6 +318,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
       status: newSaveStatus,
       readingTime: estimateReadingTime(content),
       coverImageUrl: finalUploadedCoverImageUrl,
+      coverMediaType: finalCoverMediaType,
       metaDescription: metaDescription.trim(),
     };
 
@@ -452,12 +463,12 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
         </div>
 
         <div className="space-y-2">
-            <Label htmlFor="coverImage" className="text-lg">Cover Image (Optional)</Label>
+            <Label htmlFor="coverImage" className="text-lg">Cover Media (Image, GIF, Video)</Label>
             <div className="flex items-center gap-2">
                 <Input
                 id="coverImage"
                 type="file"
-                accept="image/png, image/jpeg, image/webp, image/gif"
+                accept="image/png, image/jpeg, image/webp, image/gif, video/mp4, video/webm"
                 onChange={handleImageUpload}
                 className="file:text-sm file:font-medium file:bg-primary/10 file:text-primary file:border-0 file:rounded-md file:px-3 file:py-1.5 hover:file:bg-primary/20 flex-1"
                 disabled={isSubmitting}
@@ -465,19 +476,31 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
                  <UploadCloud className="h-5 w-5 text-muted-foreground" />
             </div>
             {coverImageUrl && (
-              <div className="mt-2 relative w-full h-64 rounded-md overflow-hidden border">
-                <Image 
-                    src={coverImageUrl} 
-                    alt="Cover preview" 
-                    layout="fill" 
-                    objectFit="cover" 
-                    data-ai-hint={coverImageUrl.includes('api.a0.dev') ? "generated banner" : "article cover preview"}
-                />
+              <div className="mt-2 relative w-full h-64 rounded-md overflow-hidden border bg-black">
+                {coverMediaType === 'video' ? (
+                  <video
+                    src={coverImageUrl}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-contain"
+                    data-ai-hint="video preview"
+                  />
+                ) : (
+                  <Image 
+                      src={coverImageUrl} 
+                      alt="Cover preview" 
+                      layout="fill" 
+                      objectFit="contain" 
+                      data-ai-hint={coverImageUrl.includes('api.a0.dev') ? "generated banner" : "article cover preview"}
+                  />
+                )}
                  <Button
                     variant="destructive"
                     size="icon"
                     className="absolute top-2 right-2 h-7 w-7 opacity-80 hover:opacity-100 z-10"
-                    onClick={() => { setCoverImageFile(null); setCoverImageUrl(null); const fileInput = document.getElementById('coverImage') as HTMLInputElement; if(fileInput) fileInput.value = ''; }}
+                    onClick={() => { setCoverImageFile(null); setCoverImageUrl(null); setCoverMediaType(null); const fileInput = document.getElementById('coverImage') as HTMLInputElement; if(fileInput) fileInput.value = ''; }}
                     title="Remove cover image"
                     disabled={isSubmitting}
                 >
@@ -486,7 +509,7 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
               </div>
             )}
             <p className="text-xs text-muted-foreground mt-1">
-                If no image is uploaded, a relevant thumbnail will be auto-generated from the title upon saving. Max 10MB.
+                If no media is uploaded, a relevant thumbnail will be auto-generated from the title upon saving. Max 10MB for images/GIFs, 50MB for videos.
             </p>
         </div>
 
