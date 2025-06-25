@@ -10,6 +10,25 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/terms-and-conditions',
   },
+  openGraph: {
+    title: 'Terms and Conditions',
+    description: `Understand your rights and responsibilities when using the ${siteConfig.name} platform.`,
+    url: '/terms-and-conditions',
+    images: [
+      {
+        url: `${siteConfig.url}/default-og-image.png`,
+        width: 1200,
+        height: 630,
+        alt: 'Terms and Conditions',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Terms and Conditions',
+    description: `Understand your rights and responsibilities when using the ${siteConfig.name} platform.`,
+    images: [`${siteConfig.url}/default-og-image.png`],
+  },
 };
 
 export default function TermsAndConditionsPage() {
@@ -17,7 +36,7 @@ export default function TermsAndConditionsPage() {
     <div className="max-w-4xl mx-auto py-12 px-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-3xl font-headline">Terms and Conditions for {siteConfig.name}</CardTitle>
+          <h1 className="text-3xl font-headline font-bold">Terms and Conditions for {siteConfig.name}</h1>
            <p className="text-muted-foreground">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </CardHeader>
         <CardContent className="prose dark:prose-invert max-w-none">

@@ -43,6 +43,7 @@ export interface Blog {
   createdAt: any;
   publishedAt: any;
   coverImageUrl: string | null;
+  metaDescription?: string | null;
   likes?: number; // Added for post likes count
   likedBy?: string[]; // Added for list of user UIDs who liked the post
 }

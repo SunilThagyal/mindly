@@ -44,6 +44,7 @@ const getBlogBySlug = cache(async (slug: string): Promise<Blog | null> => {
     createdAt: blogData.createdAt,
     publishedAt: blogData.publishedAt,
     coverImageUrl: blogData.coverImageUrl || null,
+    metaDescription: blogData.metaDescription || null,
     likes: blogData.likes || 0,
     likedBy: blogData.likedBy || [],
   } as Blog;
@@ -67,7 +68,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     };
   }
 
-  const excerpt = getHtmlExcerpt(blog.content);
+  const excerpt = blog.metaDescription || getHtmlExcerpt(blog.content);
   const publishedTime = blog.publishedAt ? new Date(blog.publishedAt.seconds * 1000).toISOString() : new Date().toISOString();
 
   return {
@@ -131,7 +132,7 @@ export default async function BlogPage({ params }: { params: { slug: string } })
       '@id': `${siteConfig.url}/blog/${blog.slug}`,
     },
     headline: blog.title,
-    description: getHtmlExcerpt(blog.content),
+    description: blog.metaDescription || getHtmlExcerpt(blog.content),
     image: blog.coverImageUrl || `${siteConfig.url}/default-og-image.png`,
     author: {
       '@type': 'Person',

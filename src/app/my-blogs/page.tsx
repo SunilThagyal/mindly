@@ -51,6 +51,7 @@ async function getUserBlogs(userId: string, status?: 'published' | 'draft'): Pro
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
       publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt : null,
       coverImageUrl: data.coverImageUrl || null,
+      metaDescription: data.metaDescription || null,
       likes: data.likes || 0,
       likedBy: data.likedBy || [],
     } as Blog;

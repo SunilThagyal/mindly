@@ -9,6 +9,25 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/privacy-policy',
   },
+  openGraph: {
+    title: 'Privacy Policy',
+    description: `Our privacy policy outlines how ${siteConfig.name} collects, uses, and protects your personal data.`,
+    url: '/privacy-policy',
+    images: [
+      {
+        url: `${siteConfig.url}/default-og-image.png`,
+        width: 1200,
+        height: 630,
+        alt: 'Privacy Policy',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Privacy Policy',
+    description: `Our privacy policy outlines how ${siteConfig.name} collects, uses, and protects your personal data.`,
+    images: [`${siteConfig.url}/default-og-image.png`],
+  },
   robots: {
     index: true,
     follow: true,
@@ -20,7 +39,7 @@ export default function PrivacyPolicyPage() {
     <div className="max-w-4xl mx-auto py-12 px-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-3xl font-headline">Privacy Policy for {siteConfig.name}</CardTitle>
+          <h1 className="text-3xl font-headline font-bold">Privacy Policy for {siteConfig.name}</h1>
           <p className="text-muted-foreground">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </CardHeader>
         <CardContent className="prose dark:prose-invert max-w-none">

@@ -39,6 +39,7 @@ async function getUserBlogs(userId: string): Promise<Blog[]> {
       createdAt: data.createdAt,
       publishedAt: data.publishedAt,
       coverImageUrl: data.coverImageUrl || null,
+      metaDescription: data.metaDescription || null,
       likes: data.likes || 0,
       likedBy: data.likedBy || [],
     } as Blog;

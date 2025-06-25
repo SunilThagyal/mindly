@@ -59,6 +59,7 @@ export default function RelatedPosts({ currentBlogId, tags }: RelatedPostsProps)
               createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
               publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt : null,
               coverImageUrl: data.coverImageUrl || null,
+              metaDescription: data.metaDescription || null,
             } as Blog;
           })
           .filter(blog => blog.id !== currentBlogId) // Exclude current post
