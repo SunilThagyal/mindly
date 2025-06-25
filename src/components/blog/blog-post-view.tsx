@@ -105,7 +105,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     const doc = parser.parseFromString(htmlContent, 'text/html');
     const body = doc.body;
 
-    const mediaSelectors = 'img, iframe'; // Only look for img and iframe initially
+    const mediaSelectors = 'img, iframe'; // Look for img and iframe initially
     const mediaElements = Array.from(body.querySelectorAll(mediaSelectors));
 
     const maximizeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>`;
@@ -114,18 +114,23 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         if (mediaEl.closest('.media-container')) return;
 
         const mediaSrc = mediaEl.getAttribute('src') || '';
-        let finalMediaElement;
-        let finalMediaType: 'image' | 'video' | 'iframe' = mediaEl.tagName.toLowerCase() as 'image' | 'iframe';
-
+        let finalMediaElement: HTMLElement;
+        let finalMediaType: 'image' | 'video' | 'iframe' = 'iframe';
+        
         // Detect if an iframe source is a direct video link and convert it to a video element
         if (mediaEl.tagName.toLowerCase() === 'iframe' && /\.(mp4|webm|ogg)$/i.test(mediaSrc)) {
             finalMediaType = 'video';
             const videoEl = doc.createElement('video');
             videoEl.src = mediaSrc;
             finalMediaElement = videoEl;
-        } else {
+        } else if (mediaEl.tagName.toLowerCase() === 'img') {
+            finalMediaType = 'image';
             finalMediaElement = mediaEl.cloneNode(true) as HTMLElement;
         }
+        else {
+             finalMediaElement = mediaEl.cloneNode(true) as HTMLElement;
+        }
+
 
         const container = doc.createElement('div');
         container.classList.add('media-container', 'group/videocontainer');
@@ -210,71 +215,117 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     };
 
     const enhanceVideoPlayer = (container: HTMLElement) => {
-        if (container.dataset.videoEnhanced) return;
+      if (container.dataset.videoEnhanced) return;
 
-        const video = container.querySelector('video.media-item, video'); // Target both types
-        if (!video) return;
+      const foregroundVideo = container.querySelector<HTMLVideoElement>('video.media-item');
+      const backgroundVideo = container.querySelector<HTMLVideoElement>('video:not(.media-item)');
 
-        video.removeAttribute('controls');
-        video.muted = true;
-        
-        container.querySelector('.video-controls-overlay')?.remove();
+      if (!foregroundVideo) return; // Main video is required.
 
-        const controlsOverlay = document.createElement('div');
-        controlsOverlay.className = 'video-controls-overlay is-paused';
+      // Remove native controls and set initial state
+      foregroundVideo.removeAttribute('controls');
+      if (backgroundVideo) backgroundVideo.removeAttribute('controls');
+      foregroundVideo.muted = true;
+      if (backgroundVideo) backgroundVideo.muted = true;
+      
+      container.querySelector('.video-controls-overlay')?.remove();
 
-        const topControls = document.createElement('div');
-        topControls.className = 'video-controls-top';
+      const controlsOverlay = document.createElement('div');
+      controlsOverlay.className = 'video-controls-overlay is-paused';
 
-        const playPauseBtn = document.createElement('button');
-        playPauseBtn.className = 'video-control-button';
-        playPauseBtn.innerHTML = iconSvgs.pause;
-        
-        const muteBtn = document.createElement('button');
-        muteBtn.className = 'video-control-button';
-        muteBtn.innerHTML = iconSvgs.mute;
+      const topControls = document.createElement('div');
+      topControls.className = 'video-controls-top';
 
-        const progressBarContainer = document.createElement('div');
-        progressBarContainer.className = 'video-progress-bar-container';
-        
-        const progressBarFill = document.createElement('div');
-        progressBarFill.className = 'video-progress-bar-fill';
-        
-        topControls.appendChild(playPauseBtn);
-        topControls.appendChild(muteBtn);
-        progressBarContainer.appendChild(progressBarFill);
-        controlsOverlay.appendChild(topControls);
-        controlsOverlay.appendChild(progressBarContainer);
-        container.appendChild(controlsOverlay);
+      const playPauseBtn = document.createElement('button');
+      playPauseBtn.className = 'video-control-button';
+      playPauseBtn.innerHTML = iconSvgs.play; // Start with play icon
+      
+      const muteBtn = document.createElement('button');
+      muteBtn.className = 'video-control-button';
+      muteBtn.innerHTML = iconSvgs.mute;
 
-        const togglePlay = () => { video.paused ? video.play() : video.pause(); };
-        const updatePlayButton = () => {
-            playPauseBtn.innerHTML = video.paused ? iconSvgs.play : iconSvgs.pause;
-            controlsOverlay.classList.toggle('is-paused', video.paused);
-        };
-        const updateMuteButton = () => { muteBtn.innerHTML = video.muted ? iconSvgs.mute : iconSvgs.volume; };
-        const updateProgress = () => {
-            const progress = (video.currentTime / video.duration) * 100;
-            progressBarFill.style.width = `${progress}%`;
-        };
-        const seek = (e: MouseEvent) => {
-            const rect = progressBarContainer.getBoundingClientRect();
-            const pos = (e.pageX - rect.left) / rect.width;
-            video.currentTime = pos * video.duration;
-        };
+      const progressBarContainer = document.createElement('div');
+      progressBarContainer.className = 'video-progress-bar-container';
+      
+      const progressBarFill = document.createElement('div');
+      progressBarFill.className = 'video-progress-bar-fill';
+      
+      topControls.appendChild(playPauseBtn);
+      topControls.appendChild(muteBtn);
+      progressBarContainer.appendChild(progressBarFill);
+      controlsOverlay.appendChild(topControls);
+      controlsOverlay.appendChild(progressBarContainer);
+      container.appendChild(controlsOverlay);
 
-        playPauseBtn.onclick = (e) => { e.stopPropagation(); togglePlay(); };
-        container.onclick = (e) => { if (!(e.target as HTMLElement).closest('button, a')) { togglePlay(); } };
-        muteBtn.onclick = (e) => { e.stopPropagation(); video.muted = !video.muted; };
-        progressBarContainer.onclick = (e) => { e.stopPropagation(); seek(e); };
-        
-        video.onplay = updatePlayButton;
-        video.onpause = updatePlayButton;
-        video.onvolumechange = updateMuteButton;
-        video.ontimeupdate = updateProgress;
-        video.onloadeddata = () => { updateMuteButton(); updatePlayButton(); };
+      const togglePlay = () => {
+          if (foregroundVideo.paused) {
+              foregroundVideo.play();
+              backgroundVideo?.play();
+          } else {
+              foregroundVideo.pause();
+              backgroundVideo?.pause();
+          }
+      };
+      
+      const updatePlayButton = () => {
+          playPauseBtn.innerHTML = foregroundVideo.paused ? iconSvgs.play : iconSvgs.pause;
+          controlsOverlay.classList.toggle('is-paused', foregroundVideo.paused);
+      };
 
-        container.dataset.videoEnhanced = 'true';
+      const toggleMute = () => {
+          // Only the foreground video gets unmuted. Background stays muted.
+          foregroundVideo.muted = !foregroundVideo.muted;
+      };
+
+      const updateMuteButton = () => {
+          muteBtn.innerHTML = foregroundVideo.muted ? iconSvgs.mute : iconSvgs.volume;
+      };
+
+      const updateProgress = () => {
+          if (foregroundVideo.duration > 0) {
+              const progress = (foregroundVideo.currentTime / foregroundVideo.duration) * 100;
+              progressBarFill.style.width = `${progress}%`;
+          }
+      };
+
+      const seek = (e: MouseEvent) => {
+          const rect = progressBarContainer.getBoundingClientRect();
+          const pos = (e.pageX - rect.left) / rect.width;
+          const seekTime = pos * foregroundVideo.duration;
+          foregroundVideo.currentTime = seekTime;
+          if (backgroundVideo) backgroundVideo.currentTime = seekTime;
+      };
+
+      playPauseBtn.onclick = (e) => { e.stopPropagation(); togglePlay(); };
+      container.onclick = (e) => { 
+          if (!(e.target as HTMLElement).closest('button, a, .video-progress-bar-container')) { 
+              togglePlay(); 
+          } 
+      };
+      muteBtn.onclick = (e) => { e.stopPropagation(); toggleMute(); };
+      progressBarContainer.onclick = (e) => { e.stopPropagation(); seek(e); };
+      
+      foregroundVideo.onplay = updatePlayButton;
+      foregroundVideo.onpause = updatePlayButton;
+      foregroundVideo.onvolumechange = updateMuteButton;
+      foregroundVideo.ontimeupdate = updateProgress;
+      
+      // Set initial button states once data is loaded
+      foregroundVideo.onloadeddata = () => { 
+          updateMuteButton(); 
+          updatePlayButton(); 
+          // Sometimes browsers autoplay muted videos, let's sync the background
+          if (!foregroundVideo.paused && backgroundVideo) {
+              backgroundVideo.play();
+          }
+      };
+      
+      // Also sync background if foreground is already playing (e.g., from an autoplay attribute)
+      if (backgroundVideo && !foregroundVideo.paused) {
+          backgroundVideo.play();
+      }
+
+      container.dataset.videoEnhanced = 'true';
     };
     
     const enhanceAllVideos = () => {
@@ -284,8 +335,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         }
     };
     
-    const initialTimeout = setTimeout(enhanceAllVideos, 100);
-
+    // The MutationObserver approach is more reliable than a simple timeout.
     const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
             if (mutation.type === 'childList') {
@@ -303,16 +353,18 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
     const containerToObserve = articleRef.current;
     if (containerToObserve) {
+        // Run once initially in case content is already there
+        enhanceAllVideos(); 
+        // Then observe for any dynamically added content
         observer.observe(containerToObserve, { childList: true, subtree: true });
     }
 
     return () => {
-        clearTimeout(initialTimeout);
         if (containerToObserve) {
             observer.disconnect();
         }
     };
-  }, [initialBlog.id, processedContent]);
+  }, [processedContent]);
 
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
