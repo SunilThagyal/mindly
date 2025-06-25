@@ -19,9 +19,10 @@ interface UserTableProps {
   users: UserProfile[];
   onUpdateUser: (userId: string, updates: Partial<UserProfile>) => Promise<void>;
   userStats: Record<string, { postCount: number; totalViews: number }>;
+  totalWithdrawnAmounts: Record<string, number>;
 }
 
-export default function UserTable({ users, onUpdateUser, userStats }: UserTableProps) {
+export default function UserTable({ users, onUpdateUser, userStats, totalWithdrawnAmounts }: UserTableProps) {
   return (
     <div className="rounded-md border overflow-x-auto">
       <Table>
@@ -30,16 +31,19 @@ export default function UserTable({ users, onUpdateUser, userStats }: UserTableP
             <TableHead className="w-[80px]">Avatar</TableHead>
             <TableHead>Display Name</TableHead>
             <TableHead>Email</TableHead>
-            <TableHead>Account Status</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Monetization</TableHead>
             <TableHead className="text-center">Posts</TableHead>
-            <TableHead className="text-center">Total Views</TableHead>
+            <TableHead className="text-center">Views</TableHead>
+            <TableHead className="text-center">Balance</TableHead>
+            <TableHead className="text-center">Withdrawn</TableHead>
             <TableHead className="text-right w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {users.map((user) => {
             const stats = userStats[user.uid] || { postCount: 0, totalViews: 0 };
+            const withdrawn = totalWithdrawnAmounts[user.uid] || 0;
             return (
               <TableRow key={user.uid}>
                 <TableCell>
@@ -56,7 +60,7 @@ export default function UserTable({ users, onUpdateUser, userStats }: UserTableP
                       {user.isBlocked ? 'Blocked' : 'Active'}
                     </Badge>
                     <Badge variant={user.postingRestricted ? 'outline' : 'secondary'} className={user.postingRestricted ? "border-yellow-500 text-yellow-600" : ""}>
-                      {user.postingRestricted ? 'Posting Restricted' : 'Posting Allowed'}
+                      {user.postingRestricted ? 'Restricted' : 'Allowed'}
                     </Badge>
                   </div>
                 </TableCell>
@@ -72,6 +76,8 @@ export default function UserTable({ users, onUpdateUser, userStats }: UserTableP
                 </TableCell>
                 <TableCell className="text-center">{stats.postCount}</TableCell>
                 <TableCell className="text-center">{stats.totalViews}</TableCell>
+                <TableCell className="text-center font-medium">${(user.virtualEarnings || 0).toFixed(2)}</TableCell>
+                <TableCell className="text-center font-medium">${withdrawn.toFixed(2)}</TableCell>
                 <TableCell className="text-right">
                   <UserTableRowActions user={user} onUpdateUser={onUpdateUser} stats={stats} />
                 </TableCell>
