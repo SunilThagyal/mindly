@@ -418,13 +418,13 @@
 
   /* Custom Video Player Styles */
   .video-controls-overlay {
-    @apply absolute inset-0 z-20 flex flex-col justify-between p-2 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity duration-300 bg-gradient-to-t from-black/50 via-transparent to-black/50;
+    @apply absolute inset-0 z-20 flex flex-col justify-between p-2 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity duration-300 bg-gradient-to-t from-black/50 via-transparent to-black/50 pointer-events-none;
   }
   .video-controls-overlay.is-paused {
     @apply opacity-100 bg-black/40;
   }
   .video-controls-top {
-    @apply flex gap-2;
+    @apply flex gap-2 pointer-events-auto;
   }
   .video-control-button {
     @apply h-9 w-9 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black/70 cursor-pointer;
@@ -433,7 +433,7 @@
       @apply h-5 w-5;
   }
   .video-progress-bar-container {
-    @apply w-full h-1.5 bg-white/30 rounded-full cursor-pointer;
+    @apply w-full h-1.5 bg-white/30 rounded-full cursor-pointer pointer-events-auto;
     transform: translateY(4px); /* Move it down slightly */
   }
   .video-progress-bar-fill {
