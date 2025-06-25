@@ -6,9 +6,11 @@ import type { Blog, UserProfile } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, query, where, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 import { cache } from 'react';
+import JsonLd from '@/components/seo/json-ld';
+import { siteConfig } from '@/config/site';
 
 // Helper function to get the first 150 characters of plain text from HTML
-function getHtmlExcerpt(html: string, length: number = 150): string {
+function getHtmlExcerpt(html: string, length: number = 160): string {
     if (!html) return '';
     const plainText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     return plainText.length > length ? plainText.substring(0, length) + '...' : plainText;
@@ -26,7 +28,6 @@ const getBlogBySlug = cache(async (slug: string): Promise<Blog | null> => {
   const blogDoc = snapshot.docs[0];
   const blogData = blogDoc.data();
 
-  // This function is now READ-ONLY. All view counting and cookie logic is moved to a Server Action.
   return {
     id: blogDoc.id,
     ...blogData,
@@ -48,12 +49,12 @@ const getBlogBySlug = cache(async (slug: string): Promise<Blog | null> => {
   } as Blog;
 });
 
-async function getAuthorProfile(authorId: string): Promise<UserProfile | null> {
+const getAuthorProfile = cache(async (authorId: string): Promise<UserProfile | null> => {
   if (!authorId) return null;
   const userDocRef = doc(db, 'users', authorId);
   const userSnap = await getDoc(userDocRef);
   return userSnap.exists() ? (userSnap.data() as UserProfile) : null;
-}
+});
 
 // Dynamic Metadata Generation for SEO
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
@@ -67,6 +68,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   }
 
   const excerpt = getHtmlExcerpt(blog.content);
+  const publishedTime = blog.publishedAt ? new Date(blog.publishedAt.seconds * 1000).toISOString() : new Date().toISOString();
 
   return {
     title: blog.title,
@@ -77,6 +79,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     openGraph: {
       title: blog.title,
       description: excerpt,
+      url: `/blog/${blog.slug}`,
       images: [
         {
           url: blog.coverImageUrl || '/default-og-image.png', // Provide a fallback OG image
@@ -86,7 +89,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
         },
       ],
       type: 'article',
-      publishedTime: blog.publishedAt ? new Date(blog.publishedAt.seconds * 1000).toISOString() : new Date().toISOString(),
+      publishedTime: publishedTime,
       authors: [blog.authorDisplayName || 'Anonymous'],
     },
     twitter: {
@@ -107,7 +110,7 @@ export default async function BlogPage({ params }: { params: { slug: string } })
 
   const blogFromDB = await getBlogBySlug(slug);
   
-  if (!blogFromDB) {
+  if (!blogFromDB || blogFromDB.status !== 'published') {
     notFound();
   }
 
@@ -116,11 +119,41 @@ export default async function BlogPage({ params }: { params: { slug: string } })
   // Serialize the blog object to make it safe to pass to the client component
   const blog = {
     ...blogFromDB,
-    // Convert Timestamps to plain objects that are JSON serializable
     createdAt: JSON.parse(JSON.stringify(blogFromDB.createdAt)),
     publishedAt: blogFromDB.publishedAt ? JSON.parse(JSON.stringify(blogFromDB.publishedAt)) : null,
   };
 
+  const jsonLdData = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${siteConfig.url}/blog/${blog.slug}`,
+    },
+    headline: blog.title,
+    description: getHtmlExcerpt(blog.content),
+    image: blog.coverImageUrl || `${siteConfig.url}/default-og-image.png`,
+    author: {
+      '@type': 'Person',
+      name: authorProfile?.displayName || blog.authorDisplayName || 'Anonymous',
+      url: authorProfile ? `${siteConfig.url}/profile/${authorProfile.uid}` : undefined,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: siteConfig.name,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${siteConfig.url}/default-og-image.png`, // Consider a proper logo image
+      },
+    },
+    datePublished: blog.publishedAt ? new Date(blog.publishedAt.seconds * 1000).toISOString() : new Date().toISOString(),
+    dateModified: blog.createdAt ? new Date(blog.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
+  };
 
-  return <BlogPostView blog={blog} authorProfile={authorProfile} />;
+  return (
+    <>
+      <JsonLd data={jsonLdData} />
+      <BlogPostView blog={blog} authorProfile={authorProfile} />
+    </>
+  );
 }

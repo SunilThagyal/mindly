@@ -333,6 +333,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     alt={blog.title}
                     layout="fill"
                     objectFit="contain"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 896px"
                     className={cn(
                         "relative z-10 drop-shadow-lg transition-opacity duration-500",
                         isCoverLoaded ? "opacity-100" : "opacity-0"

@@ -1,20 +1,16 @@
 
 import type { Metadata } from 'next';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PenSquare, Eye, ShieldCheck, HandCoins } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
-  title: 'How It Works',
-  description: `Learn how ${siteConfig.name} rewards creativity and how you can turn your engaging stories into tangible earnings through views and engagement.`,
+  title: 'How It Works - Turn Views Into Earnings',
+  description: `Learn how ${siteConfig.name} rewards creativity. Follow our simple steps to publish content, get views, become eligible for monetization, and earn from your blog posts.`,
   alternates: {
     canonical: '/how-it-works',
-  },
-  robots: {
-    index: true,
-    follow: true,
   },
 };
 
@@ -34,7 +30,7 @@ export default function HowItWorksPage() {
           title="1. Write & Publish"
           description={
             <>
-              Craft high-quality, engaging blog posts that people want to read. Use our intuitive <Link href="/blog/create" className="text-primary hover:underline">editor</Link> to bring your ideas to life and publish them to the world.
+              Craft <a href="https://www.semrush.com/blog/how-to-write-a-blog-post/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">high-quality, engaging blog posts</a> that people want to read. Use our intuitive <Link href="/blog/create" className="text-primary hover:underline">editor</Link> to bring your ideas to life and publish them to the world.
             </>
           }
         />
@@ -53,7 +49,7 @@ export default function HowItWorksPage() {
           title="4. Earn & Withdraw"
           description={
             <>
-              Once approved, you'll earn virtual currency for your post views based on admin-set rates and the performance of ads on your pages. When your balance reaches the minimum threshold, request a withdrawal from your monetization dashboard.
+              Once approved, you'll earn virtual currency for your post views based on admin-set rates. When your balance reaches the minimum threshold, request a withdrawal from your <Link href="/monetization" className="text-primary hover:underline">monetization dashboard</Link>.
             </>
           }
         />

@@ -53,6 +53,7 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
                 alt={blog.title}
                 layout="fill"
                 objectFit="contain"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className={cn(
                     "relative z-10 drop-shadow-lg transition-opacity duration-500",
                     isImageLoaded ? "opacity-100" : "opacity-0"

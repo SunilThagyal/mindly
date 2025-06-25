@@ -6,13 +6,9 @@ import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Terms and Conditions',
-  description: `Read the terms and conditions for using ${siteConfig.name}.`,
+  description: `Read the terms and conditions for using ${siteConfig.name}. Understand your rights and responsibilities when creating content, earning, and using our platform.`,
   alternates: {
     canonical: '/terms-and-conditions',
-  },
-  robots: {
-    index: true,
-    follow: true,
   },
 };
 
@@ -46,9 +42,8 @@ export default function TermsAndConditionsPage() {
             <p><strong>Right to Suspend or Terminate Monetization:</strong> {siteConfig.name} reserves the absolute right to suspend or terminate the monetization feature for any individual user or for the entire platform at any time, without prior notice or liability. Reasons for suspension or termination may include, but are not limited to, fraudulent activity, violation of our content policies, or changes in our business model.</p>
             <p><strong>Eligibility for Monetization:</strong> {siteConfig.name} reserves the right to approve or deny any user's eligibility for the monetization program. We may also pause or stop approving new users for the program at our sole discretion.</p>
 
-
             <h2>5. Intellectual Property</h2>
-            <p>The Service and its original content (excluding Content provided by users), features, and functionality are and will remain the exclusive property of {siteConfig.name} and its licensors. The Service is protected by copyright, trademark, and other laws of both the United States and foreign countries. Our trademarks and trade dress may not be used in connection with any product or service without the prior written consent of {siteConfig.name}.</p>
+            <p>The Service and its original content (excluding Content provided by users), features, and functionality are and will remain the exclusive property of {siteConfig.name} and its licensors. The Service is protected by copyright, trademark, and other laws of both the United States and foreign countries. Our trademarks and trade dress may not be used in connection with any product or service without the prior written consent of {siteConfig.name}. For more information, see the <a href="https://www.wipo.int/about-ip/en/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">World Intellectual Property Organization (WIPO)</a>.</p>
             
             <h2>6. Termination</h2>
             <p>We may terminate or suspend your account and bar access to the Service immediately, without prior notice or liability, under our sole discretion, for any reason whatsoever and without limitation, including but not limited to a breach of the Terms. We reserve the right to block accounts, remove content, and prevent access to the service for users who engage in suspicious activity, including but not limited to, artificially inflating view counts, posting prohibited content, or other actions that violate the spirit of these terms.</p>

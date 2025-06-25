@@ -1,4 +1,3 @@
-
 // REMOVED "use client"; 
 
 import type { Metadata } from 'next';
@@ -14,6 +13,8 @@ import ConditionalFooterAd from '@/components/layout/conditional-footer-ad'; // 
 import { cn } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
 import PageTransitionLoader from '@/components/layout/page-transition-loader';
+import GoogleAnalytics from '@/components/analytics/google-analytics';
+
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -22,6 +23,39 @@ export const metadata: Metadata = {
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  openGraph: {
+    title: siteConfig.name,
+    description: siteConfig.description,
+    url: siteConfig.url,
+    siteName: siteConfig.name,
+    images: [
+      {
+        url: `${siteConfig.url}/default-og-image.png`, // Must be an absolute URL
+        width: 1200,
+        height: 630,
+        alt: siteConfig.name,
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: siteConfig.name,
+    description: siteConfig.description,
+    images: [`${siteConfig.url}/default-og-image.png`], // Must be an absolute URL
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 export default function RootLayout({
@@ -41,6 +75,7 @@ export default function RootLayout({
             <EarningsSettingsProvider>
               <ThemeSettingsProvider>
                 <PageTransitionLoader />
+                <GoogleAnalytics />
                 <Header />
                 <main className="flex-grow container mx-auto px-4 py-8">
                   {children}
