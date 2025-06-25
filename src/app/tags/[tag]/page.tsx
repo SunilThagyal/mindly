@@ -1,6 +1,6 @@
 
 import { notFound } from 'next/navigation';
-import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, Timestamp, QuerySnapshot, DocumentData } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Blog } from '@/lib/types';
 import BlogCard from '@/components/blog/blog-card';
@@ -10,6 +10,32 @@ import type { Metadata } from 'next';
 interface TagPageProps {
   params: { tag: string };
 }
+
+// Helper to map a Firestore document to the Blog type, ensuring ID is included
+const mapDocToBlog = (doc: DocumentData): Blog => {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    ...data,
+    title: data.title || '',
+    content: data.content || '',
+    slug: data.slug || '',
+    authorId: data.authorId || '',
+    authorDisplayName: data.authorDisplayName || null,
+    authorPhotoURL: data.authorPhotoURL || null,
+    tags: data.tags || [],
+    keywords: data.keywords || [],
+    views: data.views || 0,
+    readingTime: data.readingTime || 0,
+    status: data.status || 'draft',
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+    publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt : null,
+    coverImageUrl: data.coverImageUrl || null,
+    metaDescription: data.metaDescription || null,
+    likes: data.likes || 0,
+    likedBy: data.likedBy || [],
+  } as Blog;
+};
 
 async function getBlogsByTag(tag: string): Promise<Blog[]> {
   const blogsCol = collection(db, 'blogs');
@@ -21,7 +47,10 @@ async function getBlogsByTag(tag: string): Promise<Blog[]> {
     orderBy('publishedAt', 'desc')
   );
 
-  const snapshot = await getDocs(q);
+  let snapshot: QuerySnapshot<DocumentData>;
+  snapshot = await getDocs(q);
+
+  // If the initial query returns no results, try a case-insensitive fallback (e.g., 'React' vs 'react')
   if (snapshot.empty) {
     const qCaseInsensitive = query(
         blogsCol,
@@ -29,36 +58,13 @@ async function getBlogsByTag(tag: string): Promise<Blog[]> {
         where('tags', 'array-contains', tag.charAt(0).toUpperCase() + tag.slice(1)),
         orderBy('publishedAt', 'desc')
       );
-    const snapshot2 = await getDocs(qCaseInsensitive);
-    return snapshot2.docs.map(doc => doc.data() as Blog);
+    snapshot = await getDocs(qCaseInsensitive);
   }
 
-
-  return snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      title: data.title || '',
-      content: data.content || '',
-      slug: data.slug || '',
-      authorId: data.authorId || '',
-      authorDisplayName: data.authorDisplayName || null,
-      authorPhotoURL: data.authorPhotoURL || null,
-      tags: data.tags || [],
-      keywords: data.keywords || [],
-      views: data.views || 0,
-      readingTime: data.readingTime || 0,
-      status: data.status || 'draft',
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
-      publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt : null,
-      coverImageUrl: data.coverImageUrl || null,
-      metaDescription: data.metaDescription || null,
-      likes: data.likes || 0,
-      likedBy: data.likedBy || [],
-    } as Blog;
-  });
+  // Use the helper function to ensure 'id' is always mapped correctly
+  return snapshot.docs.map(mapDocToBlog);
 }
+
 
 export async function generateMetadata({ params }: TagPageProps): Promise<Metadata> {
   const decodedTag = decodeURIComponent(params.tag);
