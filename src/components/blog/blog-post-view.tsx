@@ -213,13 +213,14 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     };
 
     const enhanceVideoPlayer = (container: HTMLElement) => {
+        if (container.dataset.videoEnhanced) return; // Already enhanced
+
         const video = container.querySelector('video.media-item');
         if (!video) return;
 
         // --- State & Cleanup ---
         video.removeAttribute('controls');
         video.muted = true;
-        let isPlaying = false;
         
         // Remove old controls if they exist to prevent duplication on re-renders
         container.querySelector('.video-controls-overlay')?.remove();
@@ -303,18 +304,18 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           updateMuteButton();
           updatePlayButton();
         }
+
+        container.dataset.videoEnhanced = 'true'; // Mark as enhanced
     };
+    
+    // Use a short timeout to ensure the DOM from dangerouslySetInnerHTML is ready.
+    const timeoutId = setTimeout(() => {
+        const allVideoContainers = document.querySelectorAll<HTMLElement>('.media-container.video-container');
+        allVideoContainers.forEach(enhanceVideoPlayer);
+    }, 100); // 100ms delay is usually sufficient
 
-    const coverContainer = coverVideoContainerRef.current;
-    if (coverContainer) {
-      enhanceVideoPlayer(coverContainer);
-    }
+    return () => clearTimeout(timeoutId);
 
-    const articleContainer = articleContentRef.current;
-    if (articleContainer) {
-        const inContentVideos = articleContainer.querySelectorAll('.media-container.video-container');
-        inContentVideos.forEach(container => enhanceVideoPlayer(container as HTMLElement));
-    }
   }, [processedContent]); // Rerun when content changes
 
   const formattedDate = blog.publishedAt
