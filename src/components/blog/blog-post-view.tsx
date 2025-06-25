@@ -5,7 +5,7 @@ import type { Blog, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart, Loader2, Maximize } from 'lucide-react';
+import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart, Loader2, Maximize, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useAdSettings } from '@/context/ad-settings-context';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
@@ -49,6 +49,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const { toast } = useToast();
   
   const articleContentRef = useRef<HTMLDivElement>(null);
+  const coverVideoContainerRef = useRef<HTMLDivElement>(null);
   const [blog, setBlog] = useState<Blog>(initialBlog);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
@@ -115,7 +116,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       }
       
       const container = doc.createElement('div');
-      container.classList.add('media-container', 'group'); // Add group for hover effects
+      container.classList.add('media-container', 'group/videocontainer');
       
       const mediaType = mediaEl.tagName.toLowerCase();
       const mediaSrc = mediaEl.getAttribute('src') || '';
@@ -134,7 +135,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           button.setAttribute('data-lightbox-button', 'true');
           button.setAttribute('title', 'View fullscreen');
           button.setAttribute('aria-label', 'View fullscreen');
-          button.className = "absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-20 h-10 w-10 flex items-center justify-center rounded-full";
+          button.className = "absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-20 h-10 w-10 flex items-center justify-center rounded-full";
           button.innerHTML = maximizeIconSvg;
           container.appendChild(button);
       }
@@ -145,7 +146,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       if (clonedMedia instanceof HTMLImageElement) {
         clonedMedia.alt = mediaEl.getAttribute('alt') || 'Blog media';
       } else if (clonedMedia instanceof HTMLVideoElement) {
-        clonedMedia.controls = true;
+        // We will add controls dynamically, so remove default ones
+        clonedMedia.removeAttribute('controls');
       } else if (clonedMedia instanceof HTMLIFrameElement) {
         clonedMedia.setAttribute('frameborder', '0');
         clonedMedia.setAttribute('allowfullscreen', 'true');
@@ -200,6 +202,120 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         }
     };
   }, [processedContent]);
+
+  // Effect to enhance all video players with custom controls
+  useEffect(() => {
+    const iconSvgs = {
+        play: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,
+        pause: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg>`,
+        volume: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`,
+        mute: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" x2="17" y1="9" y2="15"/><line x1="17" x2="23" y1="9" y2="15"/></svg>`
+    };
+
+    const enhanceVideoPlayer = (container: HTMLElement) => {
+        const video = container.querySelector('video.media-item');
+        if (!video) return;
+
+        // --- State & Cleanup ---
+        video.removeAttribute('controls');
+        video.muted = true;
+        let isPlaying = false;
+        
+        // Remove old controls if they exist to prevent duplication on re-renders
+        container.querySelector('.video-controls-overlay')?.remove();
+
+        // --- Create Controls ---
+        const controlsOverlay = document.createElement('div');
+        controlsOverlay.className = 'video-controls-overlay is-paused';
+
+        const topControls = document.createElement('div');
+        topControls.className = 'video-controls-top';
+
+        const playPauseBtn = document.createElement('button');
+        playPauseBtn.className = 'video-control-button';
+        playPauseBtn.innerHTML = iconSvgs.pause;
+        
+        const muteBtn = document.createElement('button');
+        muteBtn.className = 'video-control-button';
+        muteBtn.innerHTML = iconSvgs.mute;
+
+        const progressBarContainer = document.createElement('div');
+        progressBarContainer.className = 'video-progress-bar-container';
+        
+        const progressBarFill = document.createElement('div');
+        progressBarFill.className = 'video-progress-bar-fill';
+        
+        // --- Assemble ---
+        topControls.appendChild(playPauseBtn);
+        topControls.appendChild(muteBtn);
+        progressBarContainer.appendChild(progressBarFill);
+        controlsOverlay.appendChild(topControls);
+        controlsOverlay.appendChild(progressBarContainer);
+        container.appendChild(controlsOverlay);
+
+        // --- Event Listeners ---
+        const togglePlay = () => {
+            if (video.paused) {
+                video.play();
+            } else {
+                video.pause();
+            }
+        };
+
+        const updatePlayButton = () => {
+            playPauseBtn.innerHTML = video.paused ? iconSvgs.play : iconSvgs.pause;
+            if (video.paused) {
+                controlsOverlay.classList.add('is-paused');
+            } else {
+                controlsOverlay.classList.remove('is-paused');
+            }
+        };
+
+        const updateMuteButton = () => {
+            muteBtn.innerHTML = video.muted ? iconSvgs.mute : iconSvgs.volume;
+        };
+
+        const updateProgress = () => {
+            const progress = (video.currentTime / video.duration) * 100;
+            progressBarFill.style.width = `${progress}%`;
+        };
+
+        const seek = (e: MouseEvent) => {
+            const rect = progressBarContainer.getBoundingClientRect();
+            const pos = (e.pageX - rect.left) / rect.width;
+            video.currentTime = pos * video.duration;
+        };
+
+        playPauseBtn.onclick = (e) => { e.stopPropagation(); togglePlay(); };
+        container.onclick = (e) => {
+          // Don't toggle play if a button was clicked
+          if ((e.target as HTMLElement).closest('button')) return;
+          togglePlay();
+        };
+        muteBtn.onclick = (e) => { e.stopPropagation(); video.muted = !video.muted; };
+        progressBarContainer.onclick = (e) => { e.stopPropagation(); seek(e); };
+        
+        video.onplay = updatePlayButton;
+        video.onpause = updatePlayButton;
+        video.onvolumechange = updateMuteButton;
+        video.ontimeupdate = updateProgress;
+        video.onloadeddata = () => {
+          updateMuteButton();
+          updatePlayButton();
+        }
+    };
+
+    const coverContainer = coverVideoContainerRef.current;
+    if (coverContainer) {
+      enhanceVideoPlayer(coverContainer);
+    }
+
+    const articleContainer = articleContentRef.current;
+    if (articleContainer) {
+        const inContentVideos = articleContainer.querySelectorAll('.media-container.video-container');
+        inContentVideos.forEach(container => enhanceVideoPlayer(container as HTMLElement));
+    }
+  }, [processedContent]); // Rerun when content changes
 
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -380,7 +496,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           <article id="blog-article-content">
             <div id="reading-content-container">
               {blog.coverImageUrl && (
-                <div className="relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black group">
+                <div ref={coverVideoContainerRef} className="relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black group/videocontainer">
                   {blog.coverMediaType === 'video' ? (
                      <>
                       {/* Background Blurred Video */}
@@ -399,9 +515,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                       <video
                         key={`${blog.id}-fg-video`}
                         src={blog.coverImageUrl}
-                        autoPlay loop muted playsInline
+                        playsInline
                         className={cn(
-                          "relative z-10 w-full h-full object-contain drop-shadow-lg transition-opacity duration-500",
+                          "relative z-10 w-full h-full object-contain drop-shadow-lg transition-opacity duration-500 media-item",
                           isCoverLoaded ? "opacity-100" : "opacity-0"
                         )}
                         data-ai-hint="video cover"
@@ -443,7 +559,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                        className="absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-20"
                         onClick={() => setLightboxMedia({ src: blog.coverImageUrl!, type: blog.coverMediaType || 'image'})}
                         title="View fullscreen"
                         aria-label="View fullscreen"
