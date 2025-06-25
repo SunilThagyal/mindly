@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useThemeSettings } from '@/context/theme-settings-context';
+import { siteConfig } from '@/config/site';
 
 const POSTS_PER_PAGE_DEFAULT = 9;
 const TAG_SAMPLE_LIMIT = 100; // Fetch more posts to get a better sample for top tags
@@ -357,10 +358,10 @@ export default function HomePage() {
     <div className="container mx-auto px-4 py-8">
       <section className="mb-12 text-center">
         <h1 className="text-4xl sm:text-5xl font-headline font-bold text-primary mb-4 animate-fade-in">
-          Explore the Blogosphere
+          Welcome to {siteConfig.name}
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{animationDelay: '0.2s'}}>
-          Discover recent articles, trending topics, most read stories, and explore by category.
+          {siteConfig.description}
         </p>
       </section>
 
@@ -375,15 +376,19 @@ export default function HomePage() {
         </div>
 
         <TabsContent value="recent" className="animate-fade-in">
+          <h2 className="sr-only">Recent Posts</h2>
           {renderBlogList(recentPosts, loadingRecent, errorRecent, hasMoreRecent, () => fetchPosts('recent', true), 'recent')}
         </TabsContent>
         <TabsContent value="trending" className="animate-fade-in">
+          <h2 className="sr-only">Trending Posts</h2>
           {renderBlogList(trendingPosts, loadingTrending, errorTrending, hasMoreTrending, () => fetchPosts('trending', true), 'trending')}
         </TabsContent>
         <TabsContent value="mostRead" className="animate-fade-in">
+          <h2 className="sr-only">Most Read Stories</h2>
           {renderBlogList(mostReadPosts, loadingMostRead, errorMostRead, hasMoreMostRead, () => fetchPosts('mostRead', true), 'mostRead')}
         </TabsContent>
         <TabsContent value="explore" className="animate-fade-in">
+          <h2 className="sr-only">Explore Posts by Category</h2>
           <div className="mb-6 p-4 bg-card rounded-lg shadow">
             <h3 className="text-xl font-headline font-semibold mb-2 text-foreground">Explore by Category</h3>
              <Input 

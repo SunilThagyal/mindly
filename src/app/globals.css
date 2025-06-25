@@ -403,6 +403,18 @@
   .ad-placeholder-incontent { @apply h-[250px] my-6 mx-auto max-w-[336px] sm:max-w-none; } 
   .ad-placeholder-sidebar { @apply h-[600px] w-full; } 
   .ad-placeholder-below-content { @apply h-[90px] sm:h-[250px] my-6; }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
   
 }
 
