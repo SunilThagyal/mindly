@@ -142,3 +142,9 @@ export interface ThemeSettings {
   fontHeadline?: string;
   itemsPerPage?: number;
 }
+
+export interface SeoSettings {
+  id?: string;
+  metaDescription?: string;
+  metaKeywords?: string[];
+}

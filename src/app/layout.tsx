@@ -1,3 +1,4 @@
+
 // REMOVED "use client"; 
 
 import type { Metadata } from 'next';
@@ -14,49 +15,77 @@ import { cn } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
 import PageTransitionLoader from '@/components/layout/page-transition-loader';
 import GoogleAnalytics from '@/components/analytics/google-analytics';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { SeoSettings } from '@/lib/types';
 
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteConfig.url),
-  title: {
-    default: siteConfig.name,
-    template: `%s | ${siteConfig.name}`,
-  },
-  description: siteConfig.description,
-  openGraph: {
-    title: siteConfig.name,
-    description: siteConfig.description,
-    url: siteConfig.url,
-    siteName: siteConfig.name,
-    images: [
-      {
-        url: `${siteConfig.url}/default-og-image.png`, // Must be an absolute URL
-        width: 1200,
-        height: 630,
-        alt: siteConfig.name,
-      },
-    ],
-    locale: 'en_US',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: siteConfig.name,
-    description: siteConfig.description,
-    images: [`${siteConfig.url}/default-og-image.png`], // Must be an absolute URL
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+const defaultKeywords = [
+  "decentralized blogging", "Mindly blogging platform", "earn rewards",
+  "content creation", "global community", "web3 blogging", "share ideas",
+  "monetize content", "blog monetization", "decentralized content platform"
+];
+
+export async function generateMetadata(): Promise<Metadata> {
+  let metaDescription = siteConfig.description;
+  let metaKeywords: string[] | undefined = defaultKeywords;
+
+  try {
+    const seoSettingsDoc = await getDoc(doc(db, 'settings', 'seo'));
+    if (seoSettingsDoc.exists()) {
+      const seoData = seoSettingsDoc.data() as SeoSettings;
+      metaDescription = seoData.metaDescription || metaDescription;
+      metaKeywords = seoData.metaKeywords && seoData.metaKeywords.length > 0 ? seoData.metaKeywords : metaKeywords;
+    }
+  } catch (error) {
+    // This can happen at build time if Firestore isn't accessible. Fallback to defaults.
+    console.error("Failed to fetch SEO settings for metadata, using defaults:", error);
+  }
+
+  return {
+    metadataBase: new URL(siteConfig.url),
+    title: {
+      default: siteConfig.name,
+      template: `%s | ${siteConfig.name}`,
+    },
+    description: metaDescription,
+    keywords: metaKeywords,
+    openGraph: {
+      title: siteConfig.name,
+      description: metaDescription,
+      url: siteConfig.url,
+      siteName: siteConfig.name,
+      images: [
+        {
+          url: `${siteConfig.url}/default-og-image.png`,
+          width: 1200,
+          height: 630,
+          alt: siteConfig.name,
+        },
+      ],
+      locale: 'en_US',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: siteConfig.name,
+      description: metaDescription,
+      images: [`${siteConfig.url}/default-og-image.png`],
+    },
+    robots: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
     },
-  },
-};
+  };
+}
+
 
 export default function RootLayout({
   children,
