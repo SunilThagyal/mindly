@@ -9,7 +9,7 @@ import type { Blog } from '@/lib/types';
 import { Eye, Clock, UserCircle, Coins } from 'lucide-react';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
 import { useAuth } from '@/context/auth-context'; // Import useAuth
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 interface BlogCardProps {
@@ -21,6 +21,30 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
   const { user, userProfile } = useAuth(); // Get current user and profile
   const [isMediaLoaded, setIsMediaLoaded] = useState(false);
 
+  // Refs for the video elements
+  const foregroundVideoRef = useRef<HTMLVideoElement>(null);
+  const backgroundVideoRef = useRef<HTMLVideoElement>(null);
+
+  const handleInteractionStart = () => {
+    if (foregroundVideoRef.current?.paused) {
+      foregroundVideoRef.current.play().catch(console.error);
+    }
+    if (backgroundVideoRef.current?.paused) {
+      backgroundVideoRef.current.play().catch(console.error);
+    }
+  };
+
+  const handleInteractionEnd = () => {
+    if (foregroundVideoRef.current) {
+      foregroundVideoRef.current.pause();
+      foregroundVideoRef.current.currentTime = 0; // Reset video to start
+    }
+    if (backgroundVideoRef.current) {
+      backgroundVideoRef.current.pause();
+      backgroundVideoRef.current.currentTime = 0;
+    }
+  };
+
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString()
     : 'Not published';
@@ -31,16 +55,25 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
   const isGeneratedCover = blog.coverImageUrl?.includes('api.a0.dev');
 
   return (
-    <Card className="w-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full animate-fade-in">
+    <Card
+      className="w-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full animate-fade-in"
+      onMouseEnter={handleInteractionStart}
+      onMouseLeave={handleInteractionEnd}
+      onFocus={handleInteractionStart}
+      onBlur={handleInteractionEnd}
+      tabIndex={blog.coverMediaType === 'video' ? 0 : -1} // Make it focusable only if it's a video
+    >
       <Link href={`/blog/${blog.slug}`} className="block">
         <div className="relative w-full h-48 sm:h-56 bg-black overflow-hidden">
            {blog.coverMediaType === 'video' ? (
              <>
               {/* Blurred background video */}
               <video
+                ref={backgroundVideoRef}
                 key={`${blog.id}-bg`}
                 src={blog.coverImageUrl!}
-                autoPlay loop muted playsInline
+                loop muted playsInline
+                preload="metadata"
                 onLoadedData={() => setIsMediaLoaded(true)}
                 className={cn(
                   "absolute inset-0 w-full h-full object-cover filter blur-lg scale-110 transition-opacity duration-500",
@@ -50,9 +83,11 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
               />
               {/* Contained foreground video */}
                <video
+                ref={foregroundVideoRef}
                 key={`${blog.id}-fg`}
                 src={blog.coverImageUrl!}
-                autoPlay loop muted playsInline
+                loop muted playsInline
+                preload="metadata"
                 className={cn(
                   "relative z-10 w-full h-full object-contain drop-shadow-lg transition-opacity duration-500",
                    isMediaLoaded ? "opacity-100" : "opacity-0"
@@ -66,8 +101,9 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
                 <Image
                     src={blog.coverImageUrl || `https://placehold.co/600x400.png`}
                     alt="" // Decorative
-                    layout="fill"
-                    objectFit="cover"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    style={{objectFit: 'cover'}}
                     className={cn(
                         "filter blur-lg scale-110 transition-opacity duration-500",
                         isMediaLoaded ? "opacity-70" : "opacity-0"
@@ -78,9 +114,9 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
                 <Image
                     src={blog.coverImageUrl || `https://placehold.co/600x400.png`}
                     alt={blog.title}
-                    layout="fill"
-                    objectFit="contain"
+                    fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    style={{objectFit: 'contain'}}
                     className={cn(
                         "relative z-10 drop-shadow-lg transition-opacity duration-500",
                         isMediaLoaded ? "opacity-100" : "opacity-0"

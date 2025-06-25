@@ -555,7 +555,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                       <video
                         key={`${blog.id}-bg-video`}
                         src={blog.coverImageUrl}
-                        autoPlay loop muted playsInline
+                        loop muted playsInline
                         onLoadedData={() => setIsCoverLoaded(true)}
                         className={cn(
                           "absolute inset-0 w-full h-full object-cover filter blur-xl scale-110 transition-opacity duration-500",
@@ -568,6 +568,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                         key={`${blog.id}-fg-video`}
                         src={blog.coverImageUrl}
                         playsInline
+                        loop
+                        muted
                         className={cn(
                           "relative z-10 w-full h-full object-contain drop-shadow-lg transition-opacity duration-500 media-item",
                           isCoverLoaded ? "opacity-100" : "opacity-0"
@@ -581,8 +583,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                       <Image
                         src={blog.coverImageUrl}
                         alt="" // Decorative
-                        layout="fill"
-                        objectFit="cover"
+                        fill
+                        style={{objectFit: 'cover'}}
                         className={cn(
                             "filter blur-xl scale-110 transition-opacity duration-500",
                             isCoverLoaded ? "opacity-70" : "opacity-0"
@@ -594,9 +596,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                       <Image
                         src={blog.coverImageUrl}
                         alt={blog.title}
-                        layout="fill"
-                        objectFit="contain"
+                        fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 896px"
+                        style={{objectFit: 'contain'}}
                         className={cn(
                             "relative z-10 drop-shadow-lg transition-opacity duration-500",
                             isCoverLoaded ? "opacity-100" : "opacity-0"
