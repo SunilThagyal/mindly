@@ -11,9 +11,10 @@ import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 interface SocialShareButtonsProps {
   blogUrl: string;
   blogTitle: string;
+  blogExcerpt: string;
 }
 
-export default function SocialShareButtons({ blogUrl, blogTitle }: SocialShareButtonsProps) {
+export default function SocialShareButtons({ blogUrl, blogTitle, blogExcerpt }: SocialShareButtonsProps) {
   const { toast } = useToast();
   const [canShare, setCanShare] = useState(false);
   const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${blogUrl}` : blogUrl;
@@ -35,12 +36,14 @@ export default function SocialShareButtons({ blogUrl, blogTitle }: SocialShareBu
       });
   };
 
+  const shareText = `🔍 ${blogTitle}\n\n✨ ${blogExcerpt}\n\n👉 Read here:\n${fullUrl}`;
+
   const handleWebShare = async () => {
     if (navigator.share) {
         try {
             await navigator.share({
-                title: blogTitle,
-                text: `Check out this blog post: "${blogTitle}"`,
+                title: `🔍 ${blogTitle}`,
+                text: shareText,
                 url: fullUrl,
             });
         } catch (error) {
@@ -56,22 +59,22 @@ export default function SocialShareButtons({ blogUrl, blogTitle }: SocialShareBu
     {
       name: "Facebook",
       icon: <Facebook className="h-5 w-5" />,
-      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fullUrl)}`,
+      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fullUrl)}&quote=${encodeURIComponent(`🔍 ${blogTitle}`)}`,
     },
     {
       name: "WhatsApp",
       icon: <FontAwesomeIcon icon={faWhatsapp} className="h-5 w-5" />,
-      url: `https://api.whatsapp.com/send?text=${encodeURIComponent(blogTitle + " " + fullUrl)}`,
+      url: `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`,
     },
     {
       name: "LinkedIn",
       icon: <Linkedin className="h-5 w-5" />,
-      url: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(fullUrl)}&title=${encodeURIComponent(blogTitle)}`,
+      url: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(fullUrl)}&title=${encodeURIComponent(`🔍 ${blogTitle}`)}`,
     },
     {
       name: "Email",
       icon: <Mail className="h-5 w-5" />,
-      url: `mailto:?subject=${encodeURIComponent(blogTitle)}&body=Check out this blog post: ${encodeURIComponent(fullUrl)}`,
+      url: `mailto:?subject=${encodeURIComponent(`🔍 ${blogTitle}`)}&body=${encodeURIComponent(shareText)}`,
     },
   ];
 

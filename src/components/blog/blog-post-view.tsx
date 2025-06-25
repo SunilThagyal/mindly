@@ -300,6 +300,21 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     return renderedElements;
   };
   
+  // Helper function to create a plain text excerpt from HTML content
+  const createExcerpt = (html: string, length: number = 120): string => {
+    if (!html) return '';
+    // A simple way to strip HTML tags for this purpose
+    const plainText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (plainText.length <= length) {
+      return plainText;
+    }
+    // Try to break at a word boundary
+    const trimmed = plainText.substring(0, length);
+    return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
+  };
+  
+  const excerpt = createExcerpt(blog.content);
+
   if (blog.status === 'draft' && (!user || user?.uid !== blog.authorId)) {
      return <div className="text-center py-10">This blog post is currently a draft and not publicly visible.</div>;
   }
@@ -488,7 +503,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               )}
             </div>
 
-            <SocialShareButtons blogTitle={blog.title} blogUrl={`/blog/${blog.slug}`} />
+            <SocialShareButtons blogTitle={blog.title} blogUrl={`/blog/${blog.slug}`} blogExcerpt={excerpt} />
 
             <AdPlaceholder type="below-content" className="my-10" />
 
