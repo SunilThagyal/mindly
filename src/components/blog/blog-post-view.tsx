@@ -613,8 +613,11 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-30"
-                        onClick={() => setLightboxMedia({ src: blog.coverImageUrl!, type: blog.coverMediaType || 'image'})}
+                        className="absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-30 h-10 w-10 flex items-center justify-center rounded-full"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setLightboxMedia({ src: blog.coverImageUrl!, type: blog.coverMediaType || 'image'})
+                        }}
                         title="View fullscreen"
                         aria-label="View fullscreen"
                         data-lightbox-button="true"
