@@ -18,13 +18,12 @@ import { Loader2, Send, CheckCircle, AlertTriangle, Landmark, CreditCard, Mail, 
 interface MonetizationFormProps {
   userProfile: UserProfile;
   userId: string;
-  onWithdrawal: () => void;
   withdrawalHistory: WithdrawalRequest[];
 }
 
 type PaymentMethodIndia = 'upi' | 'bank' | 'paypal_india';
 
-export default function MonetizationForm({ userProfile, userId, onWithdrawal, withdrawalHistory }: MonetizationFormProps) {
+export default function MonetizationForm({ userProfile, userId, withdrawalHistory }: MonetizationFormProps) {
   const { toast } = useToast();
   const earningsSettings = useEarningsSettings(); // Get full settings object
 
@@ -209,7 +208,6 @@ export default function MonetizationForm({ userProfile, userId, onWithdrawal, wi
         variant: 'success',
       });
       setWithdrawalAmount('');
-      onWithdrawal(); // Trigger the refresh callback
     } catch (error: any) {
       console.error("Error requesting withdrawal:", error);
       toast({

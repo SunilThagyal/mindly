@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import MonetizationForm from '@/components/monetization/monetization-form';
@@ -24,52 +24,48 @@ export default function MonetizationPage() {
     document.title = 'Monetization';
   }, []);
 
-  const refreshHistory = useCallback(() => {
-    if (user && userProfile?.isMonetizationApproved) {
-       setLoadingHistory(true);
-       const requestsCol = collection(db, 'withdrawalRequests');
-       const q = query(requestsCol, where('userId', '==', user.uid), orderBy('requestedAt', 'desc'));
-       const unsubscribe = onSnapshot(q, (snapshot) => {
-         const history = snapshot.docs.map(docSnap => {
-           const data = docSnap.data();
-           return {
-             id: docSnap.id,
-             ...data,
-             requestedAt: data.requestedAt instanceof Timestamp ? data.requestedAt : Timestamp.now(),
-             processedAt: data.processedAt instanceof Timestamp ? data.processedAt : null,
-           } as WithdrawalRequest;
-         });
-         setWithdrawalHistory(history);
-         setLoadingHistory(false);
-       }, (error) => {
-         console.error("Error fetching withdrawal history with snapshot:", error);
-         toast({ title: 'Error', description: 'Could not load withdrawal history.', variant: 'destructive' });
-         setLoadingHistory(false);
-       });
-       return unsubscribe;
-    }
-    return () => {};
-  }, [user, userProfile?.isMonetizationApproved, toast]);
-
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push('/auth/login?redirect=/monetization');
-        return;
-      }
-      
-      if (userProfile?.isMonetizationApproved) {
-        const unsubscribe = refreshHistory();
-        return () => {
-            if (unsubscribe) {
-                unsubscribe();
-            }
-        };
-      } else {
-        setLoadingHistory(false);
-      }
+    if (authLoading) return;
+
+    if (!user) {
+      router.push('/auth/login?redirect=/monetization');
+      return;
     }
-  }, [user, userProfile, authLoading, router, refreshHistory]);
+    
+    let unsubscribe = () => {};
+
+    if (userProfile?.isMonetizationApproved) {
+      setLoadingHistory(true);
+      const requestsCol = collection(db, 'withdrawalRequests');
+      const q = query(requestsCol, where('userId', '==', user.uid), orderBy('requestedAt', 'desc'));
+      
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const history = snapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            ...data,
+            requestedAt: data.requestedAt instanceof Timestamp ? data.requestedAt : Timestamp.now(),
+            processedAt: data.processedAt instanceof Timestamp ? data.processedAt : null,
+          } as WithdrawalRequest;
+        });
+        setWithdrawalHistory(history);
+        setLoadingHistory(false);
+      }, (error) => {
+        console.error("Error fetching withdrawal history with snapshot:", error);
+        toast({ title: 'Error', description: 'Could not load withdrawal history.', variant: 'destructive' });
+        setLoadingHistory(false);
+      });
+    } else {
+      setLoadingHistory(false);
+    }
+    
+    return () => {
+      unsubscribe();
+    };
+
+  }, [user, userProfile?.isMonetizationApproved, authLoading, router, toast]);
+
 
   if (authLoading || (!userProfile && user)) {
     return (
@@ -132,7 +128,6 @@ export default function MonetizationPage() {
           <MonetizationForm
             userProfile={userProfile}
             userId={user.uid}
-            onWithdrawal={refreshHistory}
             withdrawalHistory={withdrawalHistory}
           />
         </CardContent>
