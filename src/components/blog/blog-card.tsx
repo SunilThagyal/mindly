@@ -32,14 +32,25 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
   return (
     <Card className="w-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full animate-fade-in">
       <Link href={`/blog/${blog.slug}`} className="block">
-        <div className="relative w-full h-48 sm:h-56 bg-muted">
-          <Image
-            src={blog.coverImageUrl || `https://placehold.co/600x400.png`}
-            alt={blog.title}
-            layout="fill"
-            objectFit="cover"
-            data-ai-hint={isGeneratedCover ? "generated banner" : (blog.coverImageUrl ? "article cover" : "placeholder")}
-          />
+        <div className="relative w-full h-48 sm:h-56 bg-black overflow-hidden">
+           {/* Blurred background image */}
+            <Image
+                src={blog.coverImageUrl || `https://placehold.co/600x400.png`}
+                alt="" // Decorative
+                layout="fill"
+                objectFit="cover"
+                className="filter blur-lg scale-110 opacity-70"
+                aria-hidden="true"
+            />
+            {/* Main, contained image */}
+            <Image
+                src={blog.coverImageUrl || `https://placehold.co/600x400.png`}
+                alt={blog.title}
+                layout="fill"
+                objectFit="contain"
+                className="relative z-10 drop-shadow-lg"
+                data-ai-hint={isGeneratedCover ? "generated banner" : (blog.coverImageUrl ? "article cover" : "placeholder")}
+            />
         </div>
       </Link>
       <CardHeader className="p-4 pb-2">
