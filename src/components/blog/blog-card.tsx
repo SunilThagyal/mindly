@@ -44,7 +44,7 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
       </Link>
       <CardHeader className="p-4 pb-2">
         <Link href={`/blog/${blog.slug}`} className="block">
-          <CardTitle className="text-xl font-headline hover:text-primary transition-colors duration-200 leading-tight">
+          <CardTitle className="text-xl font-headline hover:text-primary transition-colors duration-200 leading-tight h-[3.25rem] line-clamp-2">
             {blog.title}
           </CardTitle>
         </Link>
