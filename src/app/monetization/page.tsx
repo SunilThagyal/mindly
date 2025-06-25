@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import type { Metadata } from 'next';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import MonetizationForm from '@/components/monetization/monetization-form';
@@ -12,14 +11,6 @@ import PaymentHistoryTable from '@/components/monetization/payment-history-table
 import type { WithdrawalRequest } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
-
-export const metadata: Metadata = {
-  title: 'Monetization',
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
 
 async function getUserWithdrawalHistory(userId: string): Promise<WithdrawalRequest[]> {
     const requestsCol = collection(db, 'withdrawalRequests');
@@ -44,7 +35,7 @@ export default function MonetizationPage() {
   const [loadingHistory, setLoadingHistory] = useState(true);
 
   useEffect(() => {
-    document.title = metadata.title as string;
+    document.title = 'Monetization';
   }, []);
 
   useEffect(() => {
