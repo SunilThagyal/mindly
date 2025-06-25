@@ -13,6 +13,7 @@ import Footer from '@/components/layout/footer';
 import ConditionalFooterAd from '@/components/layout/conditional-footer-ad'; // NEW
 import { cn } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
+import PageTransitionLoader from '@/components/layout/page-transition-loader';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -39,6 +40,7 @@ export default function RootLayout({
           <AdSettingsProvider>
             <EarningsSettingsProvider>
               <ThemeSettingsProvider>
+                <PageTransitionLoader />
                 <Header />
                 <main className="flex-grow container mx-auto px-4 py-8">
                   {children}
