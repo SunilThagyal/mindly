@@ -329,6 +329,12 @@ export default function MonetizationForm({ userProfile, userId, onWithdrawal, wi
 
       <div className="space-y-6 p-6 border rounded-lg shadow-sm bg-background">
         <h3 className="text-xl font-semibold text-foreground border-b pb-3 mb-4">Request Withdrawal</h3>
+        
+        <div className="p-4 bg-primary/10 rounded-md text-center">
+            <p className="text-sm text-primary-foreground/80">Available Earnings:</p>
+            <p className="text-3xl font-bold text-primary">${(userProfile.virtualEarnings || 0).toFixed(2)}</p>
+        </div>
+
         {hasActiveRequest ? (
           <div className="p-4 bg-yellow-500/10 rounded-md text-center border border-yellow-500/30 text-yellow-700 dark:text-yellow-300 flex flex-col items-center">
             <Hourglass className="h-8 w-8 mb-2" />
@@ -339,11 +345,6 @@ export default function MonetizationForm({ userProfile, userId, onWithdrawal, wi
           </div>
         ) : (
           <form onSubmit={handleWithdrawalRequest} className="space-y-6">
-            <div className="p-4 bg-primary/10 rounded-md text-center">
-                <p className="text-sm text-primary-foreground/80">Available Earnings:</p>
-                <p className="text-3xl font-bold text-primary">${(userProfile.virtualEarnings || 0).toFixed(2)}</p>
-            </div>
-            
             <div>
                 <Label htmlFor="withdrawalAmount">Amount to Withdraw ($)</Label>
                 <Input 
