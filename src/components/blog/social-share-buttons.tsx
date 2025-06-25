@@ -71,11 +71,6 @@ export default function SocialShareButtons({ blogUrl, blogTitle, blogExcerpt }: 
       icon: <Linkedin className="h-5 w-5" />,
       url: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(fullUrl)}&title=${encodeURIComponent(`🔍 ${blogTitle}`)}`,
     },
-    {
-      name: "Email",
-      icon: <Mail className="h-5 w-5" />,
-      url: `mailto:?subject=${encodeURIComponent(`🔍 ${blogTitle}`)}&body=${encodeURIComponent(shareText)}`,
-    },
   ];
 
   return (
