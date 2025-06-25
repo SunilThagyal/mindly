@@ -312,12 +312,24 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           <article id="blog-article-content">
             <div id="reading-content-container">
               {blog.coverImageUrl && (
-                <div className="relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg">
+                <div className="relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black">
+                  {/* Background Blurred Image */}
+                  <Image
+                    src={blog.coverImageUrl}
+                    alt="" // Decorative
+                    layout="fill"
+                    objectFit="cover"
+                    className="filter blur-xl scale-110"
+                    aria-hidden="true"
+                    priority
+                  />
+                  {/* Foreground Contained Image */}
                   <Image
                     src={blog.coverImageUrl}
                     alt={blog.title}
                     layout="fill"
-                    objectFit="cover"
+                    objectFit="contain"
+                    className="relative z-10 drop-shadow-lg"
                     priority
                     data-ai-hint={isGeneratedCover ? "generated banner" : "blog hero"}
                   />
