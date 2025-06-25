@@ -27,6 +27,12 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
 
   const handleInteractionStart = () => {
     if (foregroundVideoRef.current?.paused) {
+      // Pause all other videos before playing this one.
+      document.querySelectorAll('video').forEach(video => {
+        if (video !== foregroundVideoRef.current && video !== backgroundVideoRef.current) {
+          video.pause();
+        }
+      });
       foregroundVideoRef.current.play().catch(console.error);
     }
     if (backgroundVideoRef.current?.paused) {

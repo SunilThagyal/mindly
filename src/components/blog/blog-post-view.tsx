@@ -259,6 +259,12 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
 
       const togglePlay = () => {
           if (foregroundVideo.paused) {
+              // Pause all other videos before playing this one.
+              document.querySelectorAll('video').forEach(vid => {
+                  if (vid !== foregroundVideo && vid !== backgroundVideo) {
+                      vid.pause();
+                  }
+              });
               foregroundVideo.play();
               backgroundVideo?.play();
           } else {
@@ -546,8 +552,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
             <div id="reading-content-container">
               {blog.coverImageUrl && (
                 <div className={cn(
-                    "relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black group/videocontainer media-container",
-                    blog.coverMediaType === 'video' && 'video-container'
+                    "relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black group/videocontainer",
+                    blog.coverMediaType === 'video' && 'video-container media-container',
+                    blog.coverMediaType === 'image' && 'media-container'
                 )}>
                   {blog.coverMediaType === 'video' ? (
                      <>
@@ -617,6 +624,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                         title="View fullscreen"
                         aria-label="View fullscreen"
                         data-lightbox-button="true"
+                        onClick={(e) => e.stopPropagation()} // Prevent click from bubbling to the container's play/pause
                     >
                         <Maximize className="h-6 w-6" />
                     </Button>
