@@ -38,52 +38,55 @@ export default function UserProfileView({ profile, blogs, totalWithdrawn }: User
   return (
     <>
       <div className="container mx-auto px-4 py-8 animate-fade-in">
-        <header className="mb-12 p-6 bg-card rounded-xl shadow-lg flex flex-col sm:flex-row items-center gap-6 relative">
+        <header className="mb-12 p-6 bg-card rounded-xl shadow-lg relative">
           {isOwner && (
              <Button
                 variant="outline"
                 size="sm"
-                className="absolute top-4 right-4"
+                className="absolute top-4 right-4 z-10"
                 onClick={() => setIsEditDialogOpen(true)}
               >
                 <Edit className="mr-2 h-4 w-4" /> Edit Profile
             </Button>
           )}
-          <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-primary">
-            <AvatarImage src={currentProfile.photoURL || undefined} alt={currentProfile.displayName || 'User'} />
-            <AvatarFallback className="text-4xl">
-              {currentProfile.displayName ? currentProfile.displayName.charAt(0).toUpperCase() : <UserCircle className="h-16 w-16" />}
-            </AvatarFallback>
-          </Avatar>
-          <div className="text-center sm:text-left">
-            <h1 className="text-3xl sm:text-4xl font-headline font-bold text-foreground mb-1">
-              {currentProfile.displayName || 'Anonymous User'}
-            </h1>
-            {currentProfile.email && (
-              <p className="text-md text-muted-foreground flex items-center justify-center sm:justify-start">
-                <Mail className="h-4 w-4 mr-2 text-primary" /> {currentProfile.email}
-              </p>
-            )}
-            {currentProfile.bio && (
-              <p className="text-sm text-foreground mt-2 max-w-md">{currentProfile.bio}</p>
-            )}
-            <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 justify-center sm:justify-start text-sm text-muted-foreground">
-              <span className="flex items-center">
-                <BarChart3 className="h-4 w-4 mr-1.5 text-primary" /> {blogs.length} Blogs Published
-              </span>
-              <span className="flex items-center">
-                <Eye className="h-4 w-4 mr-1.5 text-primary" /> {totalViews} Total Views
-              </span>
-              {isOwner && (
-                <>
-                  <span className="flex items-center font-semibold text-foreground" title="The amount you can currently withdraw.">
-                    <Coins className="h-4 w-4 mr-1.5 text-yellow-500" /> Current Balance: ${currentBalance.toFixed(2)}
-                  </span>
-                   <span className="flex items-center font-semibold text-foreground" title="The total amount you have earned, including withdrawn funds.">
-                    <DollarSign className="h-4 w-4 mr-1.5 text-green-500" /> Lifetime Earnings: ${lifetimeEarnings.toFixed(2)}
-                  </span>
-                </>
+
+          <div className="flex flex-col sm:flex-row items-center gap-6 pt-10 sm:pt-0">
+            <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-primary">
+              <AvatarImage src={currentProfile.photoURL || undefined} alt={currentProfile.displayName || 'User'} />
+              <AvatarFallback className="text-4xl">
+                {currentProfile.displayName ? currentProfile.displayName.charAt(0).toUpperCase() : <UserCircle className="h-16 w-16" />}
+              </AvatarFallback>
+            </Avatar>
+            <div className="text-center sm:text-left">
+              <h1 className="text-3xl sm:text-4xl font-headline font-bold text-foreground mb-1">
+                {currentProfile.displayName || 'Anonymous User'}
+              </h1>
+              {currentProfile.email && (
+                <p className="text-md text-muted-foreground flex items-center justify-center sm:justify-start">
+                  <Mail className="h-4 w-4 mr-2 text-primary" /> {currentProfile.email}
+                </p>
               )}
+              {currentProfile.bio && (
+                <p className="text-sm text-foreground mt-2 max-w-md">{currentProfile.bio}</p>
+              )}
+              <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 justify-center sm:justify-start text-sm text-muted-foreground">
+                <span className="flex items-center">
+                  <BarChart3 className="h-4 w-4 mr-1.5 text-primary" /> {blogs.length} Blogs Published
+                </span>
+                <span className="flex items-center">
+                  <Eye className="h-4 w-4 mr-1.5 text-primary" /> {totalViews} Total Views
+                </span>
+                {isOwner && (
+                  <>
+                    <span className="flex items-center font-semibold text-foreground" title="The amount you can currently withdraw.">
+                      <Coins className="h-4 w-4 mr-1.5 text-yellow-500" /> Current Balance: ${currentBalance.toFixed(2)}
+                    </span>
+                     <span className="flex items-center font-semibold text-foreground" title="The total amount you have earned, including withdrawn funds.">
+                      <DollarSign className="h-4 w-4 mr-1.5 text-green-500" /> Lifetime Earnings: ${lifetimeEarnings.toFixed(2)}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </header>
