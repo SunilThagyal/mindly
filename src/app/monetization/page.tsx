@@ -10,27 +10,13 @@ import { Loader2, ShieldAlert, DollarSign, History } from 'lucide-react';
 import PaymentHistoryTable from '@/components/monetization/payment-history-table';
 import type { WithdrawalRequest } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
-
-async function getUserWithdrawalHistory(userId: string): Promise<WithdrawalRequest[]> {
-    const requestsCol = collection(db, 'withdrawalRequests');
-    const q = query(requestsCol, where('userId', '==', userId), orderBy('requestedAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(docSnap => {
-        const data = docSnap.data();
-        return {
-            id: docSnap.id,
-            ...data,
-            requestedAt: data.requestedAt instanceof Timestamp ? data.requestedAt : Timestamp.now(),
-            processedAt: data.processedAt instanceof Timestamp ? data.processedAt : null,
-        } as WithdrawalRequest;
-    });
-}
-
+import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 export default function MonetizationPage() {
   const { user, userProfile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalRequest[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
@@ -38,32 +24,53 @@ export default function MonetizationPage() {
     document.title = 'Monetization';
   }, []);
 
+  const refreshHistory = () => {
+    if (user && userProfile?.isMonetizationApproved) {
+       setLoadingHistory(true);
+       const requestsCol = collection(db, 'withdrawalRequests');
+       const q = query(requestsCol, where('userId', '==', user.uid), orderBy('requestedAt', 'desc'));
+       const unsubscribe = onSnapshot(q, (snapshot) => {
+         const history = snapshot.docs.map(docSnap => {
+           const data = docSnap.data();
+           return {
+             id: docSnap.id,
+             ...data,
+             requestedAt: data.requestedAt instanceof Timestamp ? data.requestedAt : Timestamp.now(),
+             processedAt: data.processedAt instanceof Timestamp ? data.processedAt : null,
+           } as WithdrawalRequest;
+         });
+         setWithdrawalHistory(history);
+         setLoadingHistory(false);
+       }, (error) => {
+         console.error("Error fetching withdrawal history with snapshot:", error);
+         toast({ title: 'Error', description: 'Could not load withdrawal history.', variant: 'destructive' });
+         setLoadingHistory(false);
+       });
+       return unsubscribe;
+    }
+  };
+
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
         router.push('/auth/login?redirect=/monetization');
-      } else if (userProfile && !userProfile.isMonetizationApproved) {
-        // Message shown below
-      } else if (user && userProfile?.isMonetizationApproved) {
-        // Fetch withdrawal history only if user is approved and logged in
-        const fetchHistory = async () => {
-            setLoadingHistory(true);
-            try {
-                const history = await getUserWithdrawalHistory(user.uid);
-                setWithdrawalHistory(history);
-            } catch (error) {
-                console.error("Error fetching withdrawal history:", error);
-                // Optionally, show a toast to the user
-            } finally {
-                setLoadingHistory(false);
+        return;
+      }
+      
+      if (userProfile?.isMonetizationApproved) {
+        const unsubscribe = refreshHistory();
+        return () => {
+            if (unsubscribe) {
+                unsubscribe();
             }
         };
-        fetchHistory();
+      } else {
+        setLoadingHistory(false);
       }
     }
   }, [user, userProfile, authLoading, router]);
 
-  if (authLoading || !userProfile && !user) { // If userProfile is null because user is null (and still loading)
+  if (authLoading || (!userProfile && user)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -72,7 +79,7 @@ export default function MonetizationPage() {
     );
   }
   
-  if (!user) { // Should be caught by useEffect, but added for robustness
+  if (!user) { 
     return (
        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center px-4">
         <ShieldAlert className="w-20 h-20 text-destructive mb-6" />
@@ -121,7 +128,7 @@ export default function MonetizationPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <MonetizationForm userProfile={userProfile} userId={user.uid} />
+          <MonetizationForm userProfile={userProfile} userId={user.uid} onWithdrawal={refreshHistory} />
         </CardContent>
       </Card>
 

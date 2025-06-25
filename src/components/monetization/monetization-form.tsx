@@ -18,11 +18,12 @@ import { Loader2, Send, CheckCircle, AlertTriangle, Landmark, CreditCard, Mail, 
 interface MonetizationFormProps {
   userProfile: UserProfile;
   userId: string;
+  onWithdrawal: () => void; // Add this callback prop
 }
 
 type PaymentMethodIndia = 'upi' | 'bank' | 'paypal_india';
 
-export default function MonetizationForm({ userProfile, userId }: MonetizationFormProps) {
+export default function MonetizationForm({ userProfile, userId, onWithdrawal }: MonetizationFormProps) {
   const { toast } = useToast();
   const earningsSettings = useEarningsSettings(); // Get full settings object
 
@@ -203,7 +204,7 @@ export default function MonetizationForm({ userProfile, userId }: MonetizationFo
         variant: 'success',
       });
       setWithdrawalAmount('');
-      // userProfile.virtualEarnings will update via AuthContext listener, or force refresh if needed
+      onWithdrawal(); // Trigger the refresh callback
     } catch (error: any) {
       console.error("Error requesting withdrawal:", error);
       toast({
