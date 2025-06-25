@@ -118,19 +118,37 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       const container = doc.createElement('div');
       container.classList.add('media-container', 'group/videocontainer');
       
-      const mediaType = mediaEl.tagName.toLowerCase();
       const mediaSrc = mediaEl.getAttribute('src') || '';
+      const isVideoFile = /\.(mp4|webm|ogg)$/i.test(mediaSrc);
 
-      if (mediaType === 'img') {
+      let elementToAppend: HTMLElement;
+      let mediaTypeForContainer = mediaEl.tagName.toLowerCase();
+
+      if (mediaEl.tagName.toLowerCase() === 'iframe' && isVideoFile) {
+        // This is a video file embedded as an iframe. Transform it into a <video> tag.
+        mediaTypeForContainer = 'video';
+        const videoEl = doc.createElement('video');
+        videoEl.src = mediaSrc;
+        videoEl.classList.add('media-item');
+        videoEl.setAttribute('playsinline', 'true');
+        elementToAppend = videoEl;
+      } else {
+        // Handle normal images, real videos, and non-video iframes
+        elementToAppend = mediaEl.cloneNode(true) as HTMLElement;
+        elementToAppend.classList.add('media-item');
+      }
+
+      // Add container classes based on the final media type
+      if (mediaTypeForContainer === 'img') {
         container.style.setProperty('--bg-image', `url("${mediaSrc}")`);
-      } else if (mediaType === 'video') {
+      } else if (mediaTypeForContainer === 'video') {
         container.classList.add('video-container');
-      } else if (mediaType === 'iframe') {
+      } else if (mediaTypeForContainer === 'iframe') {
         container.classList.add('iframe-container');
       }
 
       // Add fullscreen button for images and videos only
-      if (mediaType === 'img' || mediaType === 'video') {
+      if (mediaTypeForContainer === 'img' || mediaTypeForContainer === 'video') {
           const button = doc.createElement('button');
           button.setAttribute('data-lightbox-button', 'true');
           button.setAttribute('title', 'View fullscreen');
@@ -140,21 +158,15 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
           container.appendChild(button);
       }
       
-      const clonedMedia = mediaEl.cloneNode(true) as HTMLElement;
-      clonedMedia.classList.add('media-item');
-
-      if (clonedMedia instanceof HTMLImageElement) {
-        clonedMedia.alt = mediaEl.getAttribute('alt') || 'Blog media';
-      } else if (clonedMedia instanceof HTMLVideoElement) {
-        // We will add controls dynamically, so remove default ones
-        clonedMedia.removeAttribute('controls');
-      } else if (clonedMedia instanceof HTMLIFrameElement) {
-        clonedMedia.setAttribute('frameborder', '0');
-        clonedMedia.setAttribute('allowfullscreen', 'true');
-        clonedMedia.title = mediaEl.getAttribute('title') || "Embedded content";
+      if (elementToAppend instanceof HTMLVideoElement) {
+        elementToAppend.removeAttribute('controls');
+      } else if (elementToAppend instanceof HTMLIFrameElement) {
+        elementToAppend.setAttribute('frameborder', '0');
+        elementToAppend.setAttribute('allowfullscreen', 'true');
+        elementToAppend.title = mediaEl.getAttribute('title') || "Embedded content";
       }
 
-      container.appendChild(clonedMedia);
+      container.appendChild(elementToAppend);
       mediaEl.parentNode?.replaceChild(container, mediaEl);
     });
 
@@ -281,29 +293,38 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     };
     
     const enhanceAllVideos = () => {
-        // Enhance cover video
-        if (coverVideoContainerRef.current) {
-            enhanceVideoPlayer(coverVideoContainerRef.current);
-        }
-        // Enhance content videos
-        const contentContainer = articleContentRef.current;
-        if (contentContainer) {
-            contentContainer.querySelectorAll<HTMLElement>('.media-container.video-container').forEach(enhanceVideoPlayer);
+        const rootElement = document.getElementById('blog-article-content');
+        if (rootElement) {
+           rootElement.querySelectorAll<HTMLElement>('.media-container.video-container').forEach(enhanceVideoPlayer);
         }
     };
     
-    // Initial enhancement run
-    enhanceAllVideos();
+    // Initial enhancement run after a slight delay to ensure content is rendered
+    const initialTimeout = setTimeout(enhanceAllVideos, 100);
 
     // Use MutationObserver to catch videos added dynamically by dangerouslySetInnerHTML
-    const observer = new MutationObserver(enhanceAllVideos);
-    const containerToObserve = articleContentRef.current;
+    const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(node => {
+                    if (node instanceof HTMLElement) {
+                        if (node.matches('.media-container.video-container')) {
+                            enhanceVideoPlayer(node);
+                        }
+                        node.querySelectorAll<HTMLElement>('.media-container.video-container').forEach(enhanceVideoPlayer);
+                    }
+                });
+            }
+        }
+    });
 
+    const containerToObserve = articleContentRef.current;
     if (containerToObserve) {
         observer.observe(containerToObserve, { childList: true, subtree: true });
     }
 
     return () => {
+        clearTimeout(initialTimeout);
         if (containerToObserve) {
             observer.disconnect();
         }
