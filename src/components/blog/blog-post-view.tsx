@@ -546,8 +546,8 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
             <div id="reading-content-container">
               {blog.coverImageUrl && (
                 <div className={cn(
-                    "relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black group/videocontainer",
-                    blog.coverMediaType === 'video' && 'media-container video-container'
+                    "relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black group/videocontainer media-container",
+                    blog.coverMediaType === 'video' && 'video-container'
                 )}>
                   {blog.coverMediaType === 'video' ? (
                      <>
@@ -600,7 +600,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 896px"
                         style={{objectFit: 'contain'}}
                         className={cn(
-                            "relative z-10 drop-shadow-lg transition-opacity duration-500",
+                            "relative z-10 drop-shadow-lg transition-opacity duration-500 media-item",
                             isCoverLoaded ? "opacity-100" : "opacity-0"
                         )}
                         priority
@@ -614,10 +614,6 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                         variant="ghost"
                         size="icon"
                         className="absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-30 h-10 w-10 flex items-center justify-center rounded-full"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setLightboxMedia({ src: blog.coverImageUrl!, type: blog.coverMediaType || 'image'})
-                        }}
                         title="View fullscreen"
                         aria-label="View fullscreen"
                         data-lightbox-button="true"
