@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import type { AdSettings } from '@/lib/types';
@@ -31,7 +31,7 @@ export default function AdSettingsForm() {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  const settingsDocRef = doc(db, 'settings', 'ads');
+  const settingsDocRef = useMemo(() => doc(db, 'settings', 'ads'), []);
 
   useEffect(() => {
     setIsLoading(true);
@@ -65,7 +65,7 @@ export default function AdSettingsForm() {
     });
 
     return () => unsubscribe();
-  }, [toast]);
+  }, [toast, settingsDocRef]);
 
   const handleInputChange = (key: keyof AdSettings, value: string | boolean) => {
     setSettings(prev => ({ ...prev, [key]: value }));

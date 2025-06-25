@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import type { EarningsSettings } from '@/lib/types';
@@ -24,7 +24,7 @@ export default function EarningsSettingsForm() {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  const settingsDocRef = doc(db, 'settings', 'earnings');
+  const settingsDocRef = useMemo(() => doc(db, 'settings', 'earnings'), []);
 
   useEffect(() => {
     setIsLoading(true);
@@ -53,7 +53,7 @@ export default function EarningsSettingsForm() {
     });
 
     return () => unsubscribe();
-  }, [toast]);
+  }, [toast, settingsDocRef]);
 
   const handleInputChange = (key: keyof EarningsSettings, value: string | number) => {
     setSettings(prev => ({ ...prev, [key]: value }));

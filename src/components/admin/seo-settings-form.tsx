@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import type { SeoSettings } from '@/lib/types';
@@ -29,7 +29,7 @@ export default function SeoSettingsForm() {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  const settingsDocRef = doc(db, 'settings', 'seo');
+  const settingsDocRef = useMemo(() => doc(db, 'settings', 'seo'), []);
 
   useEffect(() => {
     const fetchSettings = async () => {
