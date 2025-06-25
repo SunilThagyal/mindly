@@ -86,7 +86,16 @@ export default async function TagPage({ params }: TagPageProps) {
   }
 
   const decodedTag = decodeURIComponent(params.tag);
-  const blogs = await getBlogsByTag(decodedTag);
+  const blogsFromDB = await getBlogsByTag(decodedTag);
+
+  // Serialize the blogs array to make it safe to pass to the client component
+  const blogs = blogsFromDB.map(blog => ({
+    ...blog,
+    // Convert Timestamps to plain objects that are JSON serializable
+    createdAt: JSON.parse(JSON.stringify(blog.createdAt)),
+    publishedAt: blog.publishedAt ? JSON.parse(JSON.stringify(blog.publishedAt)) : null,
+  }));
+
   const capitalizedTag = decodedTag.charAt(0).toUpperCase() + decodedTag.slice(1);
 
   return (
