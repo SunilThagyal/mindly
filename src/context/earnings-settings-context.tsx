@@ -53,15 +53,6 @@ export const EarningsSettingsProvider = ({ children }: { children: ReactNode }) 
     return () => unsubscribe();
   }, []);
 
-  if (loadingSettings) { 
-     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-2">Loading earnings configuration...</p>
-      </div>
-    );
-  }
-
   return (
     <EarningsSettingsContext.Provider value={{ ...settings, loadingSettings }}>
       {children}

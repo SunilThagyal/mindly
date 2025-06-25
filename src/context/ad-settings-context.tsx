@@ -57,15 +57,6 @@ export const AdSettingsProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
-  if (loadingSettings && Object.keys(settings).length === 0) { 
-     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-2">Loading ad configuration...</p>
-      </div>
-    );
-  }
-
   return (
     <AdSettingsContext.Provider value={{ ...settings, loadingSettings }}>
       {children}
