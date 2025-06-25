@@ -48,6 +48,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const router = useRouter();
   const { toast } = useToast();
   
+  const articleContentRef = useRef<HTMLDivElement>(null);
   const [blog, setBlog] = useState<Blog>(initialBlog);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
@@ -55,7 +56,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   const [processedContent, setProcessedContent] = useState<string | null>(null);
   const viewTriggered = useRef(false);
   const [isCoverLoaded, setIsCoverLoaded] = useState(false);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxMedia, setLightboxMedia] = useState<{ src: string; type: 'image' | 'video' } | null>(null);
 
   useEffect(() => {
     // Ensure this effect runs only once per page load and all data is ready.
@@ -106,14 +107,16 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
     const mediaSelectors = 'img, video, iframe';
     const mediaElements = Array.from(body.querySelectorAll(mediaSelectors));
 
+    const maximizeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>`;
+
     mediaElements.forEach(mediaEl => {
       if (mediaEl.closest('.media-container')) {
         return;
       }
-
+      
       const container = doc.createElement('div');
-      container.classList.add('media-container');
-
+      container.classList.add('media-container', 'group'); // Add group for hover effects
+      
       const mediaType = mediaEl.tagName.toLowerCase();
       const mediaSrc = mediaEl.getAttribute('src') || '';
 
@@ -125,6 +128,17 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         container.classList.add('iframe-container');
       }
 
+      // Add fullscreen button for images and videos only
+      if (mediaType === 'img' || mediaType === 'video') {
+          const button = doc.createElement('button');
+          button.setAttribute('data-lightbox-button', 'true');
+          button.setAttribute('title', 'View fullscreen');
+          button.setAttribute('aria-label', 'View fullscreen');
+          button.className = "absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-20 h-10 w-10 flex items-center justify-center rounded-full";
+          button.innerHTML = maximizeIconSvg;
+          container.appendChild(button);
+      }
+      
       const clonedMedia = mediaEl.cloneNode(true) as HTMLElement;
       clonedMedia.classList.add('media-item');
 
@@ -154,6 +168,38 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         setProcessedContent('');
     }
   }, [initialBlog, wrapMediaElements]);
+
+  useEffect(() => {
+    const container = articleContentRef.current;
+    if (!container) return;
+
+    const handleClick = (event: MouseEvent) => {
+        const target = event.target as HTMLElement;
+        const button = target.closest('[data-lightbox-button="true"]');
+        if (button) {
+            event.preventDefault();
+            event.stopPropagation();
+            const mediaContainer = button.closest('.media-container');
+            if (mediaContainer) {
+                const mediaItem = mediaContainer.querySelector('.media-item');
+                if (mediaItem && (mediaItem instanceof HTMLImageElement || mediaItem instanceof HTMLVideoElement)) {
+                    setLightboxMedia({
+                        src: mediaItem.src,
+                        type: mediaItem.tagName.toLowerCase() as 'image' | 'video'
+                    });
+                }
+            }
+        }
+    };
+
+    container.addEventListener('click', handleClick);
+
+    return () => {
+        if (container) {
+            container.removeEventListener('click', handleClick);
+        }
+    };
+  }, [processedContent]);
 
   const formattedDate = blog.publishedAt
     ? new Date(blog.publishedAt.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -321,11 +367,11 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
   return (
     <>
       <ReadingProgressBar />
-      {lightboxOpen && blog.coverImageUrl && (
+      {lightboxMedia && (
         <MediaLightbox
-            src={blog.coverImageUrl}
-            type={blog.coverMediaType || 'image'}
-            onClose={() => setLightboxOpen(false)}
+            src={lightboxMedia.src}
+            type={lightboxMedia.type}
+            onClose={() => setLightboxMedia(null)}
         />
       )}
       <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto py-8 px-4 animate-fade-in">
@@ -378,12 +424,12 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                       />
                     </>
                   )}
-                  {isCoverLoaded && (
+                  {isCoverLoaded && blog.coverImageUrl && (
                     <Button
                         variant="ghost"
                         size="icon"
                         className="absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-20"
-                        onClick={() => setLightboxOpen(true)}
+                        onClick={() => setLightboxMedia({ src: blog.coverImageUrl!, type: blog.coverMediaType || 'image'})}
                         title="View fullscreen"
                         aria-label="View fullscreen"
                     >
@@ -515,6 +561,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               </div>
 
               <div 
+                ref={articleContentRef}
                 className="prose dark:prose-invert"
               >
                  {processedContent === null ? (
