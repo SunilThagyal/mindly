@@ -118,7 +118,7 @@ export default async function BlogPage({ params }: { params: { slug: string } })
     notFound();
   }
 
-  const authorProfile = await getAuthorProfile(blogFromDB.authorId);
+  const authorProfileFromDB = await getAuthorProfile(blogFromDB.authorId);
   
   // Serialize the blog object to make it safe to pass to the client component
   const blog = {
@@ -126,6 +126,9 @@ export default async function BlogPage({ params }: { params: { slug: string } })
     createdAt: JSON.parse(JSON.stringify(blogFromDB.createdAt)),
     publishedAt: blogFromDB.publishedAt ? JSON.parse(JSON.stringify(blogFromDB.publishedAt)) : null,
   };
+
+  // Also serialize the author profile, as it's passed to a client component
+  const authorProfile = authorProfileFromDB ? JSON.parse(JSON.stringify(authorProfileFromDB)) : null;
 
   const jsonLdData = {
     '@context': 'https://schema.org',
