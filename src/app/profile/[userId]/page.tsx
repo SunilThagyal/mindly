@@ -107,17 +107,35 @@ export default async function UserProfilePage({ params }: { params: { userId: st
     notFound();
   }
 
-  const blogsFromDB = await getUserBlogs(userId);
+  let blogsFromDB: Blog[] = [];
+  let fetchError: { message: string; indexLink: string | null } | null = null;
+  
+  try {
+    blogsFromDB = await getUserBlogs(userId);
+  } catch (error: any) {
+    const errorMessage = error.message || "An unknown error occurred.";
+    if (errorMessage.includes("firestore/failed-precondition") && errorMessage.includes("query requires an index")) {
+        const urlMatch = errorMessage.match(/https?:\/\/[^\s)]+/);
+        fetchError = {
+            message: "A database index is required to display this user's blogs. This is a common one-time setup step for Firestore.",
+            indexLink: urlMatch ? urlMatch[0] : null
+        };
+    } else {
+        fetchError = {
+            message: "An error occurred while fetching this user's blogs.",
+            indexLink: null
+        };
+    }
+  }
+
   const totalWithdrawn = await getTotalWithdrawnAmount(userId);
   
-  // Serialize the blogs array to make it safe to pass to the client component
-  const blogs = blogsFromDB.map(blog => ({
+  const blogs = fetchError ? [] : blogsFromDB.map(blog => ({
     ...blog,
-    // Convert Timestamps to plain objects that are JSON serializable
     createdAt: JSON.parse(JSON.stringify(blog.createdAt)),
     publishedAt: blog.publishedAt ? JSON.parse(JSON.stringify(blog.publishedAt)) : null,
   }));
 
 
-  return <UserProfileView profile={profile} blogs={blogs} totalWithdrawn={totalWithdrawn} />;
+  return <UserProfileView profile={profile} blogs={blogs} totalWithdrawn={totalWithdrawn} fetchError={fetchError} />;
 }

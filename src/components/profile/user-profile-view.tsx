@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import type { UserProfile, Blog } from '@/lib/types';
 import BlogCard from '@/components/blog/blog-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { UserCircle, Mail, BarChart3, Coins, Eye, Edit, FileText, DollarSign } from 'lucide-react';
+import { UserCircle, Mail, BarChart3, Coins, Eye, Edit, FileText, DollarSign, AlertTriangle, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
 import EditProfileDialog from './edit-profile-dialog'; 
@@ -15,9 +15,10 @@ interface UserProfileViewProps {
   profile: UserProfile;
   blogs: Blog[];
   totalWithdrawn: number;
+  fetchError?: { message: string, indexLink: string | null } | null;
 }
 
-export default function UserProfileView({ profile, blogs, totalWithdrawn }: UserProfileViewProps) {
+export default function UserProfileView({ profile, blogs, totalWithdrawn, fetchError }: UserProfileViewProps) {
   const { user } = useAuth();
 
   // Local state to manage profile data and dialog visibility
@@ -95,7 +96,40 @@ export default function UserProfileView({ profile, blogs, totalWithdrawn }: User
           <h2 className="text-2xl sm:text-3xl font-headline font-semibold mb-8 text-foreground">
             {currentProfile.displayName ? `${currentProfile.displayName.split(' ')[0]}'s Blogs` : 'Published Blogs'}
           </h2>
-          {blogs.length > 0 ? (
+          {fetchError ? (
+            <div className="mt-6 text-center p-6 border border-destructive/50 rounded-lg bg-destructive/5 text-destructive">
+                <AlertTriangle className="mx-auto h-12 w-12 mb-4" />
+                <p className="text-lg font-semibold mb-2">Error Loading Blogs</p>
+                <p className="text-sm whitespace-pre-wrap mb-3">{fetchError.message}</p>
+                {fetchError.indexLink ? (
+                  <>
+                    <p className="text-sm mb-2">
+                      To fix this, please **open your browser's developer console (usually F12)**.
+                      Find the error message from Firestore starting with:
+                      <br />
+                      <code className="bg-destructive/20 px-1 rounded text-xs">FirebaseError: The query requires an index...</code>
+                    </p>
+                    <p className="text-sm mb-4">
+                      **CRITICAL: Click the link provided in that error message.** It will take you to the Firebase console to create the missing index.
+                      Then, click 'Create Index' in the Firebase console and wait a few minutes for it to build.
+                    </p>
+                    <Button
+                      variant="outline"
+                      asChild
+                      className="border-destructive text-destructive hover:bg-destructive/10"
+                    >
+                      <a href={fetchError.indexLink} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Open Firestore Index Link (if available)
+                      </a>
+                    </Button>
+                     <p className="text-xs mt-3">The link above is extracted from the error. The most reliable link is in your browser console.</p>
+                  </>
+                ) : (
+                  <p className="text-xs mt-3">Please check your browser console for more details, or try again later.</p>
+                )}
+            </div>
+          ) : blogs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
               {blogs.map((blog) => (
                 <BlogCard key={blog.id} blog={blog} />
