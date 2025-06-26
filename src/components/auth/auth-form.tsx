@@ -104,12 +104,21 @@ export default function AuthForm({ mode }: AuthFormProps) {
                });
            } catch (resendError: any) {
                 console.error("Error resending verification email:", resendError);
-                toast({
-                    title: 'Email Not Verified & Resend Failed',
-                    description: `Your email is not verified. We also encountered an error trying to resend the verification email: ${resendError.message}`,
-                    variant: 'destructive',
-                    duration: 10000,
-                });
+                if (resendError.code === 'auth/too-many-requests') {
+                    toast({
+                        title: 'Too Many Requests',
+                        description: 'A verification email was sent recently. Please check your inbox or wait a few minutes before trying to log in again.',
+                        variant: 'destructive',
+                        duration: 10000,
+                    });
+                } else {
+                    toast({
+                        title: 'Email Not Verified & Resend Failed',
+                        description: `Your email is not verified. We also encountered an error trying to resend the verification email: ${resendError.message}`,
+                        variant: 'destructive',
+                        duration: 10000,
+                    });
+                }
            }
            setIsLoading(false);
            return;
