@@ -50,6 +50,11 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: metaDescription,
     keywords: metaKeywords,
+    icons: {
+      icon: '/favicon.ico',
+      shortcut: '/favicon.ico',
+      apple: '/favicon.ico',
+    },
     openGraph: {
       title: siteConfig.name,
       description: metaDescription,
