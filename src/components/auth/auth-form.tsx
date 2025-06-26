@@ -7,7 +7,6 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   updateProfile,
-  sendEmailVerification,
   GoogleAuthProvider,
   GithubAuthProvider,
   signInWithPopup,
@@ -56,24 +55,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
         }
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName });
-        
-        try {
-            await sendEmailVerification(userCredential.user);
-            toast({
-              title: 'Account Created & Verification Email Sent!',
-              description: `A verification email has been sent to ${userCredential.user.email}. Please check your inbox and spam folder to verify your account.`,
-              variant: 'success',
-              duration: 10000, 
-            });
-        } catch (verificationError: any) {
-            console.error("Error sending verification email:", verificationError);
-            toast({
-                title: 'Account Created, But Verification Email Failed',
-                description: `Your account was created, but we couldn't send the verification email. Error: ${verificationError.message}. You might need to try logging in and resending it.`,
-                variant: 'destructive',
-                duration: 10000,
-            });
-        }
 
         const userDocRef = doc(db, 'users', userCredential.user.uid);
         const newUserProfile: UserProfile = {
@@ -84,45 +65,19 @@ export default function AuthForm({ mode }: AuthFormProps) {
           virtualEarnings: 0,
         };
         await setDoc(userDocRef, newUserProfile);
-        router.push(`/auth/login${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`); 
+
+        toast({
+          title: 'Account Created!',
+          description: `Welcome, ${displayName}! You are now logged in.`,
+          variant: 'success',
+        });
+        
+        router.push(redirectUrl || '/');
 
       } else { // Login mode
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const loggedInUser = userCredential.user;
-
-        const isAdminLogin = ADMIN_USER_UID && loggedInUser.uid === ADMIN_USER_UID;
-
-        if (!isAdminLogin && !loggedInUser.emailVerified) {
-           await auth.signOut(); 
-           try {
-               await sendEmailVerification(loggedInUser);
-               toast({
-                 title: 'Email Not Verified',
-                 description: 'Your email is not verified. Please check your inbox (and spam/junk folder) for the verification link. A new verification email has been sent.',
-                 variant: 'destructive',
-                 duration: 10000,
-               });
-           } catch (resendError: any) {
-                console.error("Error resending verification email:", resendError);
-                if (resendError.code === 'auth/too-many-requests') {
-                    toast({
-                        title: 'Too Many Requests',
-                        description: 'A verification email was sent recently. Please check your inbox or wait a few minutes before trying to log in again.',
-                        variant: 'destructive',
-                        duration: 10000,
-                    });
-                } else {
-                    toast({
-                        title: 'Email Not Verified & Resend Failed',
-                        description: `Your email is not verified. We also encountered an error trying to resend the verification email: ${resendError.message}`,
-                        variant: 'destructive',
-                        duration: 10000,
-                    });
-                }
-           }
-           setIsLoading(false);
-           return;
-        }
+        
         toast({ title: 'Logged In!', description: `Welcome back, ${loggedInUser.displayName || 'User'}!`, variant: 'success' });
         router.push(redirectUrl || '/');
       }
