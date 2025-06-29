@@ -268,7 +268,6 @@ export default function BlogEditor({ blogId }: BlogEditorProps) {
       toast({ title: 'Validation Error', description: 'Title and non-empty content are required.', variant: 'destructive' });
       return;
     }
-
     setIsSubmitting(true);
     const newSaveStatus = attemptPublish ? 'published' : 'draft';
     setCurrentStatus(newSaveStatus); 
