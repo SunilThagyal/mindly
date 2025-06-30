@@ -38,6 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 4. Define static page routes
   const staticRoutes = [
     '', // Homepage
+    '/about-us',
     '/how-it-works',
     '/contact-us',
     '/privacy-policy',
