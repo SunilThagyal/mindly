@@ -292,21 +292,29 @@ export default function HomePage() {
   ) => {
     if (isLoading && blogs.length === 0) { 
       return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-          {Array(postsPerPage).fill(0).map((_, index) => (
-            <div key={index} className="flex flex-col space-y-3">
-              <Skeleton className="h-[200px] w-full rounded-xl" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
-              </div>
-              <div className="flex justify-between mt-1">
-                <Skeleton className="h-4 w-[50px]" />
-                <Skeleton className="h-4 w-[80px]" />
-              </div>
+        <>
+            {/* Mobile-only loader */}
+            <div className="flex md:hidden justify-center items-center min-h-[40vh]">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
             </div>
-          ))}
-        </div>
+
+            {/* Desktop skeleton */}
+            <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+              {Array(postsPerPage).fill(0).map((_, index) => (
+                <div key={index} className="flex flex-col space-y-3">
+                  <Skeleton className="h-[200px] w-full rounded-xl" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-5/6" />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <Skeleton className="h-4 w-[50px]" />
+                    <Skeleton className="h-4 w-[80px]" />
+                  </div>
+                </div>
+              ))}
+            </div>
+        </>
       );
     }
 
