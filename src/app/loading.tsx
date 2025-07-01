@@ -3,7 +3,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Loading() {
   return (
-    <div className="container mx-auto px-4 py-8 animate-fade-in w-full">
+    <div className="hidden md:block container mx-auto px-4 py-8 animate-fade-in w-full">
       {/* Page Title Skeleton */}
       <Skeleton className="h-10 w-1/2 mb-4" />
       <Skeleton className="h-4 w-1/3 mb-10" />
