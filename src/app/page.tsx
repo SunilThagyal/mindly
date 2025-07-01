@@ -293,9 +293,7 @@ export default function HomePage() {
     if (isLoading && blogs.length === 0) { 
       return (
         <>
-            {/* On mobile, this will now be blank while loading, as requested */}
-
-            {/* Desktop skeleton */}
+            {/* On mobile, this will now be blank while loading */}
             <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
               {Array(postsPerPage).fill(0).map((_, index) => (
                 <div key={index} className="flex flex-col space-y-3">
