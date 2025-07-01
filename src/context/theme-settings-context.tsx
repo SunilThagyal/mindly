@@ -56,7 +56,7 @@ export const ThemeSettingsProvider = ({ children }: { children: ReactNode }) => 
   return (
     <ThemeSettingsContext.Provider value={{ settings, loading }}>
       {loading ? (
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="hidden md:flex items-center justify-center min-h-screen">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
       ) : (
