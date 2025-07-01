@@ -14,9 +14,10 @@ import { cn } from '@/lib/utils';
 
 interface BlogCardProps {
   blog: Blog;
+  priority?: boolean;
 }
 
-const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
+const BlogCard = React.memo(function BlogCard({ blog, priority = false }: BlogCardProps) {
   const { baseEarningPerView } = useEarningsSettings();
   const { user, userProfile } = useAuth(); // Get current user and profile
   const [isMediaLoaded, setIsMediaLoaded] = useState(false);
@@ -115,6 +116,7 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
                         isMediaLoaded ? "opacity-70" : "opacity-0"
                     )}
                     aria-hidden="true"
+                    priority={priority}
                 />
                 {/* Main, contained image */}
                 <Image
@@ -129,6 +131,7 @@ const BlogCard = React.memo(function BlogCard({ blog }: BlogCardProps) {
                     )}
                     data-ai-hint={isGeneratedCover ? "generated banner" : (blog.coverImageUrl ? "article cover" : "placeholder")}
                     onLoad={() => setIsMediaLoaded(true)}
+                    priority={priority}
                 />
              </>
            )}

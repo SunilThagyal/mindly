@@ -5,7 +5,7 @@ import type { Blog, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart, Loader2, Maximize, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { Eye, Clock, UserCircle, Edit, Trash2, Coins, Share2, Heart, Loader2, Maximize, Play, Pause, Volume2, VolumeX, FileText } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useAdSettings } from '@/context/ad-settings-context';
 import { useEarningsSettings } from '@/context/earnings-settings-context';
@@ -28,13 +28,63 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AdPlaceholder from '@/components/layout/ad-placeholder';
-import RelatedPosts from './related-posts';
-import CommentsSection from './comments-section';
 import SocialShareButtons from './social-share-buttons';
 import { cn } from '@/lib/utils';
 import { incrementViewCount } from '@/lib/actions';
 import ReadingProgressBar from './reading-progress-bar';
 import MediaLightbox from '@/components/media/media-lightbox';
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const RelatedPostsSkeleton = () => (
+    <section className="mt-12 pt-8 border-t">
+      <h2 className="text-2xl font-headline font-semibold mb-6 text-foreground">Related Posts</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="flex flex-col space-y-3">
+            <Skeleton className="h-48 w-full rounded-lg" />
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        ))}
+      </div>
+    </section>
+);
+
+const CommentsSkeleton = () => (
+    <section className="mt-12 pt-8 border-t">
+       <h2 className="text-2xl font-headline font-semibold mb-6 text-foreground flex items-center">
+        <Skeleton className="h-7 w-7 mr-3 rounded-full" />
+        <Skeleton className="h-7 w-48" />
+      </h2>
+      <div className="space-y-6">
+        <div className="flex items-start space-x-3">
+          <Skeleton className="h-9 w-9 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-4/5" />
+          </div>
+        </div>
+         <div className="flex items-start space-x-3">
+          <Skeleton className="h-9 w-9 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        </div>
+      </div>
+    </section>
+);
+
+const CommentsSection = dynamic(() => import('./comments-section'), {
+  loading: () => <CommentsSkeleton />,
+  ssr: false
+});
+
+const RelatedPosts = dynamic(() => import('./related-posts'), {
+  loading: () => <RelatedPostsSkeleton />,
+});
 
 interface BlogPostViewProps {
   blog: Blog;
