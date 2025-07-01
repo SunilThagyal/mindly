@@ -130,9 +130,26 @@ export default async function RootLayout({
   const fontBody = themeSettings.fontBody || defaultThemeSettings.fontBody!;
   const fontHeadline = themeSettings.fontHeadline || defaultThemeSettings.fontHeadline!;
   const googleFonts = [...new Set([fontBody, fontHeadline].filter(f => !SYSTEM_FONTS.includes(f)))];
-  const fontUrl = googleFonts.length > 0 
-    ? `https://fonts.googleapis.com/css2?${googleFonts.map(f => `family=${f.replace(/ /g, '+')}:wght@400;500;600;700;900`).join('&')}&display=swap`
-    : null;
+
+  // Inline font CSS to prevent render-blocking requests
+  let inlinedFontCss = '';
+  if (googleFonts.length > 0) {
+    const fontUrl = `https://fonts.googleapis.com/css2?${googleFonts.map(f => `family=${f.replace(/ /g, '+')}:wght@400;500;600;700;900`).join('&')}&display=swap`;
+    try {
+      // Fetch the CSS from Google Fonts on the server
+      const fontCssResponse = await fetch(fontUrl, {
+        headers: {
+            // Mimic a browser user agent to get the woff2 files
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+        },
+      });
+      if (fontCssResponse.ok) {
+        inlinedFontCss = await fontCssResponse.text();
+      }
+    } catch (error) {
+        console.error("Failed to fetch and inline Google Fonts CSS:", error);
+    }
+  }
 
   // Generate CSS variables on the server to prevent layout shift
   const themeStyle = `
@@ -154,10 +171,10 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <style id="initial-theme-styles" dangerouslySetInnerHTML={{ __html: themeStyle }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {fontUrl && <link rel="stylesheet" href={fontUrl} />}
+        <style id="inlined-font-styles" dangerouslySetInnerHTML={{ __html: inlinedFontCss }} />
+        <style id="initial-theme-styles" dangerouslySetInnerHTML={{ __html: themeStyle }} />
       </head>
       <body className={cn("font-body antialiased flex flex-col min-h-screen")}>
         <AuthProvider>
