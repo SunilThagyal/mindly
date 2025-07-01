@@ -25,43 +25,34 @@ const defaultThemeSettings: ThemeSettings = {
   itemsPerPage: 9,
 };
 
-const ThemeSettingsContext = createContext<ThemeSettingsContextType | undefined>(undefined);
+const ThemeSettingsContext = createContext<ThemeSettingsContextType>({
+  settings: defaultThemeSettings,
+  loading: true,
+});
 
-export const ThemeSettingsProvider = ({ children }: { children: ReactNode }) => {
-  const [settings, setSettings] = useState<ThemeSettings>(defaultThemeSettings);
-  const [loading, setLoading] = useState(true);
-
+export const ThemeSettingsProvider = ({ children, initialSettings }: { children: ReactNode, initialSettings: ThemeSettings }) => {
+  const [settings, setSettings] = useState<ThemeSettings>(initialSettings || defaultThemeSettings);
+  
   useEffect(() => {
-    // This listener now primarily provides live data updates to client components
-    // that might need it (e.g., itemsPerPage on the homepage).
-    // The initial visual theme is now rendered on the server in RootLayout.
+    // This listener provides live data updates to client components
+    // after the initial server-rendered page is loaded.
     const settingsDocRef = doc(db, 'settings', 'theme');
     const unsubscribe = onSnapshot(settingsDocRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setSettings({ ...defaultThemeSettings, ...data });
-      } else {
-        setSettings(defaultThemeSettings);
+        // We merge with initialSettings to ensure defaults are always present
+        setSettings({ ...initialSettings, ...data });
       }
-      setLoading(false);
     }, (error) => {
-      console.error("Error fetching theme settings:", error);
-      setSettings(defaultThemeSettings);
-      setLoading(false);
+      console.error("Error with theme settings listener:", error);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [initialSettings]);
 
   return (
-    <ThemeSettingsContext.Provider value={{ settings, loading }}>
-      {loading ? (
-        <div className="hidden md:flex items-center justify-center min-h-screen">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        </div>
-      ) : (
-        children
-      )}
+    <ThemeSettingsContext.Provider value={{ settings, loading: false }}>
+      {children}
     </ThemeSettingsContext.Provider>
   );
 };

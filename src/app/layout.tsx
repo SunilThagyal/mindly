@@ -180,7 +180,7 @@ export default async function RootLayout({
         <AuthProvider>
           <AdSettingsProvider>
             <EarningsSettingsProvider>
-              <ThemeSettingsProvider>
+              <ThemeSettingsProvider initialSettings={themeSettings}>
                 <PageTransitionLoader />
                 <GoogleAnalytics />
                 <Header />
