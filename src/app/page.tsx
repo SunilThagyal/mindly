@@ -293,10 +293,7 @@ export default function HomePage() {
     if (isLoading && blogs.length === 0) { 
       return (
         <>
-            {/* Mobile-only loader */}
-            <div className="flex md:hidden justify-center items-center min-h-[40vh]">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            </div>
+            {/* On mobile, this will now be blank while loading, as requested */}
 
             {/* Desktop skeleton */}
             <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
