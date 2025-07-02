@@ -35,7 +35,7 @@ import ReadingProgressBar from './reading-progress-bar';
 import MediaLightbox from '@/components/media/media-lightbox';
 import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
-import { optimizeCloudinaryImage } from '@/lib/cloudinary';
+import { optimizeCloudinaryImage } from '../../lib/cloudinary';
 import { slugify } from '@/lib/helpers';
 
 const RelatedPostsSkeleton = () => (
