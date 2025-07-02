@@ -34,10 +34,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
   });
   
-  // 3. Get top 10 tags and create their page URLs
+  // 3. Get top 5 tags and create their page URLs
   const sortedTags = Object.entries(tagCounts)
     .sort(([, countA], [, countB]) => countB - countA)
-    .slice(0, 10)
+    .slice(0, 5)
     .map(([tag]) => tag);
 
   const tagRoutes = sortedTags.map(tag => ({
