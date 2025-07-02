@@ -35,6 +35,7 @@ import ReadingProgressBar from './reading-progress-bar';
 import MediaLightbox from '@/components/media/media-lightbox';
 import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
+import { optimizeCloudinaryImage } from '@/lib/cloudinary';
 
 const RelatedPostsSkeleton = () => (
     <section className="mt-12 pt-8 border-t">
@@ -186,7 +187,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
         container.classList.add('media-container', 'group/videocontainer');
 
         if (finalMediaType === 'image') {
-            container.style.setProperty('--bg-image', `url("${mediaSrc}")`);
+            container.style.setProperty('--bg-image', `url("${optimizeCloudinaryImage(mediaSrc)}")`);
         } else if (finalMediaType === 'video') {
             container.classList.add('video-container');
             (finalMediaElement as HTMLVideoElement).playsInline = true;
@@ -268,118 +269,43 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
       if (container.dataset.videoEnhanced) return;
 
       const foregroundVideo = container.querySelector<HTMLVideoElement>('video.media-item');
-      const backgroundVideo = container.querySelector<HTMLVideoElement>('video:not(.media-item)');
+      if (!foregroundVideo) return;
 
-      if (!foregroundVideo) return; // Main video is required.
-
-      // Remove native controls and set initial state
+      // This simple version just removes native controls to rely on browser's click-to-play
       foregroundVideo.removeAttribute('controls');
-      if (backgroundVideo) backgroundVideo.removeAttribute('controls');
-      foregroundVideo.muted = true;
-      if (backgroundVideo) backgroundVideo.muted = true;
+      foregroundVideo.muted = true; // Autoplay should be muted
       
-      container.querySelector('.video-controls-overlay')?.remove();
-
-      const controlsOverlay = document.createElement('div');
-      controlsOverlay.className = 'video-controls-overlay is-paused';
-
-      const topControls = document.createElement('div');
-      topControls.className = 'video-controls-top';
-
-      const playPauseBtn = document.createElement('button');
-      playPauseBtn.className = 'video-control-button';
-      playPauseBtn.innerHTML = iconSvgs.play; // Start with play icon
-      
-      const muteBtn = document.createElement('button');
-      muteBtn.className = 'video-control-button';
-      muteBtn.innerHTML = iconSvgs.mute;
-
-      const progressBarContainer = document.createElement('div');
-      progressBarContainer.className = 'video-progress-bar-container';
-      
-      const progressBarFill = document.createElement('div');
-      progressBarFill.className = 'video-progress-bar-fill';
-      
-      topControls.appendChild(playPauseBtn);
-      topControls.appendChild(muteBtn);
-      progressBarContainer.appendChild(progressBarFill);
-      controlsOverlay.appendChild(topControls);
-      controlsOverlay.appendChild(progressBarContainer);
-      container.appendChild(controlsOverlay);
-
-      const togglePlay = () => {
-          if (foregroundVideo.paused) {
-              // Pause all other videos before playing this one.
-              document.querySelectorAll('video').forEach(vid => {
-                  if (vid !== foregroundVideo && vid !== backgroundVideo) {
-                      vid.pause();
-                  }
-              });
-              foregroundVideo.play();
-              backgroundVideo?.play();
-          } else {
-              foregroundVideo.pause();
-              backgroundVideo?.pause();
-          }
-      };
-      
-      const updatePlayButton = () => {
-          playPauseBtn.innerHTML = foregroundVideo.paused ? iconSvgs.play : iconSvgs.pause;
-          controlsOverlay.classList.toggle('is-paused', foregroundVideo.paused);
-      };
-
-      const toggleMute = () => {
-          // Only the foreground video gets unmuted. Background stays muted.
-          foregroundVideo.muted = !foregroundVideo.muted;
-      };
-
-      const updateMuteButton = () => {
-          muteBtn.innerHTML = foregroundVideo.muted ? iconSvgs.mute : iconSvgs.volume;
-      };
-
-      const updateProgress = () => {
-          if (foregroundVideo.duration > 0) {
-              const progress = (foregroundVideo.currentTime / foregroundVideo.duration) * 100;
-              progressBarFill.style.width = `${progress}%`;
-          }
-      };
-
-      const seek = (e: MouseEvent) => {
-          const rect = progressBarContainer.getBoundingClientRect();
-          const pos = (e.pageX - rect.left) / rect.width;
-          const seekTime = pos * foregroundVideo.duration;
-          foregroundVideo.currentTime = seekTime;
-          if (backgroundVideo) backgroundVideo.currentTime = seekTime;
-      };
-
-      playPauseBtn.onclick = (e) => { e.stopPropagation(); togglePlay(); };
-      container.onclick = (e) => { 
-          if (!(e.target as HTMLElement).closest('button, a, .video-progress-bar-container')) { 
-              togglePlay(); 
-          } 
-      };
-      muteBtn.onclick = (e) => { e.stopPropagation(); toggleMute(); };
-      progressBarContainer.onclick = (e) => { e.stopPropagation(); seek(e); };
-      
-      foregroundVideo.onplay = updatePlayButton;
-      foregroundVideo.onpause = updatePlayButton;
-      foregroundVideo.onvolumechange = updateMuteButton;
-      foregroundVideo.ontimeupdate = updateProgress;
-      
-      // Set initial button states once data is loaded
-      foregroundVideo.onloadeddata = () => { 
-          updateMuteButton(); 
-          updatePlayButton(); 
-          // Sometimes browsers autoplay muted videos, let's sync the background
-          if (!foregroundVideo.paused && backgroundVideo) {
-              backgroundVideo.play();
-          }
-      };
-      
-      // Also sync background if foreground is already playing (e.g., from an autoplay attribute)
-      if (backgroundVideo && !foregroundVideo.paused) {
-          backgroundVideo.play();
+      const playPauseOverlay = () => {
+        const overlay = document.createElement('div');
+        overlay.className = "absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-20 pointer-events-none";
+        
+        const iconContainer = document.createElement('div');
+        iconContainer.className = "h-16 w-16 bg-black/50 rounded-full flex items-center justify-center";
+        
+        const playIcon = document.createElement('div');
+        playIcon.innerHTML = iconSvgs.play;
+        playIcon.className = "text-white";
+        
+        iconContainer.appendChild(playIcon);
+        overlay.appendChild(iconContainer);
+        return overlay;
       }
+      
+      const overlay = playPauseOverlay();
+      container.appendChild(overlay);
+
+      foregroundVideo.onplay = () => overlay.style.display = 'none';
+      foregroundVideo.onpause = () => overlay.style.display = 'flex';
+
+      container.onclick = (e) => { 
+        if (!(e.target as HTMLElement).closest('button, a')) {
+           if (foregroundVideo.paused) {
+             foregroundVideo.play();
+           } else {
+             foregroundVideo.pause();
+           }
+        } 
+      };
 
       container.dataset.videoEnhanced = 'true';
     };
@@ -603,68 +529,37 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
               {blog.coverImageUrl && (
                 <div className={cn(
                     "relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black group/videocontainer",
-                    blog.coverMediaType === 'video' && 'video-container media-container',
-                    blog.coverMediaType === 'image' && 'media-container'
+                    blog.coverMediaType === 'video' && 'video-container'
                 )}>
                   {blog.coverMediaType === 'video' ? (
-                     <>
-                      {/* Background Blurred Video */}
-                      <video
-                        key={`${blog.id}-bg-video`}
-                        src={blog.coverImageUrl}
-                        loop muted playsInline
-                        onLoadedData={() => setIsCoverLoaded(true)}
-                        className={cn(
-                          "absolute inset-0 w-full h-full object-cover filter blur-xl scale-110 transition-opacity duration-500",
-                          isCoverLoaded ? "opacity-70" : "opacity-0"
-                        )}
-                        aria-hidden="true"
-                      />
-                      {/* Foreground Contained Video */}
-                      <video
-                        key={`${blog.id}-fg-video`}
+                     <video
+                        key={`${blog.id}-cover-video`}
                         src={blog.coverImageUrl}
                         playsInline
                         loop
                         muted
                         className={cn(
-                          "relative z-10 w-full h-full object-contain drop-shadow-lg transition-opacity duration-500 media-item",
+                          "relative z-10 w-full h-full object-contain drop-shadow-lg transition-opacity duration-500",
                           isCoverLoaded ? "opacity-100" : "opacity-0"
                         )}
+                        onLoadedData={() => setIsCoverLoaded(true)}
                         data-ai-hint="video cover"
                       />
-                    </>
                   ) : (
-                    <>
-                      {/* Background Blurred Image */}
-                      <Image
-                        src={blog.coverImageUrl}
-                        alt="" // Decorative
-                        fill
-                        style={{objectFit: 'cover'}}
-                        className={cn(
-                            "filter blur-xl scale-110 transition-opacity duration-500",
-                            isCoverLoaded ? "opacity-70" : "opacity-0"
-                        )}
-                        aria-hidden="true"
-                        priority
-                      />
-                      {/* Foreground Contained Image */}
-                      <Image
-                        src={blog.coverImageUrl}
-                        alt={blog.title}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 896px"
-                        style={{objectFit: 'contain'}}
-                        className={cn(
-                            "relative z-10 drop-shadow-lg transition-opacity duration-500 media-item",
-                            isCoverLoaded ? "opacity-100" : "opacity-0"
-                        )}
-                        priority
-                        onLoad={() => setIsCoverLoaded(true)}
-                        data-ai-hint={isGeneratedCover ? "generated banner" : "blog hero"}
-                      />
-                    </>
+                    <Image
+                      src={optimizeCloudinaryImage(blog.coverImageUrl)}
+                      alt={blog.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 896px"
+                      style={{objectFit: 'contain'}}
+                      className={cn(
+                          "relative z-10 drop-shadow-lg transition-opacity duration-500",
+                          isCoverLoaded ? "opacity-100" : "opacity-0"
+                      )}
+                      priority
+                      onLoad={() => setIsCoverLoaded(true)}
+                      data-ai-hint={isGeneratedCover ? "generated banner" : "blog hero"}
+                    />
                   )}
                   {isCoverLoaded && blog.coverImageUrl && (
                     <Button
@@ -673,9 +568,11 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                         className="absolute top-2 right-2 text-white bg-black/30 hover:bg-black/50 opacity-0 group-hover/videocontainer:opacity-100 transition-opacity z-30 h-10 w-10 flex items-center justify-center rounded-full"
                         title="View fullscreen"
                         aria-label="View fullscreen"
-                        data-lightbox-button="true"
-                        onClick={(e) => e.stopPropagation()} // Prevent click from bubbling to the container's play/pause
-                    >
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLightboxMedia({ src: blog.coverImageUrl!, type: blog.coverMediaType || 'image' });
+                        }}
+                      >
                         <Maximize className="h-6 w-6" />
                     </Button>
                   )}
@@ -819,7 +716,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                   <h3 className="text-lg font-semibold mb-2 text-foreground">Tags:</h3>
                   <div className="flex flex-wrap gap-2">
                     {blog.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-sm">{tag}</Badge>
+                      <Link href={`/tags/${encodeURIComponent(tag.toLowerCase())}`} key={tag}>
+                        <Badge variant="secondary" className="text-sm cursor-pointer hover:bg-primary/20 transition-colors">{tag}</Badge>
+                      </Link>
                     ))}
                   </div>
                 </div>
