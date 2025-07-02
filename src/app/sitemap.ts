@@ -1,3 +1,4 @@
+
 import { MetadataRoute } from 'next';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
@@ -13,14 +14,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const q = query(blogsCol, where('status', '==', 'published'));
   const snapshot = await getDocs(q);
 
-  // 2. Create blog post URLs and gather all unique tags
-  const allTags = new Set<string>();
+  // 2. Create blog post URLs and count tag frequencies
+  const tagCounts: Record<string, number> = {};
   const blogPosts = snapshot.docs.map(doc => {
     const data = doc.data() as Blog;
     if (data.tags && Array.isArray(data.tags)) {
         data.tags.forEach(tag => {
           if (typeof tag === 'string' && tag.trim() !== '') {
-            allTags.add(tag.trim());
+            const cleanTag = tag.trim();
+            tagCounts[cleanTag] = (tagCounts[cleanTag] || 0) + 1;
           }
         });
     }
@@ -32,8 +34,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
   });
   
-  // 3. Create tag page URLs using slugs
-  const tagRoutes = Array.from(allTags).map(tag => ({
+  // 3. Get top 10 tags and create their page URLs
+  const sortedTags = Object.entries(tagCounts)
+    .sort(([, countA], [, countB]) => countB - countA)
+    .slice(0, 10)
+    .map(([tag]) => tag);
+
+  const tagRoutes = sortedTags.map(tag => ({
     url: `${baseUrl}/tags/${slugify(tag)}`,
     lastModified: new Date(),
     changeFrequency: 'monthly' as const,
