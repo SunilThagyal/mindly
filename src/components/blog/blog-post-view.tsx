@@ -529,8 +529,9 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
             <div id="reading-content-container">
               {blog.coverImageUrl && (
                 <div className={cn(
-                    "relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg bg-black group/videocontainer",
-                    blog.coverMediaType === 'video' && 'video-container'
+                    "relative w-full h-72 sm:h-96 rounded-lg overflow-hidden mb-8 shadow-lg group/videocontainer",
+                    blog.coverMediaType === 'video' && 'video-container bg-black',
+                    blog.coverMediaType !== 'video' && !isCoverLoaded && 'shimmer'
                 )}>
                   {blog.coverMediaType === 'video' ? (
                      <video
@@ -540,7 +541,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                         loop
                         muted
                         className={cn(
-                          "relative z-10 w-full h-full object-contain drop-shadow-lg transition-opacity duration-500",
+                          "relative z-10 w-full h-full object-contain drop-shadow-lg",
                           isCoverLoaded ? "opacity-100" : "opacity-0"
                         )}
                         onLoadedData={() => setIsCoverLoaded(true)}
@@ -554,7 +555,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 896px"
                       style={{objectFit: 'contain'}}
                       className={cn(
-                          "relative z-10 drop-shadow-lg transition-opacity duration-500",
+                          "relative z-10 drop-shadow-lg",
                           isCoverLoaded ? "opacity-100" : "opacity-0"
                       )}
                       priority

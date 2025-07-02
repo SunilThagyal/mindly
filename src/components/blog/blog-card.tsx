@@ -11,6 +11,7 @@ import { useEarningsSettings } from '@/context/earnings-settings-context';
 import { useAuth } from '@/context/auth-context'; // Import useAuth
 import React, { useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { optimizeCloudinaryImage } from '../../lib/cloudinary';
 
 interface BlogCardProps {
   blog: Blog;
@@ -71,7 +72,10 @@ const BlogCard = React.memo(function BlogCard({ blog, priority = false }: BlogCa
       tabIndex={blog.coverMediaType === 'video' ? 0 : -1} // Make it focusable only if it's a video
     >
       <Link href={`/blog/${blog.slug}`} className="block">
-        <div className="relative w-full h-48 sm:h-56 bg-black overflow-hidden">
+        <div className={cn(
+          "relative w-full h-48 sm:h-56 overflow-hidden",
+          blog.coverMediaType === 'video' ? 'bg-black' : !isMediaLoaded && 'shimmer'
+        )}>
            {blog.coverMediaType === 'video' ? (
              <>
               {/* Blurred background video */}
@@ -83,7 +87,7 @@ const BlogCard = React.memo(function BlogCard({ blog, priority = false }: BlogCa
                 preload="metadata"
                 onLoadedData={() => setIsMediaLoaded(true)}
                 className={cn(
-                  "absolute inset-0 w-full h-full object-cover filter blur-lg scale-110 transition-opacity duration-500",
+                  "absolute inset-0 w-full h-full object-cover filter blur-lg scale-110",
                   isMediaLoaded ? "opacity-70" : "opacity-0"
                 )}
                 aria-hidden="true"
@@ -96,7 +100,7 @@ const BlogCard = React.memo(function BlogCard({ blog, priority = false }: BlogCa
                 loop muted playsInline
                 preload="metadata"
                 className={cn(
-                  "relative z-10 w-full h-full object-contain drop-shadow-lg transition-opacity duration-500",
+                  "relative z-10 w-full h-full object-contain drop-shadow-lg",
                    isMediaLoaded ? "opacity-100" : "opacity-0"
                 )}
                 data-ai-hint="video cover"
@@ -106,13 +110,13 @@ const BlogCard = React.memo(function BlogCard({ blog, priority = false }: BlogCa
              <>
                 {/* Blurred background image */}
                 <Image
-                    src={blog.coverImageUrl || `https://placehold.co/600x400.png`}
+                    src={optimizeCloudinaryImage(blog.coverImageUrl)}
                     alt="" // Decorative
                     fill
                     sizes="(max-width: 768px) 100vw, 50vw"
                     style={{objectFit: 'cover'}}
                     className={cn(
-                        "filter blur-lg scale-110 transition-opacity duration-500",
+                        "filter blur-lg scale-110",
                         isMediaLoaded ? "opacity-70" : "opacity-0"
                     )}
                     aria-hidden="true"
@@ -120,13 +124,13 @@ const BlogCard = React.memo(function BlogCard({ blog, priority = false }: BlogCa
                 />
                 {/* Main, contained image */}
                 <Image
-                    src={blog.coverImageUrl || `https://placehold.co/600x400.png`}
+                    src={optimizeCloudinaryImage(blog.coverImageUrl)}
                     alt={blog.title}
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     style={{objectFit: 'contain'}}
                     className={cn(
-                        "relative z-10 drop-shadow-lg transition-opacity duration-500",
+                        "relative z-10 drop-shadow-lg",
                         isMediaLoaded ? "opacity-100" : "opacity-0"
                     )}
                     data-ai-hint={isGeneratedCover ? "generated banner" : (blog.coverImageUrl ? "article cover" : "placeholder")}
