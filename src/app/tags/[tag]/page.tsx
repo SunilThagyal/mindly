@@ -8,7 +8,14 @@ import { siteConfig } from '@/config/site';
 import type { Metadata } from 'next';
 
 interface TagPageProps {
-  params: { tag: string };
+  params: { tag: string }; // e.g., "web-development"
+}
+
+// Helper to convert slug back to a displayable, capitalized tag
+function formatTagFromSlug(slug: string): string {
+  return slug
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
 }
 
 // Helper to map a Firestore document to the Blog type, ensuring ID is included
@@ -38,38 +45,47 @@ const mapDocToBlog = (doc: DocumentData): Blog => {
   } as Blog;
 };
 
-async function getBlogsByTag(tag: string): Promise<Blog[]> {
+// The tag parameter is now a slug, e.g., "web-development"
+async function getBlogsByTag(tagSlug: string): Promise<Blog[]> {
   const blogsCol = collection(db, 'blogs');
   
+  // "web-development" -> "web development"
+  const originalTagText = tagSlug.replace(/-/g, ' ');
+
+  // Firestore's `array-contains` is case-sensitive. To provide a better experience,
+  // we'll check for a few common casings using `array-contains-any`.
+  const possibleTags = [
+    originalTagText, // exact match
+    originalTagText.toLowerCase(),
+    originalTagText.toUpperCase(),
+    // "web development" -> "Web Development"
+    originalTagText.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' '),
+  ];
+  const uniquePossibleTags = [...new Set(possibleTags)];
+
   const q = query(
     blogsCol,
     where('status', '==', 'published'),
-    where('tags', 'array-contains', tag),
+    where('tags', 'array-contains-any', uniquePossibleTags),
     orderBy('publishedAt', 'desc')
   );
 
-  let snapshot: QuerySnapshot<DocumentData>;
-  snapshot = await getDocs(q);
+  const snapshot = await getDocs(q);
 
-  // If the initial query returns no results, try a case-insensitive fallback (e.g., 'React' vs 'react')
-  if (snapshot.empty) {
-    const qCaseInsensitive = query(
-        blogsCol,
-        where('status', '==', 'published'),
-        where('tags', 'array-contains', tag.charAt(0).toUpperCase() + tag.slice(1)),
-        orderBy('publishedAt', 'desc')
-      );
-    snapshot = await getDocs(qCaseInsensitive);
-  }
+  // Since `array-contains-any` could potentially match tags with similar words but different full text,
+  // we perform a final filter in code to ensure we only show posts for the exact tag (case-insensitively).
+  const matchingBlogs = snapshot.docs
+    .map(mapDocToBlog)
+    .filter(blog => 
+      blog.tags.some(t => t.toLowerCase() === originalTagText.toLowerCase())
+    );
 
-  // Use the helper function to ensure 'id' is always mapped correctly
-  return snapshot.docs.map(mapDocToBlog);
+  return matchingBlogs;
 }
 
 
 export async function generateMetadata({ params }: TagPageProps): Promise<Metadata> {
-  const decodedTag = decodeURIComponent(params.tag);
-  const capitalizedTag = decodedTag.charAt(0).toUpperCase() + decodedTag.slice(1);
+  const capitalizedTag = formatTagFromSlug(params.tag);
 
   return {
     title: `Posts tagged with "${capitalizedTag}"`,
@@ -86,8 +102,7 @@ export default async function TagPage({ params }: TagPageProps) {
     notFound();
   }
 
-  const decodedTag = decodeURIComponent(params.tag);
-  const blogsFromDB = await getBlogsByTag(decodedTag);
+  const blogsFromDB = await getBlogsByTag(params.tag);
 
   // Serialize the blogs array to make it safe to pass to the client component
   const blogs = blogsFromDB.map(blog => ({
@@ -97,7 +112,7 @@ export default async function TagPage({ params }: TagPageProps) {
     publishedAt: blog.publishedAt ? JSON.parse(JSON.stringify(blog.publishedAt)) : null,
   }));
 
-  const capitalizedTag = decodedTag.charAt(0).toUpperCase() + decodedTag.slice(1);
+  const capitalizedTag = formatTagFromSlug(params.tag);
 
   return (
     <div className="container mx-auto px-4 py-8">

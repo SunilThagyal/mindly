@@ -3,6 +3,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { siteConfig } from '@/config/site';
 import type { Blog } from '@/lib/types';
+import { slugify } from '@/lib/helpers';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = siteConfig.url;
@@ -17,7 +18,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const blogPosts = snapshot.docs.map(doc => {
     const data = doc.data() as Blog;
     if (data.tags && Array.isArray(data.tags)) {
-        data.tags.forEach(tag => allTags.add(tag));
+        data.tags.forEach(tag => {
+          if (typeof tag === 'string' && tag.trim() !== '') {
+            allTags.add(tag.trim());
+          }
+        });
     }
     return {
       url: `${baseUrl}/blog/${data.slug}`,
@@ -27,24 +32,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
   });
   
-  // 3. Create tag page URLs
+  // 3. Create tag page URLs using slugs
   const tagRoutes = Array.from(allTags).map(tag => ({
-    url: `${baseUrl}/tags/${encodeURIComponent(tag.toLowerCase())}`,
+    url: `${baseUrl}/tags/${slugify(tag)}`,
     lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.5,
+    changeFrequency: 'monthly' as const,
+    priority: 0.4,
   }));
 
   // 4. Define static page routes
   const staticRoutes = [
-    '', // Homepage
-    '/about-us',
-    '/how-it-works',
-    '/contact-us',
-    '/privacy-policy',
-    '/terms-and-conditions',
+    '', 
+    'about-us',
+    'how-it-works',
+    'contact-us',
+    'privacy-policy',
+    'terms-and-conditions',
   ].map((route) => ({
-    url: `${baseUrl}${route}`,
+    url: `${baseUrl}/${route}`,
     lastModified: new Date(),
     changeFrequency: 'monthly' as const,
     priority: route === '' ? 1 : 0.8,

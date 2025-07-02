@@ -36,6 +36,7 @@ import MediaLightbox from '@/components/media/media-lightbox';
 import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
 import { optimizeCloudinaryImage } from '@/lib/cloudinary';
+import { slugify } from '@/lib/helpers';
 
 const RelatedPostsSkeleton = () => (
     <section className="mt-12 pt-8 border-t">
@@ -716,7 +717,7 @@ export default function BlogPostView({ blog: initialBlog, authorProfile }: BlogP
                   <h3 className="text-lg font-semibold mb-2 text-foreground">Tags:</h3>
                   <div className="flex flex-wrap gap-2">
                     {blog.tags.map((tag) => (
-                      <Link href={`/tags/${encodeURIComponent(tag.toLowerCase())}`} key={tag}>
+                      <Link href={`/tags/${slugify(tag)}`} key={tag}>
                         <Badge variant="secondary" className="text-sm cursor-pointer hover:bg-primary/20 transition-colors">{tag}</Badge>
                       </Link>
                     ))}
