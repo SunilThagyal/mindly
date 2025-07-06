@@ -4,8 +4,9 @@
 import { usePathname, useSearchParams } from 'next/navigation';
 import Script from 'next/script';
 import { useEffect } from 'react';
+import { firebaseConfig } from '@/lib/firebase';
 
-const GA_TRACKING_ID = process.env.NEXT_PUBLIC_GA_ID;
+const GA_TRACKING_ID = firebaseConfig.measurementId;
 
 const GoogleAnalytics = () => {
   const pathname = usePathname();
@@ -15,7 +16,7 @@ const GoogleAnalytics = () => {
     if (!GA_TRACKING_ID) {
       if (process.env.NODE_ENV === 'development') {
         console.warn(
-          'Google Analytics is disabled. Set NEXT_PUBLIC_GA_ID in your .env file to enable it.'
+          'Google Analytics is disabled. Measurement ID not found in firebaseConfig.'
         );
       }
       return;
